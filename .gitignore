@@ -216,3 +216,17 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---------------------------------------------------------------------------
+# Project-specific
+# ---------------------------------------------------------------------------
+
+# macOS
+.DS_Store
+
+# JetBrains IDE
+.idea/
+
+# Local datasets: too large for Git, see data/README.md
+data/*
+!data/README.md

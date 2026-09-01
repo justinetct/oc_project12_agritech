@@ -1,0 +1,20 @@
+[project]
+name = "agritech-answers"
+version = "0.1.0"
+description = "Crop yield prediction and crop recommendation from field conditions"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "pandas (>=2.2,<3.0)",
+    "numpy (>=2.0,<3.0)",
+    "scikit-learn (>=1.5,<2.0)",
+    "matplotlib (>=3.9,<4.0)",
+    "ipykernel (>=6.29,<7.0)",
+]
+
+[tool.poetry]
+packages = [{ include = "agritech", from = "src" }]
+
+[build-system]
+requires = ["poetry-core>=2.0"]
+build-backend = "poetry.core.masonry.api"
