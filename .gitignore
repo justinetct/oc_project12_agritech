@@ -230,3 +230,6 @@ __marimo__/
 # Local datasets: too large for Git, see data/README.md
 data/*
 !data/README.md
+
+# Rapports de profiling générés (regénérables depuis les notebooks)
+docs/*.html
