@@ -53,5 +53,7 @@ industrialisation).
 
 ## État actuel
 
-Initialisation du projet : environnement Poetry, structure de base et
-documentation. Aucune analyse ni modélisation n'a encore été réalisée.
+L'analyse exploratoire du dataset Agriculture CropYield est terminée.
+Une ACP a également été réalisée pour étudier la structure des variables.
+
+L'analyse du second dataset et la stratégie de consolidation des deux sources sont en cours.
