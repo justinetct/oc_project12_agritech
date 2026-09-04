@@ -14,6 +14,9 @@ import pandas as pd
 import seaborn as sns
 
 
+BINS_DEFAUT = 30
+
+
 def use_inline_backend() -> None:
     """Réactive l'affichage des figures dans le notebook.
 
@@ -57,9 +60,10 @@ def _draw_distrib(
     hist_color: str = "steelblue",
     box_color: str = "skyblue",
     xlabel: str = "Valeurs",
+    bins: int = BINS_DEFAUT,
 ) -> None:
     """Trace un histogramme et son boxplot sur deux axes déjà créés."""
-    sns.histplot(values, kde=True, ax=ax_hist, color=hist_color, bins=30)
+    sns.histplot(values, kde=True, ax=ax_hist, color=hist_color, bins=bins)
     ax_hist.set_ylabel("Fréquence")
     ax_hist.set_title(title)
     _zoom_y_on_bars(ax_hist)
@@ -68,18 +72,24 @@ def _draw_distrib(
     ax_box.set_xlabel(xlabel)
 
 
-def plot_distrib(df: pd.DataFrame, col: str, do_log: bool = False) -> None:
+def plot_distrib(
+    df: pd.DataFrame, col: str, do_log: bool = False, bins: int = BINS_DEFAUT
+) -> None:
     """Affiche la distribution d'une variable numérique.
 
     Histogramme avec courbe de densité en haut, boxplot en dessous.
     Avec `do_log=True`, la transformation log1p est affichée en regard.
+
+    Sur une variable discrète, laisser `bins` au-dessus du nombre de valeurs
+    distinctes laisse des barres vides : certains intervalles tombent entre
+    deux valeurs possibles. Passer alors le nombre de valeurs distinctes.
     """
     use_inline_backend()
     values = df[col].dropna()
 
     if do_log:
         fig, axes = plt.subplots(2, 2, figsize=(10, 6), height_ratios=[3, 1])
-        _draw_distrib(values, axes[0, 0], axes[1, 0], "Distribution des valeurs")
+        _draw_distrib(values, axes[0, 0], axes[1, 0], "Distribution des valeurs", bins=bins)
         _draw_distrib(
             np.log1p(values),
             axes[0, 1],
@@ -88,20 +98,32 @@ def plot_distrib(df: pd.DataFrame, col: str, do_log: bool = False) -> None:
             hist_color="orange",
             box_color="gold",
             xlabel="Valeurs (log1p)",
+            bins=bins,
         )
     else:
         fig, axes = plt.subplots(2, 1, figsize=(10, 6), height_ratios=[3, 1])
-        _draw_distrib(values, axes[0], axes[1], "Distribution des valeurs")
+        _draw_distrib(values, axes[0], axes[1], "Distribution des valeurs", bins=bins)
 
     fig.suptitle(col, fontsize=14, fontweight="bold", y=1.03)
     plt.tight_layout()
     plt.show()
 
 
-def plot_distribs(df: pd.DataFrame, cols: list[str], ncols: int = 2) -> None:
+def plot_distribs(
+    df: pd.DataFrame,
+    cols: list[str],
+    ncols: int = 2,
+    bins: int | dict[str, int] = BINS_DEFAUT,
+) -> None:
     """Affiche les distributions de plusieurs variables dans une seule figure.
 
     Chaque variable occupe deux axes superposés : histogramme puis boxplot.
+
+    Un entier pour `bins` s'applique à toutes les variables. Un dictionnaire
+    permet de traiter chaque colonne séparément, ce qui est utile lorsqu'une
+    variable discrète voisine avec une variable continue :
+    `bins={"Year": 27}`. Les colonnes absentes du dictionnaire gardent la
+    valeur par défaut.
     """
     use_inline_backend()
     nrows = -(-len(cols) // ncols)  # arrondi supérieur
@@ -116,8 +138,13 @@ def plot_distribs(df: pd.DataFrame, cols: list[str], ncols: int = 2) -> None:
 
     for position, col in enumerate(cols):
         ligne, colonne = divmod(position, ncols)
+        nb_bins = bins.get(col, BINS_DEFAUT) if isinstance(bins, dict) else bins
         _draw_distrib(
-            df[col].dropna(), axes[2 * ligne, colonne], axes[2 * ligne + 1, colonne], col
+            df[col].dropna(),
+            axes[2 * ligne, colonne],
+            axes[2 * ligne + 1, colonne],
+            col,
+            bins=nb_bins,
         )
 
     for position in range(len(cols), nrows * ncols):  # cases d'une grille incomplète
