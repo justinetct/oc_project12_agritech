@@ -25,6 +25,7 @@ class Paths:
     data: Path
     data_agriculture_crop_yield: Path
     data_crop_yield_prediction: Path
+    data_processed: Path
     docs: Path
     notebooks: Path
     src: Path
@@ -41,6 +42,7 @@ def get_paths() -> Paths:
         data=data_dir,
         data_agriculture_crop_yield=data_dir / "agriculture-crop-yield",
         data_crop_yield_prediction=data_dir / "crop-yield-prediction",
+        data_processed=data_dir / "processed",
         docs=root / "docs",
         notebooks=root / "notebooks",
         src=root / "src",
