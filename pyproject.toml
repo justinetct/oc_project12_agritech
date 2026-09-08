@@ -22,3 +22,8 @@ packages = [{ include = "agritech", from = "src" }]
 [build-system]
 requires = ["poetry-core>=2.0"]
 build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "markdown (>=3.6)"
+]

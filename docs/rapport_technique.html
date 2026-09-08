@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rapport technique — Agritech Answers</title>
+<meta name="description" content="Contexte métier, exploration des deux jeux de données, ACP, consolidation des sources historiques et préparation des jeux d'entraînement des services /predict et /recommend.">
+<link rel="icon" href="assets/logo_agritech.png">
+<link rel="stylesheet" href="assets/report.css">
+</head>
+<body>
+  <header class="topbar">
+    <img src="assets/logo_agritech.png" alt="Agritech Answers">
+    <span class="title">Rapport technique</span>
+    <span class="spacer"></span>
+    <span class="pill">Étape données · v1</span>
+  </header>
+
+  <div class="shell">
+    <nav class="nav">
+      <div class="nav-label">Sur cette page</div>
+      <ul class="sidebar-toc">
+        <li><a href="#1-objectifs-du-projet"><span class="num">01</span><span class="lbl">Objectifs du projet</span></a></li>
+        <li><a href="#2-données-disponibles"><span class="num">02</span><span class="lbl">Données disponibles</span></a></li>
+        <li><a href="#3-analyse-du-dataset-agriculture-cropyield"><span class="num">03</span><span class="lbl">Analyse du dataset Agriculture CropYield</span></a></li>
+        <li><a href="#4-analyse-du-dataset-cropyield-prediction"><span class="num">04</span><span class="lbl">Analyse du dataset CropYield Prediction</span></a></li>
+        <li><a href="#5-comparaison-des-deux-datasets"><span class="num">05</span><span class="lbl">Comparaison des deux datasets</span></a></li>
+        <li><a href="#6-préparation-des-données-dentraînement"><span class="num">06</span><span class="lbl">Préparation des données d&#x27;entraînement</span></a></li>
+        <li><a href="#7-limites-identifiées"><span class="num">07</span><span class="lbl">Limites identifiées</span></a></li>
+        <li><a href="#8-suite-du-projet"><span class="num">08</span><span class="lbl">Suite du projet</span></a></li>
+      </ul>
+    </nav>
+
+    <main class="content">
+      <section class="hero">
+        <div class="hero-row">
+          <img src="assets/logo_agritech.png" alt="">
+          <div>
+            <div class="eyebrow">Données &amp; modélisation</div>
+            <div class="hero-org">Agritech Answers</div>
+          </div>
+        </div>
+        <h1>Rapport technique</h1>
+        <p class="hero-subtitle">Système de prédiction de rendement et de recommandation de cultures</p>
+        <p class="lead">Contexte métier, exploration des deux jeux de données, ACP, consolidation des sources historiques et préparation des jeux d'entraînement des services /predict et /recommend.</p>
+        <div class="badges">
+          <span>Python 3.12</span>
+          <span>pandas</span>
+          <span>scikit-learn</span>
+          <span>1 M lignes parcellaires</span>
+          <span>168 pays · 1990-2013</span>
+        </div>
+      </section>
+
+      <div class="callout callout-note">
+        <div class="callout-header"><span aria-hidden="true">◆</span>Note</div>
+        <div class="callout-body">
+      <p>Ce rapport couvre la préparation des données : contexte, exploration, ACP, consolidation
+      des sources et jeux d'entraînement. La modélisation, le suivi des expériences, l'API et le
+      déploiement seront ajoutés dans les prochaines versions du rapport. Aucun résultat de modèle
+      n'est donné ici.</p>
+      </div>
+      </div>
+
+      <h2 id="1-objectifs-du-projet">1. Objectifs du projet</h2>
+      <p>Agritech Answers veut proposer aux agriculteurs une application web qui répond à deux
+      questions. Dans la première, la culture est déjà choisie. Dans la seconde, c'est justement le
+      choix de la culture qui est en jeu. La différence a l'air minime, mais c'est elle qui explique
+      toute l'organisation des données décrite ici.</p>
+      <h3 id="predict-estimer-un-rendement"><code>/predict</code> — estimer un rendement</h3>
+      <p>L'utilisateur choisit une culture et décrit les conditions de sa parcelle : pluie de la
+      saison, température moyenne, type de sol, engrais et irrigation. Le service renvoie une
+      estimation du rendement, en tonnes par hectare.</p>
+      <p>On raisonne à l'échelle d'<strong>une parcelle, sur une saison</strong>.</p>
+      <h3 id="recommend-classer-les-cultures"><code>/recommend</code> — classer les cultures</h3>
+      <p>L'utilisateur indique son pays. L'application récupère le contexte historique de ce pays,
+      estime le rendement de chaque culture possible, puis renvoie un classement par rendement
+      décroissant. La culture recommandée est donc celle dont le rendement prédit est le plus élevé.</p>
+      <p>Ici, il faut <strong>comparer les cultures entre elles</strong>.</p>
+      <h3 id="pourquoi-deux-jeux-de-données-et-deux-modèles">Pourquoi deux jeux de données et deux modèles</h3>
+      <p>Pour classer des cultures, il faut que la culture change le rendement prédit. Sinon le
+      classement ne veut rien dire. Or dans le jeu de données parcellaire, les six cultures donnent
+      le même rendement à conditions comparables : 0,03 t/ha d'écart au maximum, à température
+      comparable (section 3). Ce jeu convient donc à <code>/predict</code>, mais pas à un classement.</p>
+      <p>Le second jeu, historique et à l'échelle du pays, sépare bien mieux les cultures : jusqu'à
+      3,3 t/ha d'écart entre elles à climat comparable (section 5). En revanche, il ne décrit aucune
+      parcelle.</p>
+      <p>Chaque service utilise donc le jeu qui répond à sa question, et les lignes des deux jeux ne
+      sont jamais mises bout à bout.</p>
+      <h2 id="2-données-disponibles">2. Données disponibles</h2>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th></th>
+      <th><strong>Agriculture CropYield</strong></th>
+      <th><strong>CropYield Prediction</strong></th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td>Une ligne</td>
+      <td>une parcelle sur une saison</td>
+      <td>un pays × une année × une culture</td>
+      </tr>
+      <tr>
+      <td>Volume brut</td>
+      <td>1 000 000 lignes × 10 colonnes</td>
+      <td>4 fichiers sources + une fusion fournie</td>
+      </tr>
+      <tr>
+      <td>Période</td>
+      <td>pas de dimension temporelle</td>
+      <td>1990-2013 après consolidation</td>
+      </tr>
+      <tr>
+      <td>Géographie</td>
+      <td>4 zones abstraites (North/East/South/West)</td>
+      <td>168 pays après harmonisation géographique</td>
+      </tr>
+      <tr>
+      <td>Cultures</td>
+      <td>6</td>
+      <td>10</td>
+      </tr>
+      <tr>
+      <td>Variables clés</td>
+      <td>pluie, température, sol, engrais, irrigation</td>
+      <td>rendement, température, pluie, pesticides</td>
+      </tr>
+      <tr>
+      <td>Cible</td>
+      <td><code>Yield_tons_per_hectare</code> (t/ha)</td>
+      <td><code>yield_t_ha</code> (t/ha, converti depuis hg/ha)</td>
+      </tr>
+      <tr>
+      <td>Usage retenu</td>
+      <td><strong><code>/predict</code></strong></td>
+      <td><strong><code>/recommend</code></strong></td>
+      </tr>
+      </tbody>
+      </table></div>
+      <p>Le second jeu arrive en cinq fichiers : quatre sources — <code>yield.csv</code>, <code>temp.csv</code>,
+      <code>rainfall.csv</code>, <code>pesticides.csv</code> — et <code>yield_df.csv</code>, qui est une fusion déjà faite des quatre
+      autres. Cette fusion n'est pas utilisée ; la section 4 explique pourquoi elle a été refaite.</p>
+      <p>Aucune clé ne relie les deux jeux. Le premier n'a ni pays ni année, et sa colonne <code>Region</code> ne
+      contient que North, East, South et West, qui ne correspondent à aucun territoire réel. Seule
+      la culture est commune aux deux jeux, et encore : 4 valeurs sur 6. Mettre les lignes bout à
+      bout supposerait que les deux jeux mesurent la même chose à la même échelle. Ce n'est le cas
+      ni pour la pluie, ni pour la température, ni pour le rendement.</p>
+      <h2 id="3-analyse-du-dataset-agriculture-cropyield">3. Analyse du dataset Agriculture CropYield</h2>
+      <p><strong>1 000 000 de lignes et 10 colonnes.</strong> Les types sont corrects et aucune valeur manquante ni
+      doublon n'est détecté.</p>
+      <p>Côté distributions, <code>Rainfall_mm</code>, <code>Temperature_Celsius</code> et <code>Days_to_Harvest</code> sont uniformes,
+      et la cible suit une courbe en cloche centrée sur 4,65 t/ha. Ces distributions ne présentent
+      pas d'asymétrie marquée : aucune transformation particulière n'est prévue à ce stade.</p>
+      <h3 id="variables-les-plus-liées-au-rendement">Variables les plus liées au rendement</h3>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Variable</th>
+      <th>Corrélation</th>
+      <th>Relation observée</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td><code>Rainfall_mm</code></td>
+      <td><strong>0,765</strong></td>
+      <td>la plus liée au rendement ; relation droite, dispersion constante</td>
+      </tr>
+      <tr>
+      <td><code>Fertilizer_Used</code></td>
+      <td><strong>0,442</strong></td>
+      <td><strong>+1,50 t/ha</strong> en moyenne</td>
+      </tr>
+      <tr>
+      <td><code>Irrigation_Used</code></td>
+      <td><strong>0,354</strong></td>
+      <td><strong>+1,20 t/ha</strong> en moyenne</td>
+      </tr>
+      <tr>
+      <td><code>Temperature_Celsius</code></td>
+      <td>0,086</td>
+      <td>+0,445 t/ha entre les tranches extrêmes, sans reculer</td>
+      </tr>
+      <tr>
+      <td><code>Days_to_Harvest</code></td>
+      <td>−0,003</td>
+      <td>aucune relation visible avec le rendement (0,029 t/ha d'amplitude)</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <figure><img width="1416" height="533" alt="Relation pluie / rendement et effet des pratiques agricoles" src="assets/figures/01_pluie_rendement.png" /><figcaption>Relation pluie / rendement et effet des pratiques agricoles</figcaption></figure>
+      <p>Les écarts entre les groupes restent similaires : sur le graphique de droite, les courbes sont
+      presque parallèles. Les variables d'entrée ne sont pas non plus corrélées entre elles
+      (|r| ≤ 0,003), donc chaque effet se lit séparément.</p>
+      <p>La température demande un mot de plus. Avec une corrélation de 0,086, on pourrait l'écarter.
+      Mais en découpant en tranches, le rendement moyen monte de 4,423 à 4,867 t/ha du plus froid au
+      plus chaud, sans jamais reculer. L'effet est petit comparé à la dispersion générale, mais il
+      est régulier. On garde donc la variable.</p>
+      <h3 id="variables-avec-peu-ou-pas-deffet-visible">Variables avec peu ou pas d'effet visible</h3>
+      <p><code>Region</code>, <code>Soil_Type</code>, <code>Crop</code> et <code>Weather_Condition</code> sont réparties de façon équilibrée et ne
+      montrent pas de différence notable sur le rendement : <strong>0,012 t/ha d'écart au maximum</strong> entre
+      modalités, soit 0,2 %.
+      À pluie comparable, les six cultures restent à 0,028 t/ha les unes des autres, et le gain
+      apporté par l'engrais va de +1,494 à +1,514 selon la culture. Les cultures ne se distinguent
+      donc pas davantage dans un contexte particulier.</p>
+      <p><code>Weather_Condition</code> n'a pas non plus de lien avec les mesures : la pluie moyenne vaut 549,5,
+      550,1 et 550,3 mm selon que la météo est déclarée ensoleillée, nuageuse ou pluvieuse.</p>
+      <div class="callout callout-important">
+        <div class="callout-header"><span aria-hidden="true">▲</span>Important</div>
+        <div class="callout-body">
+      <p><strong><code>/recommend</code> ne peut pas s'appuyer sur ce jeu de données.</strong> Classer six cultures qui
+      donnent le même rendement reviendrait à sortir un ordre au hasard. C'est ce constat qui nous
+      a poussés à explorer le second jeu.</p>
+      </div>
+      </div>
+      <h3 id="qualité-de-la-cible">Qualité de la cible</h3>
+      <p>Le rendement va de −1,15 à 9,96 t/ha, avec une moyenne et une médiane à 4,65. <strong>231 lignes
+      (0,023 %) ont un rendement négatif</strong>, ce qui n'a pas de sens physique : toutes sont sans
+      engrais ni irrigation, et 223 d'entre elles ont reçu moins de 200 mm de pluie. Ce sont des
+      valeurs très basses et très rares. Ce qu'on en fait est décidé à la section 6.</p>
+      <h3 id="analyse-en-composantes-principales">Analyse en composantes principales</h3>
+      <p>L'ACP permet de voir si plusieurs variables apportent une information similaire et peuvent être
+      regroupées. L'objectif est de vérifier si on peut simplifier les données en utilisant moins de
+      variables, sans perdre trop d'information.</p>
+      <p>L'ACP porte sur les six variables numériques, centrées-réduites, sur l'ensemble des lignes.
+      Les quatre variables texte sont laissées de côté : leur donner des numéros créerait des écarts
+      qui n'existent pas.</p>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Axe</th>
+      <th>F1</th>
+      <th>F2</th>
+      <th>F3</th>
+      <th>F4</th>
+      <th>F5</th>
+      <th>F6</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td>Inertie (%)</td>
+      <td><strong>32,58</strong></td>
+      <td>16,71</td>
+      <td>16,68</td>
+      <td>16,67</td>
+      <td>16,62</td>
+      <td>0,74</td>
+      </tr>
+      <tr>
+      <td>Cumul (%)</td>
+      <td>32,58</td>
+      <td>49,29</td>
+      <td>65,97</td>
+      <td>82,64</td>
+      <td>99,26</td>
+      <td>100,00</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <p>Un seul axe se détache. F2 à F5 sont pratiquement au même niveau, autour de 16,7 % chacun :
+      aucun ne ressort. Il faut 5 axes sur 6 pour couvrir 99 % de l'information.</p>
+      <figure><img width="1482" height="663" alt="Cercle des corrélations et plan factoriel coloré par culture" src="assets/figures/02_acp.png" /><figcaption>Cercle des corrélations et plan factoriel coloré par culture</figcaption></figure>
+      <p>F1 regroupe le rendement (0,99), la pluie (0,79), l'engrais (0,46) et l'irrigation (0,37),
+      tous dans le même sens : c'est l'axe du rendement, et il redit ce qu'on a vu plus haut.
+      <code>Days_to_Harvest</code> reste à l'écart (−0,01 sur F1) et se retrouve seule sur F4 (0,91).</p>
+      <p>Deux conclusions comptent pour la suite.</p>
+      <p><strong>L'ACP ne permet pas de réduire le nombre de variables.</strong> Refaite sans la cible — c'est le
+      cas réel, garder le rendement ferait entrer dans les composantes ce qu'on cherche à prédire —
+      chaque composante explique environ 20 % de la variance et aucune ne domine. Les cinq variables
+      explicatives sont peu corrélées entre elles : les regrouper ferait perdre de l'information. On
+      ne l'utilise donc pas comme prétraitement.</p>
+      <p><strong>Les cultures ne se séparent pas sur les plans factoriels.</strong> Leurs coordonnées moyennes
+      diffèrent de 0,010 au maximum sur F1, alors que les individus ont un écart-type de 1,398 sur
+      ce même axe. Le nuage de droite le montre : les six couleurs se recouvrent entièrement.</p>
+      <h2 id="4-analyse-du-dataset-cropyield-prediction">4. Analyse du dataset CropYield Prediction</h2>
+      <h3 id="pourquoi-refaire-la-fusion-fournie">Pourquoi refaire la fusion fournie</h3>
+      <p><code>yield_df.csv</code> assemble déjà les quatre sources. Deux défauts nous ont fait renoncer à
+      l'utiliser.</p>
+      <p>Le premier est une <strong>multiplication des lignes lors de la jointure avec la température</strong> (un
+      fan-out). La clé <code>(country, year)</code> de <code>temp.csv</code> n'est pas unique : un même couple pays / année
+      peut compter jusqu'à <strong>52 lignes</strong> (41 valeurs différentes une fois les doublons exacts
+      retirés). Si on joint sans moyenner d'abord, chaque rendement est recopié autant de fois. Les
+      pays concernés pèsent alors plus lourd que les autres à l'entraînement, et un découpage
+      aléatoire mettrait des copies d'une même ligne dans le train et dans le test — donc une fuite
+      de données.</p>
+      <p>Le second est une <strong>perte de pays à la jointure</strong>. <code>yield_df.csv</code> ne retient que 99 pays
+      cartographiables, alors que les quatre sources en ont <strong>117</strong> en commun. Une partie de cette
+      perte de 18 pays vient de différences de libellés, y compris pour de gros producteurs —
+      <code>United States of America</code> contre <code>United States</code>, <code>Russian Federation</code> contre <code>Russia</code>,
+      <code>China, mainland</code> contre <code>China</code>.</p>
+      <p>La fusion a donc été refaite à partir des quatre sources. Les noms de pays ont d'abord été
+      harmonisés vers des <strong>codes ISO3</strong>, ajoutés pendant la préparation, puis les jointures ont été
+      faites sur ces codes plutôt que sur les libellés d'origine.</p>
+      <h3 id="les-quatre-sources-et-leur-préparation">Les quatre sources et leur préparation</h3>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Source</th>
+      <th>Granularité</th>
+      <th>Période</th>
+      <th>Préparation</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td><code>yield.csv</code></td>
+      <td>pays × culture × année</td>
+      <td>1961-2016</td>
+      <td>conversion hg/ha → t/ha ; <code>China, mainland</code> retenu</td>
+      </tr>
+      <tr>
+      <td><code>temp.csv</code></td>
+      <td>pays × année × relevé</td>
+      <td>1743-2013</td>
+      <td>doublons exacts retirés, puis moyenne par pays et année</td>
+      </tr>
+      <tr>
+      <td><code>rainfall.csv</code></td>
+      <td>pays × année</td>
+      <td>1985-2017</td>
+      <td>en-tête nettoyé, conversion numérique forcée</td>
+      </tr>
+      <tr>
+      <td><code>pesticides.csv</code></td>
+      <td>pays × année</td>
+      <td>1990-2016</td>
+      <td>rien à faire, la clé est déjà unique</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <p>La période retenue, <strong>1990-2013</strong>, est ce que les quatre sources ont en commun :
+      <code>pesticides.csv</code> fixe la borne basse, <code>temp.csv</code> la borne haute.</p>
+      <p>Il a fallu trancher pour la Chine. <code>yield.csv</code> propose deux entités qui reçoivent le même
+      code ISO3 : <code>China</code> (avec Taïwan, Hong Kong et Macao) et <code>China, mainland</code> (Chine
+      continentale). Les trois autres sources traitent ces territoires à part, et <code>pesticides.csv</code>
+      n'a même pas de libellé <code>China</code>. On garde donc <code>China, mainland</code>, pour joindre des territoires
+      comparables. Sur les 448 couples (culture, année) où les deux entités coexistent, l'écart
+      relatif moyen n'est que de 0,26 %.</p>
+      <h3 id="le-dataset-consolidé">Le dataset consolidé</h3>
+      <p>La clé <code>iso3 + year + crop</code> est unique, et le nombre de lignes ne bouge pas au fil des trois
+      jointures : <strong>aucun fan-out</strong>.</p>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Caractéristique</th>
+      <th>Valeur</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td>Lignes</td>
+      <td><strong>22 679</strong></td>
+      </tr>
+      <tr>
+      <td>Pays</td>
+      <td><strong>168</strong></td>
+      </tr>
+      <tr>
+      <td>Cultures</td>
+      <td><strong>10</strong></td>
+      </tr>
+      <tr>
+      <td>Période</td>
+      <td><strong>1990-2013</strong> (24 années)</td>
+      </tr>
+      <tr>
+      <td>Colonnes</td>
+      <td><code>iso3</code>, <code>area</code>, <code>year</code>, <code>crop</code>, <code>yield_t_ha</code>, <code>avg_temp</code>, <code>rain_mm</code>, <code>pesticides_t</code></td>
+      </tr>
+      </tbody>
+      </table></div>
+      <p>Les valeurs manquantes sont gardées telles quelles — température 19,5 %, pesticides 13,1 %,
+      pluie 5,0 %. Les manquants de température et de pesticides correspondent surtout à des pays non
+      couverts par ces sources. <strong>69,1 % des lignes sont complètes, pour 117 pays</strong> : n'exiger que des
+      lignes complètes ferait passer de 168 à 117 pays.</p>
+      <h3 id="évolution-du-rendement-par-culture">Évolution du rendement par culture</h3>
+      <p>Le dataset couvre 24 années. On regarde donc comment le rendement de chaque culture évolue sur
+      la période, pour savoir si les écarts entre cultures sont stables ou s'ils changent d'une année
+      à l'autre.</p>
+      <p>Les cultures sont affichées sur deux graphiques parce que leurs niveaux de rendement sont très
+      différents. Sur une seule échelle, les céréales et les légumineuses seraient tassées en bas du
+      graphique et leurs évolutions deviendraient illisibles. Ce découpage sert uniquement à la
+      lecture.</p>
+      <figure><img width="1482" height="533" alt="Évolution du rendement moyen par culture, 1990-2013" src="assets/figures/03_evolution_rendements.png" /><figcaption>Évolution du rendement moyen par culture, 1990-2013</figcaption></figure>
+      <ul>
+      <li>Les niveaux restent très différents d'une culture à l'autre : les moyennes annuelles vont de
+        7,8 à 19,7 t/ha pour les tubercules et le plantain, contre 1,4 à 4,8 t/ha pour les céréales
+        et les légumineuses.</li>
+      <li>Les dix cultures progressent entre 1990 et 2013.</li>
+      <li>Ces écarts se retrouvent sur toute la période : ce n'est pas l'effet d'une seule année.</li>
+      </ul>
+      <p>Ce sont ces différences entre cultures qui manquent au jeu parcellaire, et c'est ce qui conduit
+      à utiliser l'historique pour comparer les cultures dans <code>/recommend</code>. La figure montre que
+      l'information est présente dans les données ; elle ne dit rien de ce qu'un modèle saura en
+      faire.</p>
+      <h3 id="trois-pièges-rencontrés">Trois pièges rencontrés</h3>
+      <p><strong>La pluie n'est pas une mesure annuelle.</strong> <code>rain_mm</code> est identique sur les 24 années pour
+      chaque pays qui en a une : c'est une normale climatique répétée. Elle décrit le climat habituel
+      d'un pays, pas la météo d'une année, et ne peut donc montrer aucune évolution dans le temps.</p>
+      <p><strong>Le nombre de pays change d'une année à l'autre.</strong> Il passe de 138 pays en 1990 à 168 en 2013,
+      avec un saut net en 1992. Du coup, la température moyenne brute <em>baisse</em> sur la période
+      (20,9 → 20,2 °C) alors qu'à panel constant elle augmente de +0,44 °C : c'est le changement de
+      pays observés qui explique la baisse, pas le climat. Les hausses de rendement, elles, restent
+      visibles à panel constant — maïs +47,2 % brut contre +41,6 %, blé +22,9 % contre +19,1 %.</p>
+      <p><strong>Les valeurs manquantes concernent des pays entiers.</strong> <code>avg_temp</code> manque pour 36 pays et
+      <code>pesticides_t</code> pour 24, jamais sur quelques années seulement. On ne peut donc rien compléter à
+      partir des données ; la conséquence est traitée à la section 6.</p>
+      <h2 id="5-comparaison-des-deux-datasets">5. Comparaison des deux datasets</h2>
+      <p>Quatre cultures sont communes aux deux jeux — maïs, riz, soja, blé — après avoir uniformisé
+      deux libellés. C'est sur elles qu'on peut comparer : 11 044 lignes côté historique, 666 638
+      côté parcellaire.</p>
+      <h3 id="trois-variables-comparables-trois-lectures-différentes">Trois variables comparables, trois lectures différentes</h3>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Variable</th>
+      <th>Agriculture CropYield</th>
+      <th>Historique consolidé</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td>Rendement</td>
+      <td>−1,15 à 9,96 t/ha, médiane 4,65</td>
+      <td>0 à 36,8 t/ha, médiane 2,22</td>
+      </tr>
+      <tr>
+      <td>Température</td>
+      <td>15 à 40 °C, médiane 27,5</td>
+      <td>−3,4 à 30,4 °C, médiane 19,5</td>
+      </tr>
+      <tr>
+      <td>Pluie</td>
+      <td>100 à 1 000 mm sur la saison</td>
+      <td>51 à 3 240 mm/an, normale climatique</td>
+      </tr>
+      <tr>
+      <td>Corrélation pluie / rendement</td>
+      <td><strong>+0,764</strong></td>
+      <td><strong>−0,161</strong></td>
+      </tr>
+      <tr>
+      <td>Corrélation température / rendement</td>
+      <td>+0,085</td>
+      <td>−0,267</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <p><em>Valeurs calculées sur les quatre cultures communes.</em></p>
+      <p>Les corrélations changent de signe. Ce n'est pas contradictoire : elles ne portent pas sur la
+      même chose. Côté parcellaire, une ligne est une parcelle, et plus il pleut, plus le rendement
+      monte. Côté historique, une ligne est un pays et une année : le signe négatif vient d'écarts
+      <em>entre pays</em>, où les plus arrosés n'ont pas les meilleurs rendements. Ce n'est pas un effet de
+      la pluie sur une parcelle. L'historique ne peut donc ni confirmer ni contredire ce qu'on
+      observe à l'échelle de la parcelle.</p>
+      <h3 id="la-différenciation-des-cultures">La différenciation des cultures</h3>
+      <figure><img width="1221" height="559" alt="Distribution du rendement par culture dans les deux jeux" src="assets/figures/04_comparaison_datasets.png" /><figcaption>Distribution du rendement par culture dans les deux jeux</figcaption></figure>
+      <p>Cette figure résume le contraste principal entre les deux jeux. À gauche de chaque paire,
+      l'historique : quatre niveaux nettement distincts, du soja (médiane 1,45 t/ha) au riz
+      (3,06 t/ha). À droite, le jeu parcellaire : quatre boîtes superposées, avec des médianes de
+      4,64 à 4,66 t/ha.</p>
+      <p>Le même contraste apparaît en contrôlant la température, sur la plage commune aux deux jeux :</p>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Bande de température</th>
+      <th>Écart max entre cultures — parcellaire</th>
+      <th>Écart max entre cultures — historique</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td>15-20 °C</td>
+      <td>0,01 t/ha</td>
+      <td><strong>3,29 t/ha</strong></td>
+      </tr>
+      <tr>
+      <td>20-25 °C</td>
+      <td>0,03 t/ha</td>
+      <td><strong>1,39 t/ha</strong></td>
+      </tr>
+      <tr>
+      <td>25-30 °C</td>
+      <td>0,02 t/ha</td>
+      <td><strong>1,68 t/ha</strong></td>
+      </tr>
+      </tbody>
+      </table></div>
+      <p>Dans l'historique, les cultures se répartissent aussi selon le climat des pays : les lignes
+      « blé » ont une température médiane de 16,2 °C et 661 mm de pluie, celles du riz 22,0 °C et
+      1 181 mm. Le jeu parcellaire donne 27,5 °C et 550 mm pour les quatre cultures, sans
+      distinction.</p>
+      <h3 id="stratégie-retenue">Stratégie retenue</h3>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Option</th>
+      <th>Verdict</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td><strong>A.</strong> Mettre les lignes des deux jeux bout à bout</td>
+      <td>écartée — une ligne ne représente pas la même chose, et les plages de valeurs diffèrent</td>
+      </tr>
+      <tr>
+      <td><strong>B.</strong> Agriculture CropYield seul</td>
+      <td><code>/predict</code> possible, mais pas de <code>/recommend</code></td>
+      </tr>
+      <tr>
+      <td><strong>C.</strong> Historique seul</td>
+      <td>cultures bien séparées, mais aucune variable de parcelle : pas de <code>/predict</code></td>
+      </tr>
+      <tr>
+      <td><strong>D.</strong> Les deux, chacun son rôle</td>
+      <td><strong>retenue</strong> — un modèle par service, sans mélanger les lignes</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <figure><img width="900" height="552" alt="Les deux pipelines de données du projet" src="assets/figures/06_pipelines.svg" /><figcaption>Les deux pipelines de données du projet</figcaption></figure>
+      <p>Dans <code>/recommend</code>, le pays sert de <strong>clé pour retrouver le contexte</strong> : température
+      historique, normale de pluie et niveau de pesticides. Ce n'est pas une variable du modèle. Si
+      on le mettait comme variable, le modèle apprendrait surtout un rendement par pays.</p>
+      <h2 id="6-préparation-des-données-dentraînement">6. Préparation des données d'entraînement</h2>
+      <p>À ce stade, aucun encodage, aucune mise à l'échelle et aucune imputation statistique. Tout
+      traitement qui calcule une statistique sera ajusté plus tard sur les seules données
+      d'entraînement, dans un pipeline.</p>
+      <h3 id="predict-999-769-lignes-6-variables"><code>/predict</code> — 999 769 lignes, 6 variables</h3>
+      <p><strong>Cible :</strong> <code>Yield_tons_per_hectare</code>.</p>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Variable retenue</th>
+      <th>Motif</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td><code>Rainfall_mm</code></td>
+      <td>la plus liée au rendement</td>
+      </tr>
+      <tr>
+      <td><code>Temperature_Celsius</code></td>
+      <td>effet faible mais régulier</td>
+      </tr>
+      <tr>
+      <td><code>Fertilizer_Used</code></td>
+      <td>+1,50 t/ha</td>
+      </tr>
+      <tr>
+      <td><code>Irrigation_Used</code></td>
+      <td>+1,20 t/ha</td>
+      </tr>
+      <tr>
+      <td><code>Crop</code></td>
+      <td>l'utilisateur la choisit : elle fait partie de la saisie, même sans effet mesuré</td>
+      </tr>
+      <tr>
+      <td><code>Soil_Type</code></td>
+      <td>l'utilisateur la connaît, 6 modalités, sans effet mesuré</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <p>Trois variables sont écartées, avec comme critère principal leur <strong>disponibilité au moment de
+      la requête</strong>. <code>Region</code> désigne une zone où personne ne peut se situer ; <code>Weather_Condition</code> et
+      <code>Days_to_Harvest</code> ne sont connues qu'après la saison.</p>
+      <p>Les <strong>231 rendements négatifs sont supprimés</strong>, plutôt que ramenés à zéro : les ramener à zéro
+      supposerait de connaître le vrai rendement, qu'on ne connaît pas. Ce retrait déplace la moyenne
+      de la cible de 0,001 t/ha seulement. Aucune autre ligne n'est retirée : les valeurs extrêmes au
+      sens de l'écart interquartile sont conservées.</p>
+      <h3 id="recommend-15-664-lignes-4-variables"><code>/recommend</code> — 15 664 lignes, 4 variables</h3>
+      <p><strong>Cible :</strong> <code>yield_t_ha</code>. <strong>Périmètre :</strong> 117 pays, 10 cultures, 1991-2013.</p>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Variable</th>
+      <th>Rôle</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td><code>crop</code></td>
+      <td>la culture à classer</td>
+      </tr>
+      <tr>
+      <td><code>temp_hist</code></td>
+      <td>température moyenne des années précédentes</td>
+      </tr>
+      <tr>
+      <td><code>rain_mm</code></td>
+      <td>normale climatique du pays</td>
+      </tr>
+      <tr>
+      <td><code>log_pest_hist</code></td>
+      <td>pesticides des années précédentes, en logarithme</td>
+      </tr>
+      <tr>
+      <td><code>iso3</code>, <code>area</code></td>
+      <td><strong>gardés hors du modèle</strong> — pour retrouver le contexte et grouper la validation</td>
+      </tr>
+      <tr>
+      <td><code>year</code></td>
+      <td><strong>gardée hors du modèle</strong> pour le découpage temporel ; reste à tester comme variable pendant la modélisation</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <p><strong>On se place au moment d'une requête en 2014, avec des données disponibles jusqu'en 2013.</strong>
+      Pour prédire l'année <em>t</em>, on n'utilise donc que des informations connues au plus tard en
+      <em>t−1</em>, aussi bien à l'entraînement qu'à l'inférence. <code>temp_hist</code> et <code>pest_hist</code> sont la moyenne
+      des trois années précédentes au plus, calculée pays par pays. Pour 2013, la fenêtre est
+      2010-2012 ; pour une requête sur 2014, ce sera 2011-2013. L'année 1990 n'a aucune année avant
+      elle et sort du périmètre : le jeu commence donc en 1991.</p>
+      <p>Trois contrôles vérifient qu'aucune donnée du futur ne passe : les années se suivent bien pour
+      chaque pays, la première année de chaque pays a des variables historiques vides, et le recalcul
+      manuel de la moyenne <em>t−3</em> à <em>t−1</em> sur 300 lignes tirées au hasard donne un écart maximum de 0.</p>
+      <figure><img width="1482" height="533" alt="Pesticides : tonnage brut et logarithme" src="assets/figures/05_pesticides_log.png" /><figcaption>Pesticides : tonnage brut et logarithme</figcaption></figure>
+      <p>Le logarithme change vraiment la lecture. Les tonnages nationaux vont de 0 à 1 806 000 tonnes,
+      si bien qu'en valeur brute presque tous les points sont collés à gauche du graphique. Après
+      <code>log1p</code>, la corrélation avec le rendement passe de 0,05-0,25 à <strong>0,26-0,57</strong> selon la culture.</p>
+      <p>Deux ajustements complètent la préparation.</p>
+      <p><code>rainfall.csv</code> ne contient <strong>aucune ligne pour 2003</strong> : 954 lignes de la fusion se retrouvaient
+      sans pluie, et toute l'année serait sortie du périmètre. Comme la pluie est constante par pays,
+      on réutilise la valeur déjà connue pour ce pays. 953 lignes récupérées ; les 177 restantes sont
+      celles de la Nouvelle-Calédonie, le seul pays sans aucune valeur de pluie.</p>
+      <p>Demander les pesticides <strong>coûte 15 pays et 1 907 lignes</strong> : le périmètre passe de 132 à
+      117 pays. On a testé une estimation à partir des voisins sur trois de ces pays, en regardant à
+      la fois les voisins par le climat et les pays frontaliers. On l'a écartée : les niveaux de
+      pesticides varient fortement entre pays voisins ou climatiquement proches, jusqu'à un facteur
+      10 000.</p>
+      <h2 id="7-limites-identifiées">7. Limites identifiées</h2>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Limite</th>
+      <th>Conséquence concrète</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td>Le jeu de <code>/predict</code> n'a ni pays ni année, et sa colonne <code>Region</code> ne renvoie à aucun territoire</td>
+      <td>les estimations ne peuvent pas être rattachées à un lieu ni à une saison précise</td>
+      </tr>
+      <tr>
+      <td>Les 6 cultures y sont indiscernables</td>
+      <td>la culture apporte très peu d'information au rendement dans ce jeu</td>
+      </tr>
+      <tr>
+      <td><code>/recommend</code> travaille à l'échelle du pays</td>
+      <td>un classement vaut pour le contexte d'un pays, jamais pour une parcelle précise</td>
+      </tr>
+      <tr>
+      <td><code>rain_mm</code> est une normale climatique</td>
+      <td>le service ne réagit pas à la météo de l'année : deux requêtes d'années différentes sur un même pays donneront la même pluie</td>
+      </tr>
+      <tr>
+      <td><code>pesticides_t</code> est un tonnage national</td>
+      <td>difficile à comparer directement entre pays de tailles différentes ; ce n'est pas une pratique individuelle</td>
+      </tr>
+      <tr>
+      <td>Couverture limitée à 117 pays</td>
+      <td>les 51 autres pays de l'historique ne peuvent pas être servis ; mieux vaut un refus clair qu'une prédiction dégradée</td>
+      </tr>
+      <tr>
+      <td>39 % des couples pays × culture sont absents de l'historique</td>
+      <td>une culture peut être classée dans un pays où on ne l'a jamais observée ; igname, plantain et manioc sont rarement observés sous 16-17 °C dans les données</td>
+      </tr>
+      <tr>
+      <td>Cultures inégalement représentées</td>
+      <td>igname 547 lignes et 25 pays, plantain 602 lignes et 27 pays, contre 2 407 lignes et 109 pays pour le maïs</td>
+      </tr>
+      <tr>
+      <td>Les niveaux de rendement diffèrent beaucoup selon la culture</td>
+      <td>en t/ha, les tubercules se placent devant les céréales (pomme de terre, médiane 16 t/ha, contre 1,3 pour le sorgho) : le classement reflète d'abord cet écart entre familles de cultures</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <h2 id="8-suite-du-projet">8. Suite du projet</h2>
+      <p>Les deux jeux d'entraînement sont prêts et contrôlés. Ils permettent d'attaquer :</p>
+      <ul>
+      <li>l'entraînement et la comparaison de modèles de régression pour les deux services ;</li>
+      <li>la validation temporelle de <code>/recommend</code>, avec 2013 gardée pour le test final et deux
+        baselines simples prévues : la moyenne par culture et la persistance pays × culture ;</li>
+      <li>le test de <code>year</code> comme variable explicative ;</li>
+      <li>le suivi des expériences ;</li>
+      <li>un garde-fou pour signaler les recommandations hors du domaine climatique observé.</li>
+      </ul>
+      <p>Ces travaux et leurs résultats seront ajoutés dans une version ultérieure de ce rapport.</p>
+      <hr />
+      <p><em>Analyses détaillées et code : notebooks <code>01</code> à <code>06</code> du dépôt. Figures régénérables avec
+      <code>scripts/make_report_figures.py</code>, rapport HTML avec <code>scripts/build_report.py</code>.</em></p>
+    </main>
+  </div>
+
+  <footer class="page-footer">
+    Agritech Answers — rapport technique · Source Markdown : <a href="rapport_technique.md">rapport_technique.md</a> · Page régénérée par <code>scripts/build_report.py</code>.
+  </footer>
+</body>
+</html>

@@ -1,5 +1,7 @@
 # Projet 12 : Concevez un système de recommandations pour une agriculture optimisée par les données
 
+📄 **[Rapport technique HTML](https://justinetct.github.io/oc_project12_agritech/rapport_technique.html)** — source Markdown : [`docs/rapport_technique.md`](docs/rapport_technique.md)
+
 ## Objectif métier
 
 Deux services sont visés :
@@ -47,6 +49,20 @@ Les deux sources ne sont pas fusionnées ligne à ligne : elles répondent à de
 
 Les fichiers de données générés sont reproductibles depuis les notebooks et ne sont pas versionnés.
 
+## Rapport technique
+
+Le rapport de synthèse est rédigé en Markdown dans [`docs/rapport_technique.md`](docs/rapport_technique.md)
+et publié en HTML sur [GitHub Pages](https://justinetct.github.io/oc_project12_agritech/rapport_technique.html).
+Le HTML est **généré** depuis le Markdown : le contenu n'est écrit qu'une fois.
+
+```bash
+# Figures du rapport, à partir des données locales
+poetry run python scripts/make_report_figures.py
+
+# Page HTML, à partir de docs/rapport_technique.md
+poetry run python scripts/build_report.py
+```
+
 ## Installation
 
 **Prérequis**
@@ -66,7 +82,9 @@ poetry install
 │   ├── crop-yield-prediction/       # sources historiques
 │   ├── geo/                         # données géographiques
 │   └── processed/                   # datasets générés, non versionnés
+├── docs/                            # rapport technique (Markdown, HTML, assets)
 ├── notebooks/                       # analyses et préparation des données
+├── scripts/                         # génération des figures et du rapport HTML
 ├── src/agritech/                    # code réutilisable
 ├── pyproject.toml
 └── README.md

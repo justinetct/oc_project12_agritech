@@ -233,3 +233,5 @@ data/*
 
 # Rapports de profiling générés (regénérables depuis les notebooks)
 docs/*.html
+# ... sauf le rapport technique, publié via GitHub Pages
+!docs/rapport_technique.html
