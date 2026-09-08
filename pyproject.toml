@@ -11,7 +11,7 @@ dependencies = [
     "matplotlib (>=3.9,<4.0)",
     "ipykernel (>=6.29,<7.0)",
     "fg-data-profiling (>=4.19.1,<5.0.0)",
-    "setuptools (<82)",
+    "setuptools (<84)",
     "ipywidgets (>=8.1.9,<9.0.0)",
     "seaborn (>=0.13.2,<0.14.0)",
 ]
