@@ -429,6 +429,7 @@ blockquote p:last-child { margin-bottom: 0; }
 
 figure {
   margin: 24px 0 28px;
+  break-inside: avoid;
 }
 
 figure img {

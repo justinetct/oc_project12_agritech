@@ -1,91 +1,97 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 552" width="900" height="552" role="img" aria-label="Les deux pipelines du projet : Agriculture CropYield alimente /predict, le dataset historique consolidé alimente /recommend, sans fusion ligne à ligne.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 520" width="768" height="520" role="img" aria-label="Deux jeux de données, deux services. /predict : l'utilisateur décrit sa parcelle et le modèle prédit un rendement. /recommend : le pays sert à préremplir température, pluie et pesticides, modifiables ; le modèle prédit les 10 cultures, qui sont classées.">
+  <!-- Schéma écrit directement en SVG, sans données : les chiffres sont ceux du rapport. -->
   <title>Deux jeux de données, deux services</title>
   <defs>
-    <marker id="fleche" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5aa47c"/>
+    <marker id="fleche" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#5aa47c"/>
     </marker>
     <style>
-      .t   { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-      .hd  { font-size: 17px; font-weight: 700; fill: #ffffff; }
-      .hs  { font-size: 12px; fill: #b7e0c8; }
-      .bt  { font-size: 13.5px; font-weight: 700; fill: #14452f; }
-      .bl  { font-size: 12px; fill: #63706a; }
-      .num { font-size: 12px; font-weight: 700; fill: #2c7a53; }
-      .eyebrow { font-size: 10.5px; font-weight: 700; fill: #8a5a00; letter-spacing: 1.4px; }
-      .foot { font-size: 13px; fill: #1e2a24; }
-      .footb { font-size: 13px; font-weight: 700; fill: #14452f; }
+      text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+      .ep     { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 22px; font-weight: 700; fill: #14452f; }
+      .gran   { font-size: 11.5px; font-weight: 800; letter-spacing: 1.3px; fill: #2c7a53; }
+      .pill   { font-size: 13.5px; font-weight: 700; fill: #14452f; }
+      .util   { font-size: 13.5px; font-weight: 700; fill: #1e2a24; }
+      .plein  { font-size: 13.5px; font-weight: 700; fill: #ffffff; }
+      .chip   { font-size: 12.5px; font-weight: 700; fill: #14452f; }
+      .mdf    { font-size: 11.5px; font-weight: 700; fill: #2c7a53; }
+      .note   { font-size: 11.5px; font-style: italic; fill: #63706a; }
+      .src    { font-size: 12px; fill: #63706a; }
+      .srcb   { font-size: 12px; font-weight: 600; fill: #3a4a43; }
+      .fl     { stroke: #5aa47c; stroke-width: 2; marker-end: url(#fleche); }
     </style>
   </defs>
 
-  <rect width="900" height="552" fill="#ffffff"/>
+  <rect width="768" height="520" fill="#f7f4ec"/>
 
-  <!-- ─────────── colonne /predict ─────────── -->
-  <rect x="24" y="20" width="400" height="44" rx="10" fill="#14452f"/>
-  <text class="t hd" x="44" y="42">/predict</text>
-  <text class="t hs" x="44" y="57">estimer le rendement d’une parcelle</text>
+  <!-- ─────────── /predict : contexte parcellaire ─────────── -->
+  <rect x="20" y="20" width="354" height="480" rx="14" fill="#ffffff" stroke="#e4dccb"/>
+  <text class="ep" x="197" y="62" text-anchor="middle">/predict</text>
+  <text class="gran" x="197" y="86" text-anchor="middle">CONTEXTE PARCELLAIRE</text>
 
-  <rect x="24" y="86" width="400" height="74" rx="10" fill="#ffffff" stroke="#dde8e2"/>
-  <text class="t eyebrow" x="44" y="108">SOURCE</text>
-  <text class="t bt" x="44" y="128">Agriculture CropYield</text>
-  <text class="t bl" x="44" y="146">1 000 000 lignes · 1 parcelle sur 1 saison</text>
+  <rect x="139" y="166" width="116" height="30" rx="15" fill="#ffffff" stroke="#d9cfbd" stroke-width="1.5"/>
+  <text class="util" x="197" y="186" text-anchor="middle">Utilisateur</text>
+  <line class="fl" x1="197" y1="199" x2="197" y2="218"/>
 
-  <line x1="224" y1="160" x2="224" y2="180" stroke="#5aa47c" stroke-width="2" marker-end="url(#fleche)"/>
+  <rect x="39" y="220" width="100" height="26" rx="13" fill="#e8f2ea"/>
+  <text class="chip" x="89" y="237.5" text-anchor="middle">Culture</text>
+  <rect x="147" y="220" width="100" height="26" rx="13" fill="#e8f2ea"/>
+  <text class="chip" x="197" y="237.5" text-anchor="middle">Sol</text>
+  <rect x="255" y="220" width="100" height="26" rx="13" fill="#e8f2ea"/>
+  <text class="chip" x="305" y="237.5" text-anchor="middle">Pluie</text>
+  <rect x="39" y="254" width="100" height="26" rx="13" fill="#e8f2ea"/>
+  <text class="chip" x="89" y="271.5" text-anchor="middle">Température</text>
+  <rect x="147" y="254" width="100" height="26" rx="13" fill="#e8f2ea"/>
+  <text class="chip" x="197" y="271.5" text-anchor="middle">Engrais</text>
+  <rect x="255" y="254" width="100" height="26" rx="13" fill="#e8f2ea"/>
+  <text class="chip" x="305" y="271.5" text-anchor="middle">Irrigation</text>
+  <line class="fl" x1="197" y1="283" x2="197" y2="302"/>
 
-  <rect x="24" y="186" width="400" height="92" rx="10" fill="#f6faf8" stroke="#dde8e2"/>
-  <text class="t eyebrow" x="44" y="208">JEU D’ENTRAÎNEMENT</text>
-  <text class="t num" x="44" y="228">999 769 lignes · 6 variables</text>
-  <text class="t bl" x="44" y="246">Crop · Soil_Type · Rainfall_mm · Temperature_Celsius</text>
-  <text class="t bl" x="44" y="263">Fertilizer_Used · Irrigation_Used</text>
+  <rect x="119" y="304" width="156" height="30" rx="15" fill="#fdfcf7" stroke="#14452f" stroke-width="1.5"/>
+  <text class="pill" x="197" y="324" text-anchor="middle">Modèle /predict</text>
+  <line class="fl" x1="197" y1="337" x2="197" y2="356"/>
 
-  <line x1="224" y1="278" x2="224" y2="298" stroke="#5aa47c" stroke-width="2" marker-end="url(#fleche)"/>
+  <rect x="115" y="358" width="164" height="30" rx="15" fill="#14452f"/>
+  <text class="plein" x="197" y="378" text-anchor="middle">Rendement prédit</text>
 
-  <rect x="24" y="304" width="400" height="58" rx="10" fill="#ffffff" stroke="#dde8e2"/>
-  <text class="t bt" x="44" y="329">Régression à l’échelle de la parcelle</text>
-  <text class="t bl" x="44" y="348">cible : Yield_tons_per_hectare</text>
+  <text class="srcb" x="197" y="468" text-anchor="middle">Agriculture CropYield</text>
+  <text class="src" x="197" y="486" text-anchor="middle">999 769 lignes · 9 variables candidates</text>
 
-  <line x1="224" y1="362" x2="224" y2="382" stroke="#5aa47c" stroke-width="2" marker-end="url(#fleche)"/>
+  <!-- ─────────── /recommend : contexte historique adaptable ─────────── -->
+  <rect x="394" y="20" width="354" height="480" rx="14" fill="#ffffff" stroke="#e4dccb"/>
+  <text class="ep" x="571" y="62" text-anchor="middle">/recommend</text>
+  <text class="gran" x="571" y="86" text-anchor="middle">CONTEXTE HISTORIQUE ADAPTABLE</text>
 
-  <rect x="24" y="388" width="400" height="72" rx="10" fill="#e9f3ed" stroke="#5aa47c"/>
-  <text class="t eyebrow" x="44" y="410">RÉPONSE</text>
-  <text class="t bt" x="44" y="430">Un rendement estimé, en t/ha</text>
-  <text class="t bl" x="44" y="448">pour la culture et les conditions saisies</text>
+  <rect x="513" y="116" width="116" height="30" rx="15" fill="#ffffff" stroke="#d9cfbd" stroke-width="1.5"/>
+  <text class="util" x="571" y="136" text-anchor="middle">Utilisateur</text>
+  <line class="fl" x1="571" y1="149" x2="571" y2="168"/>
 
-  <!-- ─────────── colonne /recommend ─────────── -->
-  <rect x="476" y="20" width="400" height="44" rx="10" fill="#2c7a53"/>
-  <text class="t hd" x="496" y="42">/recommend</text>
-  <text class="t hs" x="496" y="57">classer les cultures d’un pays</text>
+  <rect x="535" y="170" width="72" height="26" rx="13" fill="#e8f2ea"/>
+  <text class="chip" x="571" y="187.5" text-anchor="middle">Pays</text>
+  <line class="fl" x1="571" y1="199" x2="571" y2="218"/>
 
-  <rect x="476" y="86" width="400" height="74" rx="10" fill="#ffffff" stroke="#dde8e2"/>
-  <text class="t eyebrow" x="496" y="108">SOURCE</text>
-  <text class="t bt" x="496" y="128">Historique consolidé (4 fichiers FAO / climat)</text>
-  <text class="t bl" x="496" y="146">22 679 lignes · pays × année × culture · 1990-2013</text>
+  <rect x="476" y="220" width="190" height="30" rx="15" fill="#fdfcf7" stroke="#14452f" stroke-width="1.5"/>
+  <text class="pill" x="571" y="240" text-anchor="middle">Données pays connues</text>
+  <line class="fl" x1="571" y1="253" x2="571" y2="272"/>
+  <text class="note" x="583" y="266">préremplissage</text>
 
-  <line x1="676" y1="160" x2="676" y2="180" stroke="#5aa47c" stroke-width="2" marker-end="url(#fleche)"/>
+  <rect x="430" y="274" width="106" height="26" rx="13" fill="#e8f2ea"/>
+  <text class="chip" x="483" y="291.5" text-anchor="middle">Température</text>
+  <rect x="544" y="274" width="64" height="26" rx="13" fill="#e8f2ea"/>
+  <text class="chip" x="576" y="291.5" text-anchor="middle">Pluie</text>
+  <rect x="616" y="274" width="96" height="26" rx="13" fill="#e8f2ea"/>
+  <text class="chip" x="664" y="291.5" text-anchor="middle">Pesticides</text>
 
-  <rect x="476" y="186" width="400" height="92" rx="10" fill="#f6faf8" stroke="#dde8e2"/>
-  <text class="t eyebrow" x="496" y="208">JEU D’ENTRAÎNEMENT</text>
-  <text class="t num" x="496" y="228">15 664 lignes · 4 variables · 117 pays</text>
-  <text class="t bl" x="496" y="246">crop · temp_hist · rain_mm · log_pest_hist</text>
-  <text class="t bl" x="496" y="263">contexte hors modèle : iso3 · area · year</text>
+  <rect x="494" y="308" width="154" height="22" rx="11" fill="#ffffff" stroke="#5aa47c" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <text class="mdf" x="571" y="323" text-anchor="middle">↕ valeurs modifiables</text>
+  <line class="fl" x1="571" y1="333" x2="571" y2="352"/>
 
-  <line x1="676" y1="278" x2="676" y2="298" stroke="#5aa47c" stroke-width="2" marker-end="url(#fleche)"/>
+  <rect x="476" y="354" width="190" height="30" rx="15" fill="#fdfcf7" stroke="#14452f" stroke-width="1.5"/>
+  <text class="pill" x="571" y="374" text-anchor="middle">Modèle × 10 cultures</text>
+  <line class="fl" x1="571" y1="387" x2="571" y2="406"/>
 
-  <rect x="476" y="304" width="400" height="58" rx="10" fill="#ffffff" stroke="#dde8e2"/>
-  <text class="t bt" x="496" y="329">Régression à l’échelle du pays</text>
-  <text class="t bl" x="496" y="348">cible : yield_t_ha · évaluée pour 10 cultures</text>
+  <rect x="509" y="408" width="124" height="30" rx="15" fill="#14452f"/>
+  <text class="plein" x="571" y="428" text-anchor="middle">Classement</text>
 
-  <line x1="676" y1="362" x2="676" y2="382" stroke="#5aa47c" stroke-width="2" marker-end="url(#fleche)"/>
-
-  <rect x="476" y="388" width="400" height="72" rx="10" fill="#e9f3ed" stroke="#5aa47c"/>
-  <text class="t eyebrow" x="496" y="410">RÉPONSE</text>
-  <text class="t bt" x="496" y="430">Un classement des cultures candidates</text>
-  <text class="t bl" x="496" y="448">rendement prédit décroissant, pour le pays saisi</text>
-
-  <!-- ─────────── séparation ─────────── -->
-  <line x1="450" y1="86" x2="450" y2="460" stroke="#e4dccb" stroke-width="2" stroke-dasharray="5 6"/>
-
-  <rect x="24" y="488" width="852" height="54" rx="10" fill="#fff7e6" stroke="#ffe2a8"/>
-  <text class="t footb" x="48" y="512">Aucune fusion ligne à ligne.</text>
-  <text class="t foot" x="230" y="512">Les deux jeux n’ont ni la même unité d’observation, ni les mêmes plages de valeurs,</text>
-  <text class="t foot" x="48" y="530">ni la même définition de la pluie. Ils répondent à deux questions différentes, avec deux modèles distincts.</text>
+  <text class="srcb" x="571" y="468" text-anchor="middle">Dataset historique nettoyé → dataset /recommend</text>
+  <text class="src" x="571" y="486" text-anchor="middle">15 664 lignes · 117 pays</text>
 </svg>

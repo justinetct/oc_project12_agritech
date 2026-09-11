@@ -27,9 +27,8 @@ TITRE_COURT = "Rapport technique"
 SOUS_TITRE = "Système de prédiction de rendement et de recommandation de cultures"
 PILL = "Étape données · v1"
 RESUME = (
-    "Contexte métier, exploration des deux jeux de données, ACP, consolidation des "
-    "sources historiques et préparation des jeux d'entraînement des services "
-    "/predict et /recommend."
+    "Contexte métier, exploration des deux datasets, ACP, nettoyage des données "
+    "historiques et construction des datasets d'entraînement de /predict et /recommend."
 )
 PIED = (
     "Agritech Answers — rapport technique · "
