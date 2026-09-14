@@ -3,10 +3,9 @@
 *Système de prédiction de rendement et de recommandation de cultures.*
 
 > [!NOTE]
-> Ce rapport couvre la préparation des données : contexte, exploration, ACP, nettoyage des
-> sources et construction des datasets d'entraînement. La modélisation, le suivi des expériences,
-> l'API et le déploiement seront ajoutés dans les prochaines versions. Aucun résultat de modèle
-> n'est présenté ici.
+> Ce rapport couvre la préparation des données et la première modélisation de `/predict`. Les
+> modèles suivants, `/recommend`, l'API et le déploiement seront ajoutés dans les prochaines
+> versions.
 
 ## Sommaire
 
@@ -16,8 +15,9 @@
 4. [Analyse du dataset CropYield Prediction](#4-analyse-du-dataset-cropyield-prediction)
 5. [Comparaison des deux datasets](#5-comparaison-des-deux-datasets)
 6. [Construction des datasets d'entraînement](#6-construction-des-datasets-dentraînement)
-7. [Limites identifiées](#7-limites-identifiées)
-8. [Suite du projet](#8-suite-du-projet)
+7. [Première modélisation de `/predict`](#7-première-modélisation-de-predict)
+8. [Limites identifiées](#8-limites-identifiées)
+9. [Suite du projet](#9-suite-du-projet)
 
 ## 1. Objectifs du projet
 
@@ -336,10 +336,10 @@ données.
 
 Trois autres variables sont conservées comme candidates : `Region`, `Weather_Condition` et
 `Days_to_Harvest`. Elles servent à mesurer ce qu'elles apportent, mais ne seront pas forcément
-utilisables dans l'application : `Region` ne correspond à aucun lieu réel, et `Weather_Condition` et
-`Days_to_Harvest` ne sont connues qu'après la saison. La sélection finale sera décidée pendant la
-modélisation, selon les performances, la disponibilité des variables au moment de prédire et leur
-pertinence métier.
+utilisables dans l'application : `Region` ne correspond à aucun lieu réel, et la disponibilité de
+`Weather_Condition` et `Days_to_Harvest` dépend du moment où la prédiction est demandée. La
+sélection finale sera décidée pendant la modélisation, selon les performances, la disponibilité des
+variables au moment de prédire et leur pertinence métier.
 
 **Les 231 rendements négatifs sont retirés du dataset d'entraînement.** Les remplacer par zéro
 reviendrait à inventer un rendement. Leur retrait ne change la moyenne de la cible que de 0,001 t/ha.
@@ -407,7 +407,134 @@ Le logarithme est utile pour les pesticides : en valeur brute, presque toutes le
 regroupées à gauche de l'échelle. Après `log1p`, la corrélation avec le rendement passe de
 0,07-0,26 à **0,25-0,56** selon la culture.
 
-## 7. Limites identifiées
+## 7. Première modélisation de `/predict`
+
+Cette première étape pose une référence et fixe le protocole de comparaison qui servira à tous les
+modèles `/predict` suivants. Deux modèles sont évalués : un `DummyRegressor`, qui sert de référence
+naïve, et une régression linéaire, dans deux configurations de variables.
+
+### Séparation train / test
+
+Le dataset compte 999 769 lignes après le retrait des 231 rendements négatifs. Il est découpé une
+fois pour toutes, avant tout preprocessing appris, en 80 % d'entraînement et 20 % de test
+(`random_state=42`). Le tirage est aléatoire : le dataset n'a ni date ni année, donc aucun découpage
+temporel n'est possible.
+
+| Jeu | Lignes | Part | Usage |
+|---|---|---|---|
+| Entraînement | 799 815 | 80 % | comparaison des modèles et des jeux de variables, par validation croisée |
+| Test | 199 954 | 20 % | évaluation finale du modèle retenu, une seule fois |
+
+**Le jeu de test n'intervient à aucun moment dans les comparaisons.** S'il servait à choisir un
+modèle, un jeu de variables ou des hyperparamètres, il aurait influencé ces choix et le score final
+serait optimiste.
+
+### Validation croisée et métriques
+
+Les modèles sont comparés par validation croisée `KFold(n_splits=5, shuffle=True, random_state=42)`
+sur le jeu d'entraînement uniquement. Chaque modèle est entraîné cinq fois sur 639 852 lignes et
+évalué sur les 159 963 restantes ; son score est la moyenne des cinq évaluations, et l'écart-type
+mesure sa stabilité d'un fold à l'autre. Les folds sont identiques pour tous les modèles : leurs
+scores sont directement comparables.
+
+| Métrique | Lecture |
+|---|---|
+| **RMSE** | erreur quadratique moyenne, en t/ha ; pénalise davantage les grosses erreurs |
+| **R²** | part de la variance du rendement expliquée par le modèle ; 0 pour une prédiction constante, 1 pour une prédiction parfaite |
+| MAE | erreur absolue moyenne, en t/ha ; complémentaire, directement lisible |
+
+RMSE et R² sont les deux métriques principales : la première donne l'ordre de grandeur de l'erreur,
+la seconde situe le modèle par rapport à une prédiction constante. La MAE les complète. Une métrique
+de profitabilité n'est pas calculable : les données ne contiennent ni prix de vente ni coûts de
+production.
+
+### Preprocessing
+
+Le preprocessing et le modèle sont réunis dans un `Pipeline` scikit-learn :
+
+- variables catégorielles → `OneHotEncoder(handle_unknown="ignore")` : une colonne binaire par
+  modalité ; une modalité absente des données d'apprentissage est ignorée au lieu de provoquer une
+  erreur ;
+- variables numériques → conservées telles quelles.
+
+C'est ce pipeline complet qui est évalué par validation croisée : dans chaque fold, l'encodage est
+réappris sur les seules données d'apprentissage, puis appliqué au fold d'évaluation. Aucune
+information du fold d'évaluation ne participe à l'apprentissage : il n'y a pas de fuite de données.
+
+Pas de standardisation ici : la régression linéaire utilisée n'est pas régularisée, et une mise à
+l'échelle ne changerait pas ses prédictions, seulement l'échelle de ses coefficients. Ce choix sera
+réexaminé pour les algorithmes qui y sont sensibles.
+
+| Configuration | Variables | Colonnes après encodage |
+|---|---|---|
+| 9 variables candidates | 6 catégorielles + 3 numériques | **26** : 23 colonnes binaires + 3 numériques |
+| 6 variables métier | 4 catégorielles + 2 numériques | **18** : 16 colonnes binaires + 2 numériques |
+
+### Baseline naïve : `DummyRegressor`
+
+`DummyRegressor(strategy="mean")` ignore les variables et prédit toujours le rendement moyen de ses
+données d'apprentissage. Il fixe le niveau minimal à battre : un modèle qui ne fait pas mieux
+n'apporte rien.
+
+| Métrique | Validation croisée |
+|---|---|
+| RMSE | 1,6952 ± 0,0027 t/ha |
+| MAE | 1,3884 ± 0,0031 t/ha |
+| R² | ≈ 0 |
+
+Son R² est nul : prédire la moyenne n'explique aucune variation du rendement. Sa RMSE est du même
+ordre que l'écart-type du rendement dans le train, 1,695 t/ha : c'est l'erreur obtenue sans utiliser
+aucune variable.
+
+### Régression linéaire — 9 variables candidates
+
+| Métrique | Validation croisée |
+|---|---|
+| RMSE | **0,5003 ± 0,0009 t/ha** |
+| MAE | 0,3993 ± 0,0007 t/ha |
+| R² | **0,9129 ± 0,0003** |
+
+La RMSE baisse d'environ 70 % par rapport au `DummyRegressor` (1,695 → 0,500 t/ha) et le modèle
+explique environ 91,3 % de la variance du rendement. Les écarts-types entre folds sont très faibles,
+moins de 0,001 t/ha sur la RMSE, avec près de 160 000 lignes d'évaluation par fold : les scores
+varient très peu d'un découpage à l'autre.
+
+Ces chiffres décrivent une performance prédictive : le modèle reproduit bien la relation statistique
+entre les conditions décrites et le rendement observé, ce qui ne démontre pas de lien de cause à
+effet.
+
+### Comparaison 9 variables / 6 variables métier
+
+La configuration métier envisagée retient six variables directement renseignables par
+l'utilisateur : `Crop`, `Soil_Type`, `Rainfall_mm`, `Temperature_Celsius`, `Fertilizer_Used` et
+`Irrigation_Used`. Elle est évaluée avec le même pipeline, les mêmes folds et les mêmes métriques.
+
+| Modèle | RMSE (t/ha) | MAE (t/ha) | R² |
+|---|---|---|---|
+| `DummyRegressor` | 1,6952 ± 0,0027 | 1,3884 ± 0,0031 | ≈ 0 |
+| `LinearRegression` — 9 variables | 0,5003 ± 0,0009 | 0,3993 ± 0,0007 | 0,9129 ± 0,0003 |
+| `LinearRegression` — 6 variables métier | 0,5003 ± 0,0009 | 0,3993 ± 0,0007 | 0,9129 ± 0,0003 |
+
+L'écart de RMSE moyenne entre les deux configurations (9 − 6 variables) est de **+0,000002 t/ha**,
+pour un écart-type de 0,000894 t/ha entre folds : les trois variables supplémentaires n'apportent
+aucun gain mesurable à cette régression linéaire. Ce résultat rejoint l'analyse exploratoire de la
+section 3, où `Region` et `Weather_Condition` changeaient le rendement de 0,012 t/ha au maximum et
+`Days_to_Harvest` n'avait aucune relation visible avec la cible.
+
+Ces trois variables ne sont pas écartées pour autant : une régression linéaire ne capte ni effets
+non linéaires ni interactions entre variables. Leur apport sera réévalué avec les modèles suivants,
+selon le même protocole.
+
+### Suivi MLflow
+
+Les trois évaluations sont journalisées dans une même expérience MLflow dédiée à `/predict` :
+`dummy_baseline_cv`, `linear_regression_9_features_cv` et `linear_regression_6_features_cv`. Chaque
+run enregistre les paramètres du protocole, le jeu de variables utilisé et les mêmes métriques
+préfixées `cv_` (`cv_rmse_mean`, `cv_rmse_std`, `cv_r2_mean`...). Les modèles suivants utiliseront
+la même expérience et les mêmes noms de métriques : la comparaison reste homogène d'un modèle à
+l'autre.
+
+## 8. Limites identifiées
 
 | Limite | Conséquence |
 |---|---|
@@ -421,18 +548,25 @@ regroupées à gauche de l'échelle. Après `log1p`, la corrélation avec le ren
 | Cultures inégalement représentées dans le dataset d'entraînement `/recommend` | igname : 547 lignes et 25 pays ; plantain : 602 lignes et 27 pays ; maïs : 2 407 lignes et 109 pays |
 | Niveaux de rendement très différents selon la culture | en t/ha, les tubercules passent devant les céréales (pomme de terre : médiane 16 t/ha ; sorgho : 1,3) ; le classement reflète d'abord cette différence |
 
-## 8. Suite du projet
+## 9. Suite du projet
 
-Le dataset historique nettoyé et les deux datasets d'entraînement sont produits et vérifiés par des
-assertions dans les notebooks 04 et 06. Les prochaines étapes sont :
+Les datasets d'entraînement sont produits et vérifiés par des assertions dans les notebooks 04 et
+06, et la baseline `/predict` est posée. Les prochaines étapes sont :
 
-- entraîner et comparer des modèles de régression pour les deux services ;
-- comparer les variables candidates, puis retenir la configuration finale selon les performances,
-  leur disponibilité au moment de prédire et leur pertinence métier ;
-- pour `/recommend`, entraîner et valider sur les années avant 2013, puis tester sur 2013 ;
+- comparer d'autres modèles de régression `/predict`, avec le même protocole de validation croisée
+  sur le train ;
+- réévaluer avec eux l'apport de `Region`, `Weather_Condition` et `Days_to_Harvest`, puis retenir la
+  configuration finale selon les performances, la disponibilité des variables au moment de prédire
+  et leur pertinence métier ;
+- sélectionner le meilleur modèle, puis optimiser ses hyperparamètres ;
+- évaluer une seule fois le modèle retenu sur le jeu de test réservé ;
+- observer, avec ce modèle final, le rendement prédit pour les 231 lignes dont la cible négative a
+  été retirée ;
+- démarrer la modélisation `/recommend` : entraînement et validation sur les années avant 2013, test
+  final sur 2013 ;
 - comparer `/recommend` à une baseline simple, qui classe les cultures selon leurs rendements
   passés, pour vérifier que le modèle apporte réellement quelque chose ;
-- suivre les expériences dans MLflow ;
+- poursuivre le suivi des expériences dans MLflow ;
 - signaler les recommandations faites dans des conditions climatiques inhabituelles pour une
   culture ;
 - décider du comportement de l'application pour un pays hors des 117 pays.
@@ -441,5 +575,5 @@ Ces travaux seront ajoutés dans une prochaine version du rapport.
 
 ---
 
-*Analyses et code : notebooks `01` à `06` du dépôt. Figures régénérables avec
+*Analyses et code : notebooks `01` à `07` du dépôt. Figures régénérables avec
 `scripts/make_report_figures.py`, rapport HTML avec `scripts/build_report.py`.*

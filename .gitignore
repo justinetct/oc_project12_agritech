@@ -231,6 +231,9 @@ __marimo__/
 data/*
 !data/README.md
 
+# Runs MLflow locaux
+mlruns/
+
 # Rapports de profiling générés (regénérables depuis les notebooks)
 docs/*.html
 # ... sauf le rapport technique, publié via GitHub Pages

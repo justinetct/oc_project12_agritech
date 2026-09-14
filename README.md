@@ -49,6 +49,7 @@ Les deux sources ne sont pas fusionnées ligne à ligne : elles répondent à de
 | `04_build_crop_yield_dataset.ipynb` | Construction du dataset historique : jointures (22 679 lignes, 168 pays), puis nettoyage | `data/processed/crop_yield_clean.csv` |
 | `05_dataset_consolidation_strategy.ipynb` | Comparaison des deux datasets et définition de la stratégie `/predict` / `/recommend` | — |
 | `06_prepare_training_dataset.ipynb` | Construction des datasets utilisés pour la modélisation : sélection des lignes et variables, création de l’historique pour /recommend et contrôles contre les fuites de données | `data/processed/predict_training_dataset.csv` et `data/processed/recommend_training_dataset.csv` |
+| `07_predict_training_baseline.ipynb` | Baseline `/predict` : `DummyRegressor` et `LinearRegression` à 9 puis 6 variables, comparés par validation croisée à 5 folds sur le train ; jeu de test réservé à l'évaluation finale | runs MLflow, expérience `oc_p12_agritech_predict` |
 
 Les fichiers de données générés sont reproductibles depuis les notebooks et ne sont pas versionnés.
 
@@ -74,6 +75,13 @@ poetry run python scripts/build_report.py
 
 ```bash
 poetry install
+```
+
+Les expériences sont journalisées avec MLflow ; la configuration est gérée par l'environnement. Le projet reste
+exécutable sans configuration distante.
+
+```bash
+cp .env.example .env   # facultatif
 ```
 
 ## Structure du dépôt
@@ -104,4 +112,14 @@ Datasets préparés :
 * /predict : 999 769 lignes, 9 variables candidates, dont les 6 de la configuration métier envisagée (`Region`, `Weather_Condition` et `Days_to_Harvest` restent à évaluer) ; les 231 lignes au rendement négatif sont exclues de l’entraînement et conservées pour un contrôle après modélisation ;
 * /recommend : 15 664 lignes, 117 pays, 10 cultures, période 1991-2013, 5 variables candidates (`crop`, `temp_hist`, `rain_mm`, `pest_hist`, `log_pest_hist`), les pesticides étant gardés en brut et en logarithme pour comparer les deux versions.
 
-La prochaine étape est la modélisation et la validation des deux services ; la sélection finale des variables sera décidée à cette étape.
+Première baseline `/predict` : les modèles sont comparés par validation croisée à 5 folds sur le jeu d’entraînement. Le jeu de test reste réservé à l’évaluation finale.
+
+| Modèle | RMSE CV (t/ha) | MAE CV (t/ha) | R² CV |
+|---|---:|---:|---:|
+| `DummyRegressor` | 1,6952 ± 0,0027 | 1,3884 ± 0,0031 | ≈ 0 |
+| `LinearRegression` — 9 variables | 0,5003 ± 0,0009 | 0,3993 ± 0,0007 | 0,9129 ± 0,0003 |
+| `LinearRegression` — 6 variables métier | 0,5003 ± 0,0009 | 0,3993 ± 0,0007 | 0,9129 ± 0,0003 |
+
+La régression linéaire réduit la RMSE d’environ 70 % par rapport au `DummyRegressor`, et les configurations à 9 et à 6 variables sont pratiquement identiques avec ce modèle. La sélection finale des variables sera confirmée avec les modèles suivants.
+
+La prochaine étape est de comparer des modèles `/predict` plus complexes avec le même protocole, puis d’optimiser le meilleur avant son évaluation finale sur le jeu de test. La modélisation `/recommend` viendra ensuite.
