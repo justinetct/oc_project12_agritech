@@ -1,118 +1,117 @@
-"""Datasets d'entraînement produits par le notebook 06 : variables, lecture et protocole d'évaluation.
+"""Datasets d'entraînement : lecture, contrôles, découpage et validation croisée.
 
-Protocole `/predict`, commun à tous les modèles :
+Fonctions génériques, sans constante propre à un service : chaque appel reçoit le dataset, les
+variables et le protocole à appliquer. Pour `/predict`, ces valeurs sont dans `predict_config.py` ;
+celles de `/recommend` iront dans `recommend_config.py`.
 
-- un découpage train/test fixe ; le jeu de test est réservé à l'évaluation finale ;
-- une validation croisée sur le train pour comparer modèles, jeux de variables et hyperparamètres.
+`load_dataset`, `split` et `kfold_cv` contrôlent leur résultat et en affichent un résumé, pour que
+chaque notebook n'ait pas à le réécrire ; `verbose=False` coupe l'affichage, pas les contrôles.
 
-Seule la partie `/predict` existe pour l'instant ; la partie `/recommend` sera ajoutée ici lors de sa
-modélisation.
+Le découpage aléatoire (`split`) et la validation croisée `KFold` (`kfold_cv`) conviennent à un
+dataset sans ordre dans le temps, comme celui de `/predict`. Un découpage par année, pour
+`/recommend`, fera l'objet de fonctions dédiées.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pandas as pd
 from sklearn.model_selection import KFold, train_test_split
 
-from agritech.config import PATHS, SEED
+from agritech.config import PATHS
 
 
-# ---------------------------------------------------------------------------
-# /predict — Agriculture CropYield
-# ---------------------------------------------------------------------------
+def load_dataset(
+    path: Path, rows: int, columns: list[str], non_negative: list[str] | None = None, verbose: bool = True
+) -> pd.DataFrame:
+    """Lit un dataset d'entraînement, vérifie qu'il est bien celui attendu et affiche un résumé.
 
-PREDICT_DATASET = PATHS.data_processed / "predict_training_dataset.csv"
-PREDICT_ROWS = 999_769
-PREDICT_TARGET = "Yield_tons_per_hectare"
-
-# Les deux variables oui/non sont traitées comme des catégories à deux modalités.
-PREDICT_CATEGORICAL = [
-    "Crop",
-    "Soil_Type",
-    "Fertilizer_Used",
-    "Irrigation_Used",
-    "Region",
-    "Weather_Condition",
-]
-PREDICT_NUMERIC = ["Rainfall_mm", "Temperature_Celsius", "Days_to_Harvest"]
-PREDICT_FEATURES = PREDICT_CATEGORICAL + PREDICT_NUMERIC
-
-# Configuration métier envisagée ; la sélection finale des variables reste ouverte.
-PREDICT_BUSINESS_FEATURES = [
-    "Crop",
-    "Soil_Type",
-    "Rainfall_mm",
-    "Temperature_Celsius",
-    "Fertilizer_Used",
-    "Irrigation_Used",
-]
-
-PREDICT_TEST_SIZE = 0.2
-PREDICT_CV_FOLDS = 5
-PREDICT_CV_SHUFFLE = True
-
-
-def load_predict_dataset() -> pd.DataFrame:
-    """Lit le dataset `/predict` et vérifie qu'il est bien celui produit par le notebook 06.
-
-    Contrôles : nombre de lignes, colonnes attendues, aucune valeur manquante et aucun rendement
-    négatif. En cas d'écart, relancer le notebook 06.
+    Contrôles : nombre de lignes, colonnes attendues (dans n'importe quel ordre), aucune valeur
+    manquante et, pour les colonnes de `non_negative`, aucune valeur négative. En cas d'écart, relancer
+    le notebook qui produit le dataset.
     """
-    df = pd.read_csv(PREDICT_DATASET)
+    df = pd.read_csv(path)
 
-    if len(df) != PREDICT_ROWS or sorted(df.columns) != sorted(PREDICT_FEATURES + [PREDICT_TARGET]):
-        raise ValueError(f"{PREDICT_DATASET.name} : lignes ou colonnes inattendues")
+    if len(df) != rows or sorted(df.columns) != sorted(columns):
+        raise ValueError(f"{path.name} : lignes ou colonnes inattendues")
     if df.isna().any().any():
-        raise ValueError(f"{PREDICT_DATASET.name} : valeurs manquantes")
-    if (df[PREDICT_TARGET] < 0).any():
-        raise ValueError(f"{PREDICT_DATASET.name} : rendements négatifs")
+        raise ValueError(f"{path.name} : valeurs manquantes")
+    for column in non_negative or []:
+        if (df[column] < 0).any():
+            raise ValueError(f"{path.name} : valeurs négatives dans {column}")
+
+    if verbose:
+        # chemin relatif : pas de chemin local dans les sorties des notebooks
+        chemin = path.relative_to(PATHS.root) if path.is_relative_to(PATHS.root) else path.name
+        print("fichier            :", chemin)
+        print("lignes x colonnes  :", df.shape)
+        print("valeurs manquantes :", df.isna().sum().sum())
+        for column in non_negative or []:
+            print(f"valeurs < 0        : {(df[column] < 0).sum()} ({column})")
     return df
 
 
-def split_predict(df: pd.DataFrame) -> list:
-    """Découpe le dataset `/predict` en `X_train, X_test, y_train, y_test`.
+def split(
+    df: pd.DataFrame, features: list[str], target: str, test_size: float, seed: int, verbose: bool = True
+) -> list:
+    """Découpe un dataset en `X_train, X_test, y_train, y_test`, de façon aléatoire et reproductible.
 
-    Découpage aléatoire 80/20 : le jeu n'a ni date ni année, il n'y a pas d'ordre dans le temps à
-    respecter. `random_state=SEED` rend le découpage fixe : le jeu de test est le même pour tous les
-    modèles et reste réservé à l'évaluation finale.
+    Adapté à un dataset sans ordre dans le temps. Avec la même graine, le jeu de test est le même
+    pour tous les modèles : il peut rester réservé à l'évaluation finale. Contrôle qu'aucune ligne
+    n'est perdue ni commune au train et au test, puis affiche les tailles.
     """
-    return train_test_split(
-        df[PREDICT_FEATURES],
-        df[PREDICT_TARGET],
-        test_size=PREDICT_TEST_SIZE,
-        random_state=SEED,
-    )
+    X_train, X_test, y_train, y_test = train_test_split(df[features], df[target], test_size=test_size, random_state=seed)
+
+    if len(X_train) + len(X_test) != len(df) or not X_train.index.intersection(X_test.index).empty:
+        raise ValueError("découpage incohérent : lignes perdues ou communes au train et au test")
+
+    if verbose:
+        print(f"total   : {len(df)} lignes")
+        print(f"X_train : {X_train.shape}")
+        print(f"X_test  : {X_test.shape}, réservé à l'évaluation finale")
+        print(f"y_train : {y_train.shape}")
+        print(f"y_test  : {y_test.shape}")
+    return [X_train, X_test, y_train, y_test]
 
 
-def predict_cv() -> KFold:
-    """Validation croisée des modèles `/predict`, à appliquer au seul jeu d'entraînement.
+def kfold_cv(n_splits: int, shuffle: bool, seed: int, verbose: bool = True) -> KFold:
+    """Validation croisée en `n_splits` folds, à appliquer au seul jeu d'entraînement.
 
-    5 folds mélangés et reproductibles : chaque modèle est entraîné 5 fois sur 4/5 du train et évalué
-    sur le cinquième restant. Les folds sont identiques d'un modèle à l'autre, donc les scores sont
+    Avec la même graine, les folds sont identiques d'un modèle à l'autre : les scores sont
     comparables.
     """
-    return KFold(n_splits=PREDICT_CV_FOLDS, shuffle=PREDICT_CV_SHUFFLE, random_state=SEED)
+    cv = KFold(n_splits=n_splits, shuffle=shuffle, random_state=seed)
+    if verbose:
+        print("validation croisée :", cv)
+    return cv
 
 
-def predict_feature_types(features: list[str]) -> tuple[list[str], list[str]]:
-    """Sépare une sélection de variables `/predict` en catégorielles et numériques."""
-    unknown = set(features) - set(PREDICT_FEATURES)
+def feature_types(features: list[str], categorical: list[str], numeric: list[str]) -> tuple[list[str], list[str]]:
+    """Sépare une sélection de variables en catégorielles et numériques, dans l'ordre de la configuration."""
+    unknown = set(features) - set(categorical) - set(numeric)
     if unknown:
         raise ValueError(f"variables inconnues : {sorted(unknown)}")
 
-    categorical = [col for col in PREDICT_CATEGORICAL if col in features]
-    numeric = [col for col in PREDICT_NUMERIC if col in features]
-    return categorical, numeric
+    return [col for col in categorical if col in features], [col for col in numeric if col in features]
 
 
-def predict_protocol_params(X_train: pd.DataFrame, X_test: pd.DataFrame) -> dict:
-    """Paramètres du protocole, enregistrés sous les mêmes noms dans chaque run MLflow `/predict`."""
+def protocol_params(
+    dataset: Path,
+    X_train: pd.DataFrame,
+    X_test: pd.DataFrame,
+    test_size: float,
+    seed: int,
+    cv_folds: int,
+    cv_shuffle: bool,
+) -> dict:
+    """Paramètres du protocole, enregistrés sous les mêmes noms dans chaque run MLflow du service."""
     return {
-        "dataset": PREDICT_DATASET.name,
+        "dataset": dataset.name,
         "n_train": len(X_train),
         "n_test": len(X_test),
-        "test_size": PREDICT_TEST_SIZE,
-        "random_state": SEED,
-        "cv_folds": PREDICT_CV_FOLDS,
-        "cv_shuffle": PREDICT_CV_SHUFFLE,
+        "test_size": test_size,
+        "random_state": seed,
+        "cv_folds": cv_folds,
+        "cv_shuffle": cv_shuffle,
     }
