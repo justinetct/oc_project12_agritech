@@ -328,6 +328,13 @@ pre code {
   color: inherit;
 }
 
+/* Features catégorielles, encodées par one-hot (section 7) : mêmes tons ocre que les accents du rapport */
+code.cat {
+  background: var(--gold-soft);
+  border-color: var(--gold-line);
+  color: var(--gold-deep);
+}
+
 /* ─────────── tableaux ─────────── */
 
 .table-scroll {
@@ -373,6 +380,17 @@ th code {
 tbody tr:nth-child(even) td { background: #f7faf8; }
 
 td strong { color: var(--brand); }
+
+/* Tableaux de scores : valeurs en chasse fixe, sans fond et sans retour à la ligne, pour que
+   les chiffres s'alignent d'une ligne à l'autre ; lignes alignées sur la ligne de base malgré
+   les deux polices. */
+table.scores td { vertical-align: baseline; }
+
+table.scores td[style*="right"] {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
 
 /* ─────────── encarts ─────────── */
 
