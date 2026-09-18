@@ -1,0 +1,51 @@
+{
+  "service": "predict",
+  "model_type": "LinearRegression",
+  "artifact": "predict_model.joblib",
+  "target": "Yield_tons_per_hectare",
+  "features": [
+    "Rainfall_mm",
+    "Temperature_Celsius",
+    "Fertilizer_Used",
+    "Irrigation_Used"
+  ],
+  "categorical_features": [
+    "Fertilizer_Used",
+    "Irrigation_Used"
+  ],
+  "numeric_features": [
+    "Rainfall_mm",
+    "Temperature_Celsius"
+  ],
+  "categorical_values": {
+    "Fertilizer_Used": [
+      false,
+      true
+    ],
+    "Irrigation_Used": [
+      false,
+      true
+    ]
+  },
+  "preprocessing": "OneHotEncoder(handle_unknown='ignore') on categorical, passthrough on numeric",
+  "training_dataset": "predict_training_dataset.csv",
+  "n_train": 799815,
+  "n_test": 199954,
+  "test_size": 0.2,
+  "random_state": 42,
+  "cv_folds": 5,
+  "trained_on": "train_only",
+  "final_test_metrics": {
+    "rmse": 0.4992678452943281,
+    "mae": 0.39833799309037676,
+    "r2": 0.913234820907552
+  },
+  "notebook": "notebooks/11_predict_final_evaluation.ipynb",
+  "created_on": "2026-09-18",
+  "versions": {
+    "python": "3.12.13",
+    "scikit-learn": "1.9.0",
+    "numpy": "2.3.5",
+    "joblib": "1.6.0"
+  }
+}
