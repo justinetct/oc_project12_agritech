@@ -1,7 +1,7 @@
 """Configuration du service `/predict` : dataset, variables et protocole d'évaluation.
 
 Constantes seulement. Les fonctions qui lisent le dataset et appliquent le protocole sont dans
-`training_data.py`. La configuration propre à `/recommend` ira dans `recommend_config.py`.
+`training_data.py`. La configuration propre à `/recommend` est dans `recommend_config.py`.
 """
 
 from __future__ import annotations

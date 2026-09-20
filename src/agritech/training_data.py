@@ -2,20 +2,23 @@
 
 Fonctions génériques, sans constante propre à un service : chaque appel reçoit le dataset, les
 variables et le protocole à appliquer. Pour `/predict`, ces valeurs sont dans `predict_config.py` ;
-celles de `/recommend` iront dans `recommend_config.py`.
+celles de `/recommend` dans `recommend_config.py`.
 
-`load_dataset`, `split` et `kfold_cv` contrôlent leur résultat et en affichent un résumé, pour que
-chaque notebook n'ait pas à le réécrire ; `verbose=False` coupe l'affichage, pas les contrôles.
+`load_dataset`, `split`, `kfold_cv`, `temporal_split` et `temporal_cv` contrôlent leur résultat et en
+affichent un résumé, pour que chaque notebook n'ait pas à le réécrire ; `verbose=False` coupe
+l'affichage, pas les contrôles.
 
 Le découpage aléatoire (`split`) et la validation croisée `KFold` (`kfold_cv`) conviennent à un
-dataset sans ordre dans le temps, comme celui de `/predict`. Un découpage par année, pour
-`/recommend`, fera l'objet de fonctions dédiées.
+dataset sans ordre dans le temps, comme celui de `/predict`. Le découpage par année
+(`temporal_split`) et la validation temporelle (`temporal_cv`) conviennent à des données ordonnées
+dans le temps, comme celles de `/recommend` : le modèle prédit toujours une année qu'il n'a pas vue.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import KFold, train_test_split
 
@@ -87,6 +90,65 @@ def kfold_cv(n_splits: int, shuffle: bool, seed: int, verbose: bool = True) -> K
     return cv
 
 
+def temporal_split(
+    df: pd.DataFrame, features: list[str], target: str, test_year: int, year_column: str = "year", verbose: bool = True
+) -> list:
+    """Découpe un dataset par année en `X_train, X_test, y_train, y_test` : test sur `test_year`, train avant.
+
+    Adapté à des données ordonnées dans le temps : le test reproduit la prédiction d'une année que le
+    modèle n'a jamais vue. Contrôle que `test_year` est présente et qu'aucune ligne ne lui est
+    postérieure (elle ne serait ni dans le train ni dans le test), puis affiche les tailles et les périodes.
+    """
+    years = df[year_column]
+    if not (years == test_year).any() or (years > test_year).any():
+        raise ValueError(f"découpage incohérent : {test_year} absente, ou années postérieures à {test_year}")
+
+    train, test = df[years < test_year], df[years == test_year]
+    X_train, X_test, y_train, y_test = train[features], test[features], train[target], test[target]
+
+    if verbose:
+        print(f"total   : {len(df)} lignes, {years.min()}-{years.max()}")
+        print(f"X_train : {X_train.shape}, {train[year_column].min()}-{train[year_column].max()}")
+        print(f"X_test  : {X_test.shape}, {test_year}, réservé à l'évaluation finale")
+        print(f"y_train : {y_train.shape}")
+        print(f"y_test  : {y_test.shape}")
+    return [X_train, X_test, y_train, y_test]
+
+
+def temporal_cv(
+    years: pd.Series | np.ndarray, validation_years: list[int], test_year: int, verbose: bool = True
+) -> list[tuple[np.ndarray, np.ndarray]]:
+    """Validation temporelle : un fold par année de validation, appris sur toutes les années antérieures.
+
+    `years` : l'année de chaque ligne du jeu d'entraînement, dans l'ordre de ses lignes. Renvoie une
+    liste de couples (positions d'apprentissage, positions de validation), à passer comme `cv` à
+    `cross_validate` ou à `run_experiment` ; les folds sont les mêmes pour tous les modèles.
+
+    Contrôles contre les fuites : aucune ligne de `test_year` ou postérieure dans `years`, et aucun fold
+    vide. Par construction, chaque apprentissage ne contient que des années strictement antérieures à
+    l'année validée.
+    """
+    years = np.asarray(years)
+    if (years >= test_year).any():
+        raise ValueError(f"{test_year} ou après dans les années d'entraînement : le test doit rester à part")
+
+    folds = []
+    for year in validation_years:
+        train_positions = np.flatnonzero(years < year)
+        validation_positions = np.flatnonzero(years == year)
+        if len(train_positions) == 0 or len(validation_positions) == 0:
+            raise ValueError(f"validation {year} : apprentissage ou validation vide")
+        folds.append((train_positions, validation_positions))
+
+    if verbose:
+        for year, (train_positions, validation_positions) in zip(validation_years, folds):
+            print(
+                f"validation {year} : apprentissage {years[train_positions].min()}-{years[train_positions].max()}"
+                f" ({len(train_positions)} lignes) | {len(validation_positions)} lignes évaluées"
+            )
+    return folds
+
+
 def feature_types(features: list[str], categorical: list[str], numeric: list[str]) -> tuple[list[str], list[str]]:
     """Sépare une sélection de variables en catégorielles et numériques, dans l'ordre de la configuration."""
     unknown = set(features) - set(categorical) - set(numeric)
@@ -114,4 +176,30 @@ def protocol_params(
         "random_state": seed,
         "cv_folds": cv_folds,
         "cv_shuffle": cv_shuffle,
+    }
+
+
+def temporal_protocol_params(
+    dataset: Path,
+    target: str,
+    X_train: pd.DataFrame,
+    X_test: pd.DataFrame,
+    validation_years: list[int],
+    test_year: int,
+    year_column: str = "year",
+) -> dict:
+    """Paramètres du protocole temporel, enregistrés sous les mêmes noms dans chaque run MLflow du service.
+
+    `X_train` doit contenir la colonne des années : la période d'entraînement en est tirée.
+    """
+    return {
+        "dataset": dataset.name,
+        "target": target,
+        "n_train": len(X_train),
+        "n_test": len(X_test),
+        "train_years": f"{X_train[year_column].min()}-{X_train[year_column].max()}",
+        "test_year": test_year,
+        "cv_strategy": "expanding_window_by_year",
+        "cv_folds": len(validation_years),
+        "cv_validation_years": f"{min(validation_years)}-{max(validation_years)}",
     }
