@@ -21,7 +21,12 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
 
 from agritech.evaluation import cross_validate_folds, format_cv_metrics, summarize_cv_folds
-from agritech.preprocessing import PREPROCESSING_DESCRIPTION, build_pipeline, make_preprocessing
+from agritech.preprocessing import (
+    PREPROCESSING_DESCRIPTION,
+    PREPROCESSING_SCALED_DESCRIPTION,
+    build_pipeline,
+    make_preprocessing,
+)
 from agritech.tracking import log_run
 
 
@@ -53,15 +58,22 @@ class RunInfo:
 
 
 def experiment_pipeline(
-    model: BaseEstimator, categorical: list[str], numeric: list[str], engineering: FeatureEngineering | None = None
+    model: BaseEstimator,
+    categorical: list[str],
+    numeric: list[str],
+    engineering: FeatureEngineering | None = None,
+    scale_numeric: bool = False,
 ) -> Pipeline:
-    """Pipeline d'une expérience : colonnes ajoutées s'il y en a, preprocessing commun, puis le modèle."""
+    """Pipeline d'une expérience : colonnes ajoutées s'il y en a, preprocessing commun, puis le modèle.
+
+    `scale_numeric=True` standardise les variables numériques, colonnes ajoutées comprises.
+    """
     if engineering is None:
-        return build_pipeline(model, categorical, numeric)
+        return build_pipeline(model, categorical, numeric, scale_numeric)
     return Pipeline(
         [
             ("features", FunctionTransformer(engineering.add_columns)),
-            ("preprocessing", make_preprocessing(categorical, numeric + engineering.columns)),
+            ("preprocessing", make_preprocessing(categorical, numeric + engineering.columns, scale_numeric)),
             ("model", model),
         ]
     )
@@ -97,13 +109,15 @@ def log_model_run(
     numeric: list[str],
     metrics: dict[str, float],
     engineered: list[str] | None = None,
+    scale_numeric: bool = False,
 ) -> None:
     """Enregistre dans MLflow un pipeline évalué, avec les mêmes paramètres pour tous les runs.
 
     Paramètres : ceux du protocole, le nom du modèle (dernière étape du pipeline), le jeu de variables,
     le nombre de variables, les colonnes ajoutées (`none` s'il n'y en a pas), le nombre de colonnes vues
     par le modèle, la description du preprocessing, puis `run.params`. Les variables vont dans
-    `features.json`.
+    `features.json`. `scale_numeric` indique si le pipeline standardise les variables numériques : la
+    description du preprocessing en dépend.
 
     Le nombre de colonnes est calculé sur une copie non entraînée des étapes avant le modèle, apprise
     sur `X` : le pipeline passé n'est pas modifié, même s'il est déjà entraîné.
@@ -116,7 +130,7 @@ def log_model_run(
         "engineered_features": ", ".join(engineered) or "none",
         "n_engineered_features": len(engineered),
         "n_encoded_features": clone(pipeline[:-1]).fit_transform(X).shape[1],
-        "preprocessing": PREPROCESSING_DESCRIPTION,
+        "preprocessing": PREPROCESSING_SCALED_DESCRIPTION if scale_numeric else PREPROCESSING_DESCRIPTION,
     } | run.params
     features = {"categorical": categorical, "numeric": numeric, "engineered": engineered}
 
@@ -133,14 +147,16 @@ def run_experiment(
     engineering: FeatureEngineering | None = None,
     run: RunInfo | None = None,
     verbose: bool = True,
+    scale_numeric: bool = False,
 ) -> tuple[pd.DataFrame, dict[str, float]]:
     """Une expérience : pipeline, validation croisée, run MLflow ; renvoie les scores par fold et le résumé.
 
     Seules les colonnes `categorical + numeric` de `X` sont utilisées. Sans `run`, rien n'est écrit
     dans MLflow : c'est le cas d'une référence recalculée pour obtenir ses scores par fold.
-    L'affichage reprend le nom du run, les scores, puis les temps.
+    L'affichage reprend le nom du run, les scores, puis les temps. `scale_numeric=True` standardise
+    les variables numériques dans le pipeline, donc séparément dans chaque fold.
     """
-    pipeline = experiment_pipeline(model, categorical, numeric, engineering)
+    pipeline = experiment_pipeline(model, categorical, numeric, engineering, scale_numeric)
     X_experience = X[categorical + numeric]
 
     if verbose and run is not None:
@@ -148,5 +164,6 @@ def run_experiment(
     folds, metrics = cross_validate_model(pipeline, X_experience, y, cv, verbose=verbose)
     if run is not None:
         log_model_run(run, pipeline, X_experience, categorical, numeric, metrics,
-                      engineered=engineering.columns if engineering is not None else None)
+                      engineered=engineering.columns if engineering is not None else None,
+                      scale_numeric=scale_numeric)
     return folds, metrics
