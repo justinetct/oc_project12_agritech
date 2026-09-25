@@ -7,12 +7,16 @@ l'erreur moyenne directement en t/ha.
 - `summarize_cv_folds` en tire les moyennes et écarts-types, sous les noms des métriques MLflow ;
 - `cross_validate_regressor` enchaîne les deux, pour comparer modèles, jeux de variables et
   hyperparamètres par validation croisée sur le jeu d'entraînement ;
+- `compare_cv_folds` compare plusieurs évaluations fold par fold, et `predict_cv_folds` donne les
+  prédictions hors apprentissage, y compris quand les folds ne couvrent pas toutes les lignes ;
+- `errors_by_crop` détaille les erreurs culture par culture ;
 - `regression_metrics` est réservée à l'évaluation finale du modèle retenu sur le jeu de test.
 """
 
 from __future__ import annotations
 
 import pandas as pd
+from sklearn.base import clone
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
 from sklearn.model_selection import cross_validate
 
@@ -77,6 +81,89 @@ def cross_validate_regressor(model, X, y, cv) -> dict[str, float]:
     sans les temps.
     """
     return summarize_cv_folds(cross_validate_folds(model, X, y, cv))
+
+
+def compare_cv_folds(results: dict[str, pd.DataFrame], reference: str, fold_labels: list | None = None) -> pd.DataFrame:
+    """Comparaison appariée de plusieurs évaluations faites sur les mêmes folds, fold par fold.
+
+    `results` associe un nom aux scores par fold renvoyés par `cross_validate_folds` ou
+    `run_experiment`. Pour chaque évaluation : RMSE moyenne, écart moyen de RMSE avec `reference`
+    calculé fold par fold, nombre de folds où la RMSE est meilleure que celle de la référence, et MAE
+    moyenne. L'écart-type entre folds n'est pas utilisé : en validation temporelle, il mesure surtout
+    la différence entre années, pas l'incertitude sur l'écart entre deux modèles.
+
+    `fold_labels`, par exemple les années de validation : ajoute le R² moyen puis la RMSE de chaque
+    fold, une colonne par libellé, pour voir si un écart tient sur tous les folds ou vient d'un seul.
+    """
+    reference_rmse = results[reference]["rmse"].to_numpy()
+    if fold_labels is not None and len(fold_labels) != len(reference_rmse):
+        raise ValueError("un libellé par fold est attendu")
+
+    rows = {}
+    for name, folds in results.items():
+        if len(folds) != len(reference_rmse):
+            raise ValueError(f"{name} : {len(folds)} folds, {len(reference_rmse)} pour la référence")
+        gaps = folds["rmse"].to_numpy() - reference_rmse
+        rows[name] = {
+            "RMSE": folds["rmse"].mean(),
+            "écart moyen": gaps.mean(),
+            "folds améliorés": f"{int((gaps < 0).sum())}/{len(gaps)}",
+            "MAE": folds["mae"].mean(),
+        }
+        if fold_labels is not None:
+            rows[name]["R²"] = folds["r2"].mean()
+            rows[name] |= dict(zip(fold_labels, folds["rmse"].to_numpy()))
+    return pd.DataFrame.from_dict(rows, orient="index")
+
+
+def predict_cv_folds(model, X: pd.DataFrame, y: pd.Series, cv) -> pd.Series:
+    """Prédictions hors apprentissage : chaque fold est prédit par une copie du modèle apprise sur son seul apprentissage.
+
+    `cv` est une liste de couples de positions (apprentissage, validation), comme ceux de
+    `temporal_cv`, ou un découpage scikit-learn. Contrairement à `cross_val_predict`, les folds n'ont
+    pas à couvrir toutes les lignes : en validation temporelle, seules les dernières années sont
+    prédites. Renvoie une Series indexée comme `X`, limitée aux lignes évaluées, dans l'ordre des
+    folds. Une ligne évaluée dans deux folds provoque une erreur : une seule prédiction par ligne.
+    """
+    folds = cv.split(X, y) if hasattr(cv, "split") else cv
+
+    predictions = []
+    for train_positions, validation_positions in folds:
+        fitted = clone(model).fit(X.iloc[train_positions], y.iloc[train_positions])
+        validation = X.iloc[validation_positions]
+        predictions.append(pd.Series(fitted.predict(validation), index=validation.index, name="prediction"))
+
+    predictions = pd.concat(predictions)
+    if predictions.index.has_duplicates:
+        raise ValueError("une ligne est évaluée dans plusieurs folds, ou l'index de X n'est pas unique")
+    return predictions
+
+
+def errors_by_crop(y_true, y_pred, crops) -> pd.DataFrame:
+    """Erreurs d'un modèle culture par culture, à partir des rendements observés, prédits et des cultures.
+
+    Les trois entrées sont alignées par position et doivent avoir la même longueur. Pour chaque
+    culture : nombre de lignes, rendement moyen observé, RMSE, MAE, biais (moyenne de prédit − observé :
+    positif si le modèle surestime) et RMSE relative (RMSE / rendement moyen), qui rend comparables des
+    cultures aux niveaux de rendement très différents. Cultures triées par rendement moyen.
+    """
+    table = pd.DataFrame({"crop": list(crops), "observed": list(y_true), "predicted": list(y_pred)})
+    if not len(table) or table.isna().any().any():
+        raise ValueError("erreurs par culture : entrées vides ou valeurs manquantes")
+    table["error"] = table["predicted"] - table["observed"]
+
+    by_crop = table.groupby("crop")
+    result = pd.DataFrame(
+        {
+            "n": by_crop.size(),
+            "rendement moyen": by_crop["observed"].mean(),
+            "RMSE": by_crop["error"].apply(lambda errors: float((errors**2).mean() ** 0.5)),
+            "MAE": by_crop["error"].apply(lambda errors: float(errors.abs().mean())),
+            "biais": by_crop["error"].mean(),
+        }
+    )
+    result["RMSE relative"] = result["RMSE"] / result["rendement moyen"]
+    return result.sort_values("rendement moyen")
 
 
 def format_cv_metrics(metrics: dict[str, float]) -> str:

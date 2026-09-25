@@ -108,6 +108,28 @@ def charger_contours(chemin: CheminFichier | None = None) -> dict[str, Path]:
     return contours
 
 
+def charger_coordonnees(chemin: CheminFichier | None = None) -> dict[str, tuple[float, float]]:
+    """Charge le GeoJSON et retourne le point-étiquette (longitude, latitude) de chaque code ISO3.
+
+    Natural Earth place ce point (`LABEL_X`, `LABEL_Y`) dans le territoire principal du pays. Il évite
+    le défaut d'un centroïde géométrique, tiré vers les territoires éloignés : la Guyane pour la
+    France, l'Alaska pour les États-Unis.
+    """
+    chemin = chemin or GEOJSON_PAR_DEFAUT
+    if not chemin.is_file():
+        raise FileNotFoundError(
+            f"Contours introuvables : {chemin}\nVoir data/README.md pour les récupérer."
+        )
+
+    geojson = json.loads(chemin.read_text(encoding="utf-8"))
+    coordonnees = {}
+    for f in geojson["features"]:
+        code = _code_iso3(f["properties"])
+        if code:
+            coordonnees[code] = (f["properties"]["LABEL_X"], f["properties"]["LABEL_Y"])
+    return coordonnees
+
+
 def _index_des_noms(chemin: CheminFichier | None = None) -> dict[str, str]:
     """Toutes les variantes de nom connues de Natural Earth, vers le code ISO3."""
     chemin = chemin or GEOJSON_PAR_DEFAUT

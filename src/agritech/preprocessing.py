@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
-from sklearn.base import BaseEstimator
+import re
+
+import numpy as np
+import pandas as pd
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import FunctionTransformer, OneHotEncoder, StandardScaler
 
 
 # Descriptions enregistrées dans MLflow avec chaque modèle, selon le preprocessing utilisé.
 PREPROCESSING_DESCRIPTION = "OneHotEncoder(handle_unknown='ignore') on categorical, passthrough on numeric"
 PREPROCESSING_SCALED_DESCRIPTION = "OneHotEncoder(handle_unknown='ignore') on categorical, StandardScaler on numeric"
+PREPROCESSING_NATIVE_DESCRIPTION = "NativeCategories (pandas category, handled by the model) on categorical, passthrough on numeric"
 
 
 def make_preprocessing(categorical: list[str], numeric: list[str], scale_numeric: bool = False) -> ColumnTransformer:
@@ -32,6 +37,66 @@ def make_preprocessing(categorical: list[str], numeric: list[str], scale_numeric
             ("numeric", StandardScaler() if scale_numeric else "passthrough", numeric),
         ]
     )
+
+
+class NativeCategories(BaseEstimator, TransformerMixin):
+    """Variables catégorielles gardées comme catégories pandas, pour les modèles qui les traitent eux-mêmes.
+
+    HistGradientBoosting (`categorical_features="from_dtype"`, le défaut), LightGBM, XGBoost
+    (`enable_categorical=True`) et CatBoost (`cat_features`) découpent directement sur une variable
+    catégorielle, sans one-hot. `fit` retient les modalités vues à l'apprentissage ; `transform` renvoie
+    les mêmes colonnes en type `category`, avec ces seules modalités, dans le même ordre d'un fold à
+    l'autre. Une modalité inconnue provoque une erreur plutôt qu'une valeur manquante silencieuse.
+    """
+
+    def fit(self, X: pd.DataFrame, y=None):
+        self.categories_ = {column: sorted(X[column].unique()) for column in X.columns}
+        self.feature_names_in_ = np.asarray(X.columns, dtype=object)
+        return self
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        for column, categories in self.categories_.items():
+            unknown = sorted(set(X[column]) - set(categories))
+            if unknown:
+                raise ValueError(f"{column} : modalités absentes de l'apprentissage {unknown}")
+        return pd.DataFrame(
+            {column: pd.Categorical(X[column], categories=categories) for column, categories in self.categories_.items()},
+            index=X.index,
+        )
+
+    def get_feature_names_out(self, input_features=None) -> np.ndarray:
+        return np.asarray(list(self.categories_), dtype=object)
+
+
+def safe_feature_names(transformer, input_features) -> list[str]:
+    """Noms de colonnes sans les caractères refusés par LightGBM ou XGBoost (`[ ] < > { } " , :`), remplacés par `_`.
+
+    Par exemple `Rice, paddy x avg_temp` devient `Rice_ paddy x avg_temp`. Deux colonnes qui
+    deviendraient identiques provoquent une erreur. Fonction du module, et non d'un notebook, pour que
+    le pipeline reste sérialisable.
+    """
+    names = [re.sub(r'[\[\]<>{}",:]', "_", str(name)) for name in input_features]
+    if len(set(names)) != len(names):
+        raise ValueError("noms de colonnes identiques après remplacement des caractères refusés")
+    return names
+
+
+def make_native_preprocessing(categorical: list[str], numeric: list[str]) -> ColumnTransformer:
+    """Catégorielles en type `category` (`NativeCategories`), numériques telles quelles.
+
+    La sortie est un DataFrame, avec l'index de l'entrée : un modèle qui traite les catégories lui-même
+    les reconnaît à leur type, ou à leur nom pour CatBoost (`cat_features`, à donner en tuple : avec une
+    liste, `clone` échoue). Les catégorielles gardent leur nom ; les numériques aussi, aux caractères
+    refusés par LightGBM près (`safe_feature_names`). Pas de standardisation : elle ne change pas les
+    arbres.
+    """
+    return ColumnTransformer(
+        [
+            ("categorical", NativeCategories(), categorical),
+            ("numeric", FunctionTransformer(feature_names_out=safe_feature_names), numeric),
+        ],
+        verbose_feature_names_out=False,
+    ).set_output(transform="pandas")
 
 
 def build_pipeline(

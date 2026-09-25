@@ -67,6 +67,7 @@ def log_run(
     params: dict,
     metrics: dict[str, float],
     features: dict[str, list[str]] | None = None,
+    replace: bool = False,
 ) -> None:
     """Enregistre un modèle évalué : paramètres, métriques et variables utilisées.
 
@@ -74,7 +75,19 @@ def log_run(
     À la fin du run, MLflow écrit un lien vers le serveur : cette sortie est masquée, pour que
     l'adresse du serveur n'apparaisse pas dans les notebooks versionnés. Rien n'est retourné, donc
     rien ne s'affiche sous la cellule.
+
+    `replace=True` : avant d'enregistrer, les runs actifs de l'expérience qui portent le même nom et
+    viennent du même notebook (tag `mlflow.source.name`) sont supprimés. Relancer un notebook ne
+    duplique alors plus ses runs. La suppression MLflow est réversible, et ne touche ni les runs d'un
+    autre notebook ni ceux d'un autre nom. Par défaut, rien n'est supprimé.
     """
+    if replace:
+        condition = f"attributes.run_name = '{run_name}'"
+        if "mlflow.source.name" in tags:
+            condition += f" and tags.`mlflow.source.name` = '{tags['mlflow.source.name']}'"
+        for previous in mlflow.search_runs(filter_string=condition, output_format="list"):
+            mlflow.delete_run(previous.info.run_id)
+
     with contextlib.redirect_stdout(io.StringIO()):
         with mlflow.start_run(run_name=run_name, tags=tags):
             mlflow.log_params(params)
