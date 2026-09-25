@@ -23,6 +23,7 @@ dependencies = [
     "shap (>=0.52.0,<0.53.0)",
     "fastapi (>=0.141.1,<0.142.0)",
     "uvicorn[standard] (>=0.54.0,<0.55.0)",
+    "joblib (>=1.6.0,<2.0.0)",
 ]
 
 [tool.poetry]
@@ -42,10 +43,10 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=api --cov-report=term-missing"
+addopts = "--cov=agritech.api --cov=agritech.serving --cov-report=term-missing"
 
 [tool.coverage.run]
-source = ["api"]
+source = ["agritech.api", "agritech.serving"]
 branch = true
 
 [tool.coverage.report]

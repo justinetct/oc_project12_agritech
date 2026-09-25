@@ -2,6 +2,7 @@
   "service": "predict",
   "model_type": "LinearRegression",
   "artifact": "predict_model.joblib",
+  "model_version": "1.0.0",
   "target": "Yield_tons_per_hectare",
   "features": [
     "Rainfall_mm",
@@ -39,6 +40,18 @@
     "rmse": 0.4992678452943281,
     "mae": 0.39833799309037676,
     "r2": 0.913234820907552
+  },
+  "training_domain": {
+    "Rainfall_mm": {
+      "min": 100,
+      "max": 1000,
+      "unit": "mm"
+    },
+    "Temperature_Celsius": {
+      "min": 15,
+      "max": 40,
+      "unit": "°C"
+    }
   },
   "notebook": "notebooks/11_predict_final_evaluation.ipynb",
   "created_on": "2026-09-18",
