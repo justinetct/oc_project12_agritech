@@ -21,6 +21,8 @@ dependencies = [
     "lightgbm (>=4.7.0,<5.0.0)",
     "catboost (>=1.2.10,<2.0.0)",
     "shap (>=0.52.0,<0.53.0)",
+    "fastapi (>=0.141.1,<0.142.0)",
+    "uvicorn[standard] (>=0.54.0,<0.55.0)",
 ]
 
 [tool.poetry]
@@ -32,5 +34,20 @@ build-backend = "poetry.core.masonry.api"
 
 [dependency-groups]
 dev = [
-    "markdown (>=3.6)"
+    "markdown (>=3.6)",
+    "pytest (>=9.1.1,<10.0.0)",
+    "pytest-cov (>=7.1.0,<8.0.0)",
+    "httpx (>=0.28.1,<0.29.0)"
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=api --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["api"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
