@@ -948,13 +948,13 @@
       </tr>
       <tr>
       <td>5. Allègement</td>
-      <td><strong>150 arbres, 60,8 Mo compressés</strong>, même RMSE (1,4349 contre 1,4359) et MAE (0,7114 contre 0,7127)</td>
+      <td><strong>150 arbres, 44,7 Mo compressés</strong> (lzma), même RMSE (1,4349 contre 1,4359) et MAE (0,7114 contre 0,7127)</td>
       </tr>
       </tbody>
       </table></div>
       <ul>
       <li><strong>Pourquoi alléger ExtraTrees ?</strong> Le modèle doit être enregistré dans le dépôt et chargé par l'API. Avec 300 arbres,
-        il pèse 425 Mo (121,6 Mo compressés) : au-delà de la limite de 100 Mo par fichier de GitHub, et lent à charger.</li>
+        il pèse 425 Mo (121,6 Mo compressés) : au-dessus de la recommandation de 50 Mo par fichier de GitHub, et lent à charger.</li>
       <li>La taille d'une forêt dépend de son nombre de nœuds, donc surtout du nombre d'arbres. Or la RMSE ne baisse plus
         au-delà de 150 arbres : on garde la même performance pour un fichier deux fois plus petit, plus rapide à charger et
         à interroger (annexe D.4).</li>
@@ -967,7 +967,7 @@
       <li>Les conditions historiques utilisent la moyenne des 3 années précédentes : la première année de chaque pays
         (1990) n'a donc pas d'historique et sort de l'apprentissage, ce qui ramène le développement de 15 624 à 14 941
         lignes (1991-2012).</li>
-      <li>Pipeline complet de 60,8 Mo compressés, dans <code>models/recommend_model.joblib</code>, avec ses métadonnées.</li>
+      <li>Pipeline complet de 44,7 Mo compressés (lzma), dans <code>models/recommend_model.joblib</code>, avec ses métadonnées.</li>
       </ul>
       <h3 id="importance-des-variables">Importance des variables</h3>
       <figure><img width="983" height="363" alt="Importance par permutation du modèle final, hors apprentissage : hausse de la RMSE quand une famille de variables est mélangée dans une année de validation, 2008-2012 (notebook 15)" src="assets/figures/14_importance_recommend.png" /><figcaption>Importance par permutation du modèle final, hors apprentissage : hausse de la RMSE quand une famille de variables est mélangée dans une année de validation, 2008-2012 (notebook 15)</figcaption></figure>
@@ -1360,7 +1360,7 @@
       <td style="text-align: right;">1,4375</td>
       </tr>
       <tr>
-      <td>Taille compressée (Mo)</td>
+      <td>Taille compressée zlib (Mo)</td>
       <td style="text-align: right;">20,3</td>
       <td style="text-align: right;">40,5</td>
       <td style="text-align: right;"><strong>60,8</strong></td>
@@ -1379,6 +1379,7 @@
       <li>aucun des meilleurs compromis ne dépasse 60,8 Mo : <strong>150 arbres, avec la structure du tuning, sont retenus</strong>. Le
         meilleur modèle de la recherche ajoutait <code>max_depth=35</code> pour une RMSE de 1,4347 contre 1,4349 : un gain de 0,0002 t/ha, négligeable.</li>
       </ul>
+      <p>Le modèle retenu (150 arbres) est sauvegardé en lzma (44,7 Mo) au lieu de zlib (60,8 Mo), pour passer sous la recommandation de 50 Mo par fichier de GitHub.</p>
       <hr />
       <p><em>Les analyses, le code et les notebooks sont disponibles dans le dépôt du projet.</em></p>
     </main>

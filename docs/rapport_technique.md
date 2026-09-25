@@ -424,10 +424,10 @@ Un tuning léger teste 6 familles de modèles, puis un tuning plus fin approfond
 | 2. Trois finalistes | 1. ExtraTrees 1,442 (MAE 0,710, R² 0,971)<br>2. CatBoost 1,458 (MAE 0,753, R² 0,970)<br>3. LightGBM 1,483 (MAE 0,779, R² 0,969) |
 | 3. Tuning approfondi | 1. **ExtraTrees 1,436** (MAE 0,713, R² 0,971)<br>2. CatBoost 1,450 (MAE 0,740, R² 0,970)<br>3. LightGBM 1,465 (MAE 0,757, R² 0,970) |
 | 4. Choix, avant 2013 | **ExtraTrees** : meilleures RMSE et MAE, plus stable d'une année à l'autre ; en plus, scikit-learn seul (plus simple à déployer) |
-| 5. Allègement | **150 arbres, 60,8 Mo compressés**, même RMSE (1,4349 contre 1,4359) et MAE (0,7114 contre 0,7127) |
+| 5. Allègement | **150 arbres, 44,7 Mo compressés** (lzma), même RMSE (1,4349 contre 1,4359) et MAE (0,7114 contre 0,7127) |
 
 - **Pourquoi alléger ExtraTrees ?** Le modèle doit être enregistré dans le dépôt et chargé par l'API. Avec 300 arbres,
-  il pèse 425 Mo (121,6 Mo compressés) : au-delà de la limite de 100 Mo par fichier de GitHub, et lent à charger.
+  il pèse 425 Mo (121,6 Mo compressés) : au-dessus de la recommandation de 50 Mo par fichier de GitHub, et lent à charger.
 - La taille d'une forêt dépend de son nombre de nœuds, donc surtout du nombre d'arbres. Or la RMSE ne baisse plus
   au-delà de 150 arbres : on garde la même performance pour un fichier deux fois plus petit, plus rapide à charger et
   à interroger (annexe D.4).
@@ -441,7 +441,7 @@ Un tuning léger teste 6 familles de modèles, puis un tuning plus fin approfond
 - Les conditions historiques utilisent la moyenne des 3 années précédentes : la première année de chaque pays
   (1990) n'a donc pas d'historique et sort de l'apprentissage, ce qui ramène le développement de 15 624 à 14 941
   lignes (1991-2012).
-- Pipeline complet de 60,8 Mo compressés, dans `models/recommend_model.joblib`, avec ses métadonnées.
+- Pipeline complet de 44,7 Mo compressés (lzma), dans `models/recommend_model.joblib`, avec ses métadonnées.
 
 ### Importance des variables
 
@@ -642,7 +642,7 @@ modèle du tuning (300 arbres, 5,9 millions de nœuds) pèse 425 Mo, et 121,6 Mo
 | Arbres | 50 | 100 | **150** | 200 | 300 | 500 |
 |---|---:|---:|---:|---:|---:|---:|
 | RMSE de validation (t/ha) | 1,4537 | 1,4390 | **1,4349** | 1,4366 | 1,4359 | 1,4375 |
-| Taille compressée (Mo) | 20,3 | 40,5 | **60,8** | 81,0 | 121,6 | 202,6 |
+| Taille compressée zlib (Mo) | 20,3 | 40,5 | **60,8** | 81,0 | 121,6 | 202,6 |
 
 Une recherche à deux critères, RMSE et taille, a aussi fait varier la structure des arbres :
 
@@ -652,6 +652,8 @@ Une recherche à deux critères, RMSE et taille, a aussi fait varier la structur
   modèles évalués ;
 - aucun des meilleurs compromis ne dépasse 60,8 Mo : **150 arbres, avec la structure du tuning, sont retenus**. Le
   meilleur modèle de la recherche ajoutait `max_depth=35` pour une RMSE de 1,4347 contre 1,4349 : un gain de 0,0002 t/ha, négligeable.
+
+Le modèle retenu (150 arbres) est sauvegardé en lzma (44,7 Mo) au lieu de zlib (60,8 Mo), pour passer sous la recommandation de 50 Mo par fichier de GitHub.
 
 ---
 

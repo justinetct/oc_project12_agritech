@@ -155,6 +155,6 @@ Les modèles sont comparés par validation temporelle sur 2008-2012 : chaque ann
 | Validation temporelle 2008-2012 | 1,4349 | 0,7114 | 0,9710 |
 | Test final 2013 (695 lignes) | 1,6584 | 0,7615 | 0,9638 |
 
-150 arbres font aussi bien que 300 pour un fichier deux fois plus petit : le pipeline complet (preprocessing et modèle) pèse 60,8 Mo compressés dans `models/recommend_model.joblib`, sous la limite de 100 Mo par fichier de GitHub. Ses métadonnées sont dans `models/recommend_model_metadata.json`.
+150 arbres font aussi bien que 300 pour un fichier deux fois plus petit : le pipeline complet (preprocessing et modèle) pèse 44,7 Mo compressés (lzma) dans `models/recommend_model.joblib`, sous la recommandation de 50 Mo par fichier de GitHub. Ses métadonnées sont dans `models/recommend_model_metadata.json`.
 
 **Limite :** les 695 lignes de 2013 portent toutes sur des couples pays × culture déjà observés, comme 3 469 des 3 472 lignes de la validation. Le test ne mesure donc pas les recommandations de cultures jamais observées dans le pays, alors que, dans les demandes 2012, 25 des 115 cultures classées n°1 n’avaient jamais été observées dans le pays.
