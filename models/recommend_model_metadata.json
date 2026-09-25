@@ -1,0 +1,74 @@
+{
+  "service": "recommend",
+  "model_type": "ExtraTreesRegressor",
+  "artifact": "recommend_model.joblib",
+  "target": "yield_t_ha",
+  "features": [
+    "crop",
+    "year",
+    "temp_hist",
+    "rain_mm",
+    "log_pest_hist",
+    "lat_abs",
+    "geo_x",
+    "geo_y",
+    "geo_z"
+  ],
+  "categorical_features": [
+    "crop"
+  ],
+  "numeric_features": [
+    "year",
+    "temp_hist",
+    "rain_mm",
+    "log_pest_hist",
+    "lat_abs",
+    "geo_x",
+    "geo_y",
+    "geo_z"
+  ],
+  "categorical_values": {
+    "crop": [
+      "Cassava",
+      "Maize",
+      "Plantains and others",
+      "Potatoes",
+      "Rice, paddy",
+      "Sorghum",
+      "Soybeans",
+      "Sweet potatoes",
+      "Wheat",
+      "Yams"
+    ]
+  },
+  "preprocessing": "OneHotEncoder(handle_unknown='ignore') on categorical, passthrough on numeric",
+  "model_params": {
+    "n_estimators": 150,
+    "max_features": 0.9,
+    "min_samples_split": 3,
+    "random_state": 42,
+    "n_jobs": 1
+  },
+  "training_dataset": "recommend_training_dataset.csv",
+  "n_train": 14941,
+  "n_test": 695,
+  "train_years": "1991-2012",
+  "test_year": 2013,
+  "cv_strategy": "expanding_window_by_year",
+  "cv_folds": 5,
+  "cv_validation_years": "2008-2012",
+  "trained_on": "rows_with_history_before_test_year",
+  "final_test_metrics": {
+    "rmse": 1.6583653778656462,
+    "mae": 0.7614744124700236,
+    "r2": 0.9638329168740789
+  },
+  "notebook": "notebooks/15_recommend_final_model.ipynb",
+  "created_on": "2026-09-23",
+  "versions": {
+    "python": "3.12.13",
+    "scikit-learn": "1.9.0",
+    "numpy": "2.3.5",
+    "joblib": "1.6.0"
+  }
+}
