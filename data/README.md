@@ -22,7 +22,7 @@ data/
     ├── crop_yield_clean.csv                # ~0,9 Mo, dataset historique nettoyé
     ├── predict_negative_yield_rows.csv     # ~22 Ko, 231 rendements négatifs, hors entraînement
     ├── predict_training_dataset.csv        # ~89 Mo, dataset d'entraînement /predict
-    └── recommend_training_dataset.csv      # ~1,3 Mo, dataset d'entraînement /recommend
+    └── recommend_training_dataset.csv      # ~0,9 Mo, dataset d'entraînement /recommend
 ```
 
 ## Provenance
@@ -36,7 +36,8 @@ Ils ne sont pas redistribués dans ce repository.
 ## Contours des pays
 
 `data/geo/ne_110m_admin_0_countries.geojson` est utilisé par `agritech.geo` pour
-les cartes du monde. Il vient de [Natural Earth](https://www.naturalearthdata.com/)
+les cartes du monde et pour les coordonnées des pays, dont `/recommend` tire ses
+variables géographiques. Il vient de [Natural Earth](https://www.naturalearthdata.com/)
 (échelle 1:110m, 177 pays, domaine public) et n'est pas versionné non plus :
 
 ```bash
@@ -125,5 +126,5 @@ Produits par `notebooks/06_prepare_training_dataset.ipynb`, non versionnés.
 | Fichier | Lignes | Colonnes |
 |---|---|---|
 | `predict_training_dataset.csv` | 999 769 | 9 variables candidates `Crop`, `Soil_Type`, `Rainfall_mm`, `Temperature_Celsius`, `Fertilizer_Used`, `Irrigation_Used`, `Region`, `Weather_Condition`, `Days_to_Harvest` ; cible `Yield_tons_per_hectare` |
-| `recommend_training_dataset.csv` | 15 636 (115 pays, 1991-2013) | `area` hors modèle ; variables candidates `iso3`, `year`, `crop`, `temp_hist`, `rain_mm`, `pest_hist`, `log_pest_hist` ; cible `yield_t_ha` |
+| `recommend_training_dataset.csv` | 16 319 (115 pays, 1990-2013) | tout le dataset historique nettoyé : `area` hors modèle ; variables d'origine `iso3`, `year`, `crop`, `avg_temp`, `rain_mm`, `pesticides_t` ; cible `yield_t_ha`. Les variables historiques et géographiques sont calculées dans les notebooks 13 à 15 |
 | `predict_negative_yield_rows.csv` | 231 | rendements négatifs, toutes les colonnes d'origine ; hors entraînement et évaluation |

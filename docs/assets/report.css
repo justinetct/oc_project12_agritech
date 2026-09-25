@@ -19,6 +19,9 @@
   --gold-deep: #8a5a00;
   --gold-soft: #fff7e6;
   --gold-line: #ffe2a8;
+  --red-deep: #9c2b2b;
+  --red-soft: #fdecec;
+  --red-line: #f3c4c4;
   --topbar-h: 58px;
 }
 
@@ -333,6 +336,18 @@ code.cat {
   background: var(--gold-soft);
   border-color: var(--gold-line);
   color: var(--gold-deep);
+}
+
+/* Scores secondaires (MAE / R²) : gris dans les cellules, blanc atténué dans les en-têtes */
+.s2 { color: var(--muted); }
+th .s2 { color: rgba(255, 255, 255, 0.55); }
+
+/* Interactions culture × variable, ajoutées à la régression linéaire (section 8) : rouge, pour les distinguer
+   du one-hot et attirer l'œil vers leur explication sous le tableau */
+code.interact {
+  background: var(--red-soft);
+  border-color: var(--red-line);
+  color: var(--red-deep);
 }
 
 /* ─────────── tableaux ─────────── */

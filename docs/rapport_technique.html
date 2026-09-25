@@ -3,33 +3,28 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rapport technique — Agritech Answers</title>
-<meta name="description" content="Contexte métier, exploration des deux datasets, ACP, nettoyage des données historiques et construction des datasets d'entraînement de /predict et /recommend.">
+<title>Rapport — Agritech Answers</title>
+<meta name="description" content="Données, modélisation et résultats des deux services : /predict estime le rendement d'une parcelle, /recommend classe les cultures d'un pays par rendement prédit.">
 <link rel="icon" href="assets/logo_agritech.png">
 <link rel="stylesheet" href="assets/report.css">
 </head>
 <body>
   <header class="topbar">
     <img src="assets/logo_agritech.png" alt="Agritech Answers">
-    <span class="title">Rapport technique</span>
+    <span class="title">Rapport</span>
     <span class="spacer"></span>
-    <span class="pill">Étape données · v1</span>
+    <span class="pill">Modélisation · API à venir</span>
   </header>
 
   <div class="shell">
     <nav class="nav">
       <div class="nav-label">Sur cette page</div>
       <ul class="sidebar-toc">
-        <li><a href="#1-objectifs-du-projet"><span class="num">01</span><span class="lbl">Objectifs du projet</span></a></li>
-        <li><a href="#2-données-disponibles"><span class="num">02</span><span class="lbl">Données disponibles</span></a></li>
-        <li><a href="#3-analyse-du-dataset-agriculture-cropyield"><span class="num">03</span><span class="lbl">Analyse du dataset Agriculture CropYield</span></a></li>
-        <li><a href="#4-analyse-du-dataset-cropyield-prediction"><span class="num">04</span><span class="lbl">Analyse du dataset CropYield Prediction</span></a></li>
-        <li><a href="#5-comparaison-des-deux-datasets"><span class="num">05</span><span class="lbl">Comparaison des deux datasets</span></a></li>
-        <li><a href="#6-construction-des-datasets-dentraînement"><span class="num">06</span><span class="lbl">Construction des datasets d&#x27;entraînement</span></a></li>
-        <li><a href="#7-modélisation-de-predict"><span class="num">07</span><span class="lbl">Modélisation de /predict</span></a></li>
-        <li><a href="#8-première-modélisation-de-recommend"><span class="num">08</span><span class="lbl">Première modélisation de /recommend</span></a></li>
-        <li><a href="#9-limites-identifiées"><span class="num">09</span><span class="lbl">Limites identifiées</span></a></li>
-        <li><a href="#10-suite-du-projet"><span class="num">10</span><span class="lbl">Suite du projet</span></a></li>
+        <li><a href="#1-contexte-et-données"><span class="num">01</span><span class="lbl">Contexte et données</span></a></li>
+        <li><a href="#2-exploration-et-stratégie"><span class="num">02</span><span class="lbl">Exploration et stratégie</span></a></li>
+        <li><a href="#3-predict--estimation-du-rendement"><span class="num">03</span><span class="lbl">/predict — estimation du rendement</span></a></li>
+        <li><a href="#4-recommend--recommandation-de-cultures"><span class="num">04</span><span class="lbl">/recommend — recommandation de cultures</span></a></li>
+        <li><a href="#5-de-lanalyse-à-lapi"><span class="num">05</span><span class="lbl">De l&#x27;analyse à l&#x27;API</span></a></li>
         <li><a href="#annexes"><span class="num">A</span><span class="lbl">Annexes</span></a></li>
       </ul>
     </nav>
@@ -43,9 +38,9 @@
             <div class="hero-org">Agritech Answers</div>
           </div>
         </div>
-        <h1>Rapport technique</h1>
-        <p class="hero-subtitle">Système de prédiction de rendement et de recommandation de cultures</p>
-        <p class="lead">Contexte métier, exploration des deux datasets, ACP, nettoyage des données historiques et construction des datasets d'entraînement de /predict et /recommend.</p>
+        <h1>Rapport</h1>
+        <p class="hero-subtitle">Prédire un rendement et recommander une culture</p>
+        <p class="lead">Données, modélisation et résultats des deux services : /predict estime le rendement d'une parcelle, /recommend classe les cultures d'un pays par rendement prédit.</p>
         <div class="badges">
           <span>Python 3.12</span>
           <span>pandas</span>
@@ -55,32 +50,73 @@
         </div>
       </section>
 
-      <div class="callout callout-note">
-        <div class="callout-header"><span aria-hidden="true">◆</span>Note</div>
-        <div class="callout-body">
-      <p>Ce rapport couvre la préparation des données, la modélisation complète de <code>/predict</code> (sélection,
-      évaluation finale sur le jeu de test et sauvegarde du modèle) et la première baseline <code>/recommend</code>.
-      La suite de la modélisation <code>/recommend</code>, son évaluation finale, l'API et le déploiement seront
-      ajoutés dans les prochaines versions.</p>
-      </div>
-      </div>
-
-      <h2 id="1-objectifs-du-projet">1. Objectifs du projet</h2>
+      <h2 id="1-contexte-et-données">1. Contexte et données</h2>
       <p>Agritech Answers veut proposer aux agriculteurs une application web qui répond à deux questions :</p>
       <ul>
-      <li><strong><code>/predict</code></strong> : l'agriculteur a déjà choisi sa culture et veut connaître le rendement attendu ;</li>
-      <li><strong><code>/recommend</code></strong> : il cherche quelle culture choisir.</li>
+      <li><strong><code>/predict</code></strong> : l'agriculteur a déjà choisi sa culture et veut connaître le rendement attendu de sa parcelle ;</li>
+      <li><strong><code>/recommend</code></strong> : il cherche quelle culture choisir dans son pays ; le service estime le rendement des 10 cultures
+        à partir de l'historique du pays, puis les classe.</li>
       </ul>
-      <p>Cette différence explique toute l'organisation des données décrite dans ce rapport.</p>
-      <h3 id="predict--estimer-un-rendement"><code>/predict</code> — estimer un rendement</h3>
-      <p>On travaille à l'échelle d'<strong>une parcelle, sur une saison</strong>. L'utilisateur décrit sa parcelle, et le
-      service renvoie une estimation du rendement en tonnes par hectare.</p>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th></th>
+      <th><strong>Agriculture CropYield</strong></th>
+      <th><strong>CropYield Prediction</strong></th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td>Une ligne</td>
+      <td>une parcelle sur une saison</td>
+      <td>un pays, une année, une culture</td>
+      </tr>
+      <tr>
+      <td>Volume brut</td>
+      <td>1 000 000 lignes × 10 colonnes</td>
+      <td>4 fichiers sources + un fichier déjà assemblé</td>
+      </tr>
+      <tr>
+      <td>Période</td>
+      <td>pas d'année</td>
+      <td>1990‑2013</td>
+      </tr>
+      <tr>
+      <td>Géographie</td>
+      <td>4 zones sans lieu réel (North, East, South, West)</td>
+      <td>168 pays après jointure, 115 après nettoyage</td>
+      </tr>
+      <tr>
+      <td>Cultures</td>
+      <td>6</td>
+      <td>10</td>
+      </tr>
+      <tr>
+      <td>Variables principales</td>
+      <td>pluie, température, sol, engrais, irrigation</td>
+      <td>rendement, température, pluie, pesticides</td>
+      </tr>
+      <tr>
+      <td>Cible</td>
+      <td><code>Yield_tons_per_hectare</code> (t/ha)</td>
+      <td><code>yield_t_ha</code> (t/ha, converti depuis hg/ha)</td>
+      </tr>
+      <tr>
+      <td>Service</td>
+      <td><strong><code>/predict</code></strong></td>
+      <td><strong><code>/recommend</code></strong></td>
+      </tr>
+      </tbody>
+      </table></div>
+      <p>Les six cultures du jeu parcellaire ont presque le même rendement : il ne permet pas de classer des cultures. Le
+      jeu historique les distingue bien, mais ne décrit aucune parcelle. <strong>Chaque service a donc son propre dataset et son
+      propre modèle</strong>, et les lignes des deux jeux ne sont jamais mélangées.</p>
       <div class="table-scroll"><table>
       <thead>
       <tr>
       <th>Information</th>
       <th>Saisie dans l'application</th>
-      <th>Utilisée par le modèle final</th>
+      <th>Utilisée par le modèle <code>/predict</code></th>
       </tr>
       </thead>
       <tbody>
@@ -116,85 +152,51 @@
       </tr>
       </tbody>
       </table></div>
-      <p>La culture et le type de sol restent demandés pour décrire la parcelle, mais ils ne changent pas
-      l'estimation : le modèle final n'utilise que les <strong>4 variables sélectionnées</strong>, qui portent le signal (section 7).</p>
-      <h3 id="recommend--classer-les-cultures"><code>/recommend</code> — classer les cultures</h3>
-      <p>L'utilisateur choisit son pays. L'application affiche les valeurs historiques connues pour ce
-      pays : température, pluie et pesticides. Elles sont présentées comme des valeurs du pays, et
-      l'utilisateur peut les modifier pour décrire sa propre situation. Le modèle estime ensuite le
-      rendement des 10 cultures, et l'application les classe du rendement le plus élevé au plus faible.</p>
-      <p>Le pays sert d'abord à préremplir les valeurs. Son code (<code>iso3</code>) et l'année (<code>year</code>) seront aussi
-      testés comme variables du modèle, pour vérifier s'ils apportent une information que les conditions
-      ne décrivent pas. Le classement doit rester sensible aux conditions renseignées.</p>
-      <p>Ici, il faut <strong>comparer les cultures entre elles</strong>.</p>
-      <h3 id="pourquoi-deux-datasets-et-deux-modèles">Pourquoi deux datasets et deux modèles</h3>
-      <p>Pour classer des cultures, il faut que le rendement prédit change d'une culture à l'autre. Le
-      dataset parcellaire convient à <code>/predict</code>, mais ses six cultures ont presque le même rendement
-      (section 3). Le dataset historique distingue bien les cultures, mais ne décrit aucune parcelle
-      (section 5).</p>
-      <p>Chaque service utilise donc son propre dataset et son propre modèle. Les lignes des deux datasets
-      ne sont jamais mélangées.</p>
-      <h2 id="2-données-disponibles">2. Données disponibles</h2>
+      <h3 id="préparation-des-données">Préparation des données</h3>
+      <ul>
+      <li><strong>Agriculture CropYield</strong> : un million de lignes sans valeur manquante ni doublon, aux distributions uniformes et
+        aux catégories équilibrées : tout indique un jeu simulé. Les 231 rendements négatifs, impossibles, sont retirés :
+        il reste 999 769 lignes pour <code>/predict</code>.</li>
+      <li><strong>CropYield Prediction</strong> : le fichier déjà assemblé, <code>yield_df.csv</code>, n'est pas utilisé. Il duplique des lignes
+        (jusqu'à 52 relevés de température par pays et par année dans <code>temp.csv</code>) et perd des pays dont le nom diffère d'un fichier à
+        l'autre. L'assemblage est refait à partir des quatre sources, sur le code ISO3 des pays : 22 679 lignes et
+        168 pays sur 1990-2013.</li>
+      </ul>
+      <p>Trois règles donnent le dataset historique nettoyé, sans inventer de valeurs :</p>
       <div class="table-scroll"><table>
       <thead>
       <tr>
-      <th></th>
-      <th><strong>Agriculture CropYield</strong></th>
-      <th><strong>CropYield Prediction</strong></th>
+      <th>Règle</th>
+      <th>Traitement</th>
+      <th style="text-align: right;">Lignes</th>
+      <th style="text-align: right;">Pays</th>
       </tr>
       </thead>
       <tbody>
       <tr>
-      <td>Une ligne</td>
-      <td>une parcelle sur une saison</td>
-      <td>un pays, une année, une culture</td>
+      <td>Pluie absente certaines années</td>
+      <td>la valeur connue du pays est reprise (947 lignes de 2003, 6 des Bahamas en 1990‑1991)</td>
+      <td style="text-align: right;">953 complétées</td>
+      <td style="text-align: right;">—</td>
       </tr>
       <tr>
-      <td>Volume brut</td>
-      <td>1 000 000 lignes × 10 colonnes</td>
-      <td>4 fichiers sources + un fichier déjà assemblé</td>
+      <td>Pays sans température ou sans pesticides</td>
+      <td>pays retirés plutôt que complétés avec les valeurs d'un voisin</td>
+      <td style="text-align: right;">−6 322</td>
+      <td style="text-align: right;">−51</td>
       </tr>
       <tr>
-      <td>Période</td>
-      <td>pas d'année</td>
-      <td>1990-2013</td>
-      </tr>
-      <tr>
-      <td>Géographie</td>
-      <td>4 zones sans lieu réel (North, East, South, West)</td>
-      <td>168 pays après jointure, 115 après nettoyage</td>
-      </tr>
-      <tr>
-      <td>Cultures</td>
-      <td>6</td>
-      <td>10</td>
-      </tr>
-      <tr>
-      <td>Variables principales</td>
-      <td>pluie, température, sol, engrais, irrigation</td>
-      <td>rendement, température, pluie, pesticides</td>
-      </tr>
-      <tr>
-      <td>Cible</td>
-      <td><code>Yield_tons_per_hectare</code> (t/ha)</td>
-      <td><code>yield_t_ha</code> (t/ha, converti depuis hg/ha)</td>
-      </tr>
-      <tr>
-      <td>Service</td>
-      <td><strong><code>/predict</code></strong></td>
-      <td><strong><code>/recommend</code></strong></td>
+      <td>Pluie erronée</td>
+      <td>Monténégro et Soudan, dont la pluie est recopiée d'un pays voisin dans l'ordre alphabétique, retirés</td>
+      <td style="text-align: right;">−38</td>
+      <td style="text-align: right;">−2</td>
       </tr>
       </tbody>
       </table></div>
-      <p>Le second dataset est fourni en quatre fichiers sources (<code>yield.csv</code>, <code>temp.csv</code>, <code>rainfall.csv</code>,
-      <code>pesticides.csv</code>) et un fichier déjà assemblé, <code>yield_df.csv</code>, qui n'est pas utilisé (section 4).</p>
-      <p>Aucune clé ne relie les deux datasets : le premier n'a ni pays ni année, et ses régions ne désignent
-      aucun territoire réel. Leurs variables communes ne mesurent pas non plus la même chose (section 5).</p>
-      <h2 id="3-analyse-du-dataset-agriculture-cropyield">3. Analyse du dataset Agriculture CropYield</h2>
-      <p><strong>1 000 000 lignes et 10 colonnes</strong>, sans valeur manquante ni doublon, avec des types corrects. La
-      pluie, la température et <code>Days_to_Harvest</code> sont uniformes ; le rendement suit une courbe en cloche
-      centrée sur 4,65 t/ha. Aucune transformation n'est nécessaire à ce stade.</p>
-      <h3 id="variables-les-plus-liées-au-rendement">Variables les plus liées au rendement</h3>
+      <p><strong>Dataset historique nettoyé : 16 319 lignes, 115 pays, 10 cultures, 1990-2013, aucune valeur manquante</strong>
+      (<code>data/processed/crop_yield_clean.csv</code>). C'est le dataset d'entraînement de <code>/recommend</code>.</p>
+      <h2 id="2-exploration-et-stratégie">2. Exploration et stratégie</h2>
+      <h3 id="jeu-parcellaire--quatre-variables-portent-le-rendement">Jeu parcellaire : quatre variables portent le rendement</h3>
       <div class="table-scroll"><table>
       <thead>
       <tr>
@@ -235,15 +237,9 @@
       <ul>
       <li>Les courbes de droite sont presque parallèles : l'écart de rendement moyen associé à l'engrais et
         à l'irrigation reste le même quel que soit le niveau de pluie.</li>
-      <li>Les variables d'entrée ne sont pas corrélées entre elles (|r| ≤ 0,003) : chaque relation se lit
-        séparément.</li>
-      <li>La température a une corrélation faible, mais une relation petite et régulière avec le rendement :
-        elle est gardée.</li>
+      <li><code>Region</code>, <code>Soil_Type</code>, <code>Crop</code> et <code>Weather_Condition</code> sont équilibrées, et le rendement moyen ne diffère que de
+        <strong>0,012 t/ha au maximum</strong> entre leurs modalités.</li>
       </ul>
-      <h3 id="variables-sans-effet-visible">Variables sans effet visible</h3>
-      <p><code>Region</code>, <code>Soil_Type</code>, <code>Crop</code> et <code>Weather_Condition</code> sont équilibrées, mais ne changent presque pas
-      le rendement : <strong>0,012 t/ha d'écart au maximum</strong> entre modalités. À pluie comparable, les six
-      cultures restent à 0,028 t/ha les unes des autres.</p>
       <figure><img width="2037" height="609" alt="Répartition des quatre variables catégorielles et écart de rendement entre leurs modalités" src="assets/figures/07_repartitions_categorielles.png" /><figcaption>Répartition des quatre variables catégorielles et écart de rendement entre leurs modalités</figcaption></figure>
       <div class="callout callout-important">
         <div class="callout-header"><span aria-hidden="true">▲</span>Important</div>
@@ -253,13 +249,7 @@
       utilisé.</p>
       </div>
       </div>
-      <h3 id="qualité-de-la-cible">Qualité de la cible</h3>
-      <p>Le rendement va de −1,15 à 9,96 t/ha, avec une moyenne et une médiane de 4,65. <strong>231 lignes
-      (0,023 %) ont un rendement négatif</strong>, ce qui est impossible : toutes sont sans engrais ni
-      irrigation, et 223 ont reçu moins de 200 mm de pluie. Leur traitement est décrit en section 6.</p>
       <h3 id="analyse-en-composantes-principales">Analyse en composantes principales</h3>
-      <p>ACP exploratoire sur les six variables numériques standardisées, pour voir si plusieurs variables
-      apportent la même information.</p>
       <div class="table-scroll"><table>
       <thead>
       <tr>
@@ -295,476 +285,26 @@
       </table></div>
       <figure><img width="1482" height="663" alt="Cercle des corrélations et plan factoriel coloré par culture" src="assets/figures/02_acp.png" /><figcaption>Cercle des corrélations et plan factoriel coloré par culture</figcaption></figure>
       <ul>
-      <li><strong>Un seul axe se détache</strong>, et il faut 5 axes sur 6 pour garder 99 % de l'information. F1 est l'axe
-        du rendement (corrélation de 0,99), avec la pluie (0,79), l'engrais (0,46) et l'irrigation (0,37) ;
-        <code>Days_to_Harvest</code> porte presque seule F4.</li>
-      <li><strong>Aucune réduction de variables possible.</strong> Une ACP placée avant un modèle ne peut pas contenir la
-        cible. Sans le rendement, chaque axe explique environ 20 % de la variance : les cinq variables
-        d'entrée apportent chacune une information différente. L'ACP reste exploratoire.</li>
-      <li><strong>Les cultures ne se séparent pas</strong> : leurs coordonnées moyennes sur F1 diffèrent de 0,010 au
-        maximum, pour un écart-type de 1,398.</li>
+      <li><strong>Un seul axe se détache</strong> : F1 est l'axe du rendement (corrélation de 0,99), avec la pluie (0,79), l'engrais
+        (0,46) et l'irrigation (0,37). Ce sont les variables clés du jeu parcellaire.</li>
+      <li><strong>Aucune réduction de variables possible</strong> : sans le rendement, chaque axe explique environ 20 % de la variance,
+        et les cultures ne se séparent pas. L'ACP reste exploratoire.</li>
       </ul>
-      <h2 id="4-analyse-du-dataset-cropyield-prediction">4. Analyse du dataset CropYield Prediction</h2>
-      <h3 id="pourquoi-refaire-lassemblage-fourni">Pourquoi refaire l'assemblage fourni</h3>
-      <p><code>yield_df.csv</code> assemble déjà les quatre sources, mais avec deux défauts :</p>
-      <div class="table-scroll"><table>
-      <thead>
-      <tr>
-      <th>Défaut</th>
-      <th>Cause</th>
-      <th>Conséquence</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr>
-      <td><strong>Lignes dupliquées</strong></td>
-      <td><code>temp.csv</code> compte jusqu'à <strong>52 lignes</strong> par pays et par année, non moyennées</td>
-      <td>certains pays pèsent plus lourd, et des copies d'une même ligne peuvent tomber dans le train et le test : fuite de données</td>
-      </tr>
-      <tr>
-      <td><strong>Pays perdus</strong></td>
-      <td>noms écrits différemment d'un fichier à l'autre, par exemple <code>United States of America</code> et <code>United States</code></td>
-      <td>99 pays gardés, alors que <strong>117</strong> sont présents dans les quatre sources</td>
-      </tr>
-      </tbody>
-      </table></div>
-      <p>L'assemblage est donc refait, avec des jointures sur le <strong>code ISO3</strong> de chaque pays plutôt que sur
-      son nom.</p>
-      <h3 id="les-quatre-sources-et-leur-préparation">Les quatre sources et leur préparation</h3>
-      <div class="table-scroll"><table>
-      <thead>
-      <tr>
-      <th>Source</th>
-      <th>Une ligne</th>
-      <th>Période</th>
-      <th>Préparation</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr>
-      <td><code>yield.csv</code></td>
-      <td>pays, culture, année</td>
-      <td>1961‑2016</td>
-      <td>conversion hg/ha → t/ha ; <code>China, mainland</code> gardé</td>
-      </tr>
-      <tr>
-      <td><code>temp.csv</code></td>
-      <td>pays, année, relevé</td>
-      <td>1743‑2013</td>
-      <td>doublons exacts retirés, puis moyenne par pays et par année</td>
-      </tr>
-      <tr>
-      <td><code>rainfall.csv</code></td>
-      <td>pays, année</td>
-      <td>1985‑2017</td>
-      <td>nom de colonne nettoyé, conversion en nombre ; aucune ligne pour 1988 et 2003 ; même valeur pour un pays sur toute la période 1990‑2013</td>
-      </tr>
-      <tr>
-      <td><code>pesticides.csv</code></td>
-      <td>pays, année</td>
-      <td>1990‑2016</td>
-      <td>aucune préparation : une seule ligne par pays et par année</td>
-      </tr>
-      </tbody>
-      </table></div>
-      <ul>
-      <li><strong>Période retenue : 1990-2013</strong>, les années communes aux quatre sources (<code>pesticides.csv</code> commence
-        en 1990, <code>temp.csv</code> s'arrête en 2013).</li>
-      <li><strong>Chine :</strong> on garde <code>China, mainland</code> plutôt que <code>China</code>, qui inclut Taïwan, Hong Kong et Macao,
-        traités à part dans les autres sources. Les rendements des deux entités diffèrent de 0,26 % en
-        moyenne.</li>
-      </ul>
-      <h3 id="état-après-jointures">État après jointures</h3>
-      <p>Les jointures partent du fichier de rendement, sur le code pays et l'année : <strong>aucune ligne n'est
-      dupliquée</strong>. Cet état n'est pas sauvegardé ; il sert de point de départ au nettoyage.</p>
-      <div class="table-scroll"><table>
-      <thead>
-      <tr>
-      <th>Caractéristique</th>
-      <th>État après jointures</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr>
-      <td>Lignes</td>
-      <td>22 679</td>
-      </tr>
-      <tr>
-      <td>Pays</td>
-      <td>168</td>
-      </tr>
-      <tr>
-      <td>Cultures</td>
-      <td>10</td>
-      </tr>
-      <tr>
-      <td>Période</td>
-      <td>1990-2013 (24 années)</td>
-      </tr>
-      <tr>
-      <td>Valeurs manquantes</td>
-      <td>température 19,5 %, pesticides 13,1 %, pluie 5,0 %</td>
-      </tr>
-      <tr>
-      <td>Colonnes</td>
-      <td><code>iso3</code>, <code>area</code>, <code>year</code>, <code>crop</code>, <code>yield_t_ha</code>, <code>avg_temp</code>, <code>rain_mm</code>, <code>pesticides_t</code></td>
-      </tr>
-      </tbody>
-      </table></div>
-      <h3 id="trois-points-dattention">Trois points d'attention</h3>
-      <ul>
-      <li><strong>La pluie est fixe par pays.</strong> Pour chaque pays, <code>rainfall.csv</code> donne la même valeur de pluie sur
-        toute la période : <code>rain_mm</code> ne varie pas d'une année à l'autre et ne décrit pas la pluie de chaque
-        année.</li>
-      <li><strong>Les pays présents changent selon l'année</strong> : 138 en 1990, 168 en 2013. La température moyenne
-        <em>baisse</em> de 1,16 °C sur la période, alors qu'elle augmente de 0,36 °C sur les 108 pays présents
-        chaque année : la baisse vient de la composition du dataset, pas du climat. Les hausses de
-        rendement restent visibles à pays constants (maïs +41,7 %, blé +18,7 %). Le dataset nettoyé garde
-        ce phénomène : 97 pays en 1990, 115 en 2013.</li>
-      <li><strong>La température et les pesticides manquent pour des pays entiers</strong>, sur toute la période. Les
-        autres lignes incomplètes sont surtout des lignes de 2003, sans pluie.</li>
-      </ul>
-      <figure><img width="1913" height="989" alt="Couverture des pays après jointures, avant nettoyage" src="assets/figures/08_couverture_pays.png" /><figcaption>Couverture des pays après jointures, avant nettoyage</figcaption></figure>
-      <h3 id="nettoyage">Nettoyage</h3>
-      <p>Trois règles transforment l'état après jointures en dataset historique nettoyé, sans inventer de
-      valeurs :</p>
-      <div class="table-scroll"><table>
-      <thead>
-      <tr>
-      <th>Règle</th>
-      <th>Traitement</th>
-      <th style="text-align: right;">Lignes</th>
-      <th style="text-align: right;">Pays</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr>
-      <td>Pluie absente certaines années</td>
-      <td>la valeur connue du pays est reprise (947 lignes de 2003, 6 des Bahamas en 1990-1991)</td>
-      <td style="text-align: right;">953 complétées</td>
-      <td style="text-align: right;">—</td>
-      </tr>
-      <tr>
-      <td>Pays sans température ou sans pesticides</td>
-      <td>pays retirés : 36 sans température, 24 sans pesticides, dont 9 dans les deux cas ; la Nouvelle-Calédonie, sans aucune pluie, en fait partie</td>
-      <td style="text-align: right;">−6 322</td>
-      <td style="text-align: right;">−51</td>
-      </tr>
-      <tr>
-      <td>Pluie erronée</td>
-      <td>Monténégro et Soudan retirés plutôt que corrigés arbitrairement</td>
-      <td style="text-align: right;">−38</td>
-      <td style="text-align: right;">−2</td>
-      </tr>
-      </tbody>
-      </table></div>
-      <ul>
-      <li><strong>Pays incomplets :</strong> reprendre les valeurs d'un pays voisin reviendrait à inventer leur contexte.</li>
-      <li><strong>Pluie erronée :</strong> 14 entités de <code>rainfall.csv</code> portent exactement la pluie d'une entité proche
-        dans l'ordre alphabétique, par exemple le Soudan (1 712 mm, valeur du Sri Lanka) ou le Monténégro
-        (241 mm, valeur de la Mongolie), ce que confirme la base de la Banque mondiale. Faute de
-        correction issue de la même version de la source, les deux pays encore présents sont retirés ; le
-        détail est dans <code>data/README.md</code>.</li>
-      </ul>
-      <div class="table-scroll"><table>
-      <thead>
-      <tr>
-      <th>Caractéristique</th>
-      <th>Dataset historique nettoyé</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr>
-      <td>Lignes</td>
-      <td><strong>16 319</strong> (une seule ligne par pays, année et culture)</td>
-      </tr>
-      <tr>
-      <td>Pays</td>
-      <td><strong>115</strong></td>
-      </tr>
-      <tr>
-      <td>Cultures</td>
-      <td><strong>10</strong></td>
-      </tr>
-      <tr>
-      <td>Période</td>
-      <td><strong>1990-2013</strong></td>
-      </tr>
-      <tr>
-      <td>Valeurs manquantes</td>
-      <td><strong>aucune</strong></td>
-      </tr>
-      <tr>
-      <td>Fichier</td>
-      <td><code>data/processed/crop_yield_clean.csv</code></td>
-      </tr>
-      </tbody>
-      </table></div>
-      <p>Ce fichier sert de base à la comparaison des deux datasets (section 5) et au dataset
-      d'entraînement <code>/recommend</code> (section 6).</p>
-      <h3 id="évolution-du-rendement-par-culture">Évolution du rendement par culture</h3>
+      <h3 id="jeu-historique--des-cultures-très-différentes">Jeu historique : des cultures très différentes</h3>
       <figure><img width="1968" height="948" alt="Évolution du rendement moyen par culture, dataset historique nettoyé, 1990-2013" src="assets/figures/03_evolution_rendements.png" /><figcaption>Évolution du rendement moyen par culture, dataset historique nettoyé, 1990-2013</figcaption></figure>
-      <p>Les niveaux de rendement varient fortement d'une culture à l'autre, et ces écarts se retrouvent sur
-      les 24 années, alors que les dix cultures progressent. C'est ce signal, absent du dataset
-      parcellaire, qui permet d'envisager <code>/recommend</code> : il montre que l'information existe dans les
-      données, pas qu'un modèle saura bien l'utiliser.</p>
-      <h2 id="5-comparaison-des-deux-datasets">5. Comparaison des deux datasets</h2>
-      <p>Quatre cultures sont communes aux deux datasets : maïs, riz, soja et blé, après harmonisation de
-      deux noms. La comparaison porte sur ces cultures : 8 237 lignes du dataset historique nettoyé
-      (115 pays) et 666 638 lignes du dataset parcellaire.</p>
-      <h3 id="trois-variables-communes-trois-lectures-différentes">Trois variables communes, trois lectures différentes</h3>
-      <div class="table-scroll"><table>
-      <thead>
-      <tr>
-      <th>Variable</th>
-      <th>Agriculture CropYield</th>
-      <th>Historique nettoyé</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr>
-      <td>Rendement</td>
-      <td>−1,15 à 9,96 t/ha, médiane 4,65</td>
-      <td>0 à 20,8 t/ha, médiane 2,38</td>
-      </tr>
-      <tr>
-      <td>Température</td>
-      <td>15 à 40 °C, médiane 27,5</td>
-      <td>1,3 à 30,4 °C, médiane 19,1</td>
-      </tr>
-      <tr>
-      <td>Pluie</td>
-      <td>100 à 1 000 mm sur la saison</td>
-      <td>51 à 3 240 mm/an, valeur fixe par pays</td>
-      </tr>
-      <tr>
-      <td>Corrélation pluie / rendement</td>
-      <td><strong>+0,764</strong></td>
-      <td><strong>−0,104</strong></td>
-      </tr>
-      <tr>
-      <td>Corrélation température / rendement</td>
-      <td>+0,085</td>
-      <td>−0,315</td>
-      </tr>
-      </tbody>
-      </table></div>
-      <p><em>Valeurs calculées sur les quatre cultures communes.</em></p>
-      <p>Les corrélations changent de signe, mais elles ne mesurent pas la même chose. Dans le dataset
-      parcellaire, une ligne est une parcelle : plus il pleut, plus le rendement monte. Dans
-      l'historique, une ligne correspond à un pays, une année et une culture : le signe négatif compare
-      des pays entre eux, pas l'effet de la pluie sur une parcelle. Les deux datasets ne se contredisent
-      donc pas.</p>
-      <h3 id="les-cultures-se-distinguent-elles-">Les cultures se distinguent-elles ?</h3>
+      <p>Les niveaux de rendement varient fortement d'une culture à l'autre, sur les 24 années : c'est ce signal, absent du
+      jeu parcellaire, qui rend <code>/recommend</code> possible.</p>
+      <h3 id="stratégie--deux-jeux-deux-modèles">Stratégie : deux jeux, deux modèles</h3>
       <figure><img width="1221" height="559" alt="Distribution du rendement par culture dans les deux datasets" src="assets/figures/04_comparaison_datasets.png" /><figcaption>Distribution du rendement par culture dans les deux datasets</figcaption></figure>
-      <p>C'est la principale différence entre les deux datasets : l'historique montre quatre niveaux bien
-      distincts, du soja (médiane 1,58 t/ha) au riz (3,47 t/ha), alors que le dataset parcellaire donne
-      quatre boîtes presque identiques.</p>
-      <p>On retrouve cette différence à température comparable, entre 15 et 30 °C :</p>
-      <div class="table-scroll"><table>
-      <thead>
-      <tr>
-      <th>Tranche de température</th>
-      <th>Écart max entre cultures — parcellaire</th>
-      <th>Écart max entre cultures — historique</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr>
-      <td>15-20 °C</td>
-      <td>0,01 t/ha</td>
-      <td><strong>3,38 t/ha</strong></td>
-      </tr>
-      <tr>
-      <td>20-25 °C</td>
-      <td>0,03 t/ha</td>
-      <td><strong>1,45 t/ha</strong></td>
-      </tr>
-      <tr>
-      <td>25-30 °C</td>
-      <td>0,02 t/ha</td>
-      <td><strong>1,70 t/ha</strong></td>
-      </tr>
-      </tbody>
-      </table></div>
-      <p>Dans l'historique, les cultures sont aussi liées au climat des pays : les lignes « blé » ont une
-      température médiane de 16,4 °C et 691 mm de pluie, celles du riz 21,3 °C et 1 146 mm. Le dataset
-      parcellaire donne 27,5 °C et 550 mm pour les quatre cultures.</p>
-      <h3 id="choix-retenu">Choix retenu</h3>
+      <p>Sur les quatre cultures communes, l'historique montre des niveaux bien distincts, du soja (médiane 1,58 t/ha) au riz
+      (3,47 t/ha), alors que le jeu parcellaire donne quatre boîtes presque identiques.</p>
       <blockquote>
       <p><strong>Aucune fusion ligne à ligne.</strong> Les deux jeux n'ont ni la même unité d'observation, ni les mêmes
       plages de valeurs, ni la même définition de la pluie. Ils répondent à deux questions différentes,
       avec deux modèles distincts.</p>
       </blockquote>
       <figure><img width="768" height="520" alt="Les deux pipelines de données du projet" src="assets/figures/06_pipelines.svg" /><figcaption>Les deux pipelines de données du projet</figcaption></figure>
-      <p>Dans <code>/recommend</code>, le pays sert d'abord à <strong>préremplir le contexte</strong>, que l'utilisateur peut
-      modifier. Utilisé aussi comme variable, il pourrait capter des différences entre pays que les
-      conditions ne décrivent pas ; mais le modèle risquerait alors d'apprendre surtout un rendement moyen
-      par pays, au détriment des conditions renseignées. Son apport sera mesuré avant toute décision.</p>
-      <h2 id="6-construction-des-datasets-dentraînement">6. Construction des datasets d'entraînement</h2>
-      <p>Pas d'encodage, de standardisation ni d'imputation à ce stade : ces étapes sont apprises plus tard,
-      sur les seules données d'entraînement, dans un pipeline, pour éviter une fuite de données.</p>
-      <h3 id="predict--999-769-lignes-9-variables-candidates"><code>/predict</code> — 999 769 lignes, 9 variables candidates</h3>
-      <p><strong>Cible :</strong> <code>Yield_tons_per_hectare</code>.</p>
-      <div class="table-scroll"><table>
-      <thead>
-      <tr>
-      <th>Variables candidates conservées avant modélisation</th>
-      <th>Raison</th>
-      <th>Modèle final (section 7)</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr>
-      <td><code>Rainfall_mm</code></td>
-      <td>variable la plus liée au rendement</td>
-      <td><strong>retenue</strong></td>
-      </tr>
-      <tr>
-      <td><code>Temperature_Celsius</code></td>
-      <td>relation faible mais régulière</td>
-      <td><strong>retenue</strong></td>
-      </tr>
-      <tr>
-      <td><code>Fertilizer_Used</code></td>
-      <td>rendement moyen supérieur de 1,50 t/ha avec engrais</td>
-      <td><strong>retenue</strong></td>
-      </tr>
-      <tr>
-      <td><code>Irrigation_Used</code></td>
-      <td>rendement moyen supérieur de 1,20 t/ha avec irrigation</td>
-      <td><strong>retenue</strong></td>
-      </tr>
-      <tr>
-      <td><code>Crop</code></td>
-      <td>choisie par l'utilisateur, même sans effet mesuré</td>
-      <td>écartée</td>
-      </tr>
-      <tr>
-      <td><code>Soil_Type</code></td>
-      <td>connue de l'utilisateur, même sans effet mesuré</td>
-      <td>écartée</td>
-      </tr>
-      <tr>
-      <td><code>Region</code></td>
-      <td>apport à mesurer ; ne correspond à aucun lieu réel</td>
-      <td>écartée</td>
-      </tr>
-      <tr>
-      <td><code>Weather_Condition</code></td>
-      <td>apport à mesurer ; disponibilité selon le moment de la prédiction</td>
-      <td>écartée</td>
-      </tr>
-      <tr>
-      <td><code>Days_to_Harvest</code></td>
-      <td>apport à mesurer ; disponibilité selon le moment de la prédiction</td>
-      <td>écartée</td>
-      </tr>
-      </tbody>
-      </table></div>
-      <p>Toutes les variables sont gardées pour mesurer leur apport pendant la modélisation. La section 7
-      montre qu'aucune combinaison ne fait mieux que les <strong>4 variables sélectionnées</strong> : pluie, température,
-      engrais et irrigation.</p>
-      <ul>
-      <li><strong>Les 231 rendements négatifs sont retirés.</strong> Les remplacer par zéro reviendrait à inventer un
-        rendement, et leur retrait ne change la moyenne de la cible que de 0,001 t/ha. Ils servent
-        seulement à observer la prédiction du modèle final (section 7), jamais à mesurer ses
-        performances.</li>
-      <li><strong>Aucune autre ligne n'est retirée</strong> : les autres valeurs atypiques sont gardées.</li>
-      </ul>
-      <h3 id="recommend--du-dataset-nettoyé-au-dataset-dentraînement"><code>/recommend</code> — du dataset nettoyé au dataset d'entraînement</h3>
-      <p><strong>Cible :</strong> <code>yield_t_ha</code>.</p>
-      <div class="table-scroll"><table>
-      <thead>
-      <tr>
-      <th>Étape</th>
-      <th style="text-align: right;">Lignes</th>
-      <th style="text-align: right;">Pays</th>
-      <th>Période</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr>
-      <td>Après jointures</td>
-      <td style="text-align: right;">22 679</td>
-      <td style="text-align: right;">168</td>
-      <td>1990-2013</td>
-      </tr>
-      <tr>
-      <td>Dataset historique nettoyé (<code>crop_yield_clean.csv</code>)</td>
-      <td style="text-align: right;">16 319</td>
-      <td style="text-align: right;">115</td>
-      <td>1990-2013</td>
-      </tr>
-      <tr>
-      <td>Dataset <code>/recommend</code>, après création des variables historiques</td>
-      <td style="text-align: right;">15 636</td>
-      <td style="text-align: right;">115</td>
-      <td>1991-2013</td>
-      </tr>
-      </tbody>
-      </table></div>
-      <div class="table-scroll"><table>
-      <thead>
-      <tr>
-      <th>Colonne</th>
-      <th>Rôle</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr>
-      <td><code>crop</code></td>
-      <td>candidate : la culture à classer</td>
-      </tr>
-      <tr>
-      <td><code>temp_hist</code></td>
-      <td>candidate : température moyenne des années précédentes</td>
-      </tr>
-      <tr>
-      <td><code>rain_mm</code></td>
-      <td>candidate : valeur de pluie fixe par pays</td>
-      </tr>
-      <tr>
-      <td><code>pest_hist</code></td>
-      <td>candidate : pesticides des années précédentes, en tonnes</td>
-      </tr>
-      <tr>
-      <td><code>log_pest_hist</code></td>
-      <td>candidate : même moyenne, en logarithme</td>
-      </tr>
-      <tr>
-      <td><code>iso3</code></td>
-      <td>préremplissage des valeurs du pays ; <strong>à tester</strong> comme variable</td>
-      </tr>
-      <tr>
-      <td><code>area</code></td>
-      <td><strong>hors modèle</strong> : nom du pays, pour les analyses</td>
-      </tr>
-      <tr>
-      <td><code>year</code></td>
-      <td>séparation des années pour l'entraînement et le test ; <strong>à tester</strong> comme variable</td>
-      </tr>
-      </tbody>
-      </table></div>
-      <p>La configuration de départ utilise <code>crop</code>, <code>temp_hist</code>, <code>rain_mm</code> et une seule version des
-      pesticides à la fois : <code>pest_hist</code> et <code>log_pest_hist</code> sont comparées pendant la modélisation.</p>
-      <p><strong>Organisation dans le temps.</strong> L'application est pensée pour 2014, avec les données connues
-      jusqu'en 2013 : 2013 est gardée pour le test final, et les années précédentes servent à
-      l'entraînement et à la validation. Pour prédire une année <em>t</em>, on n'utilise que les années
-      précédentes, à l'entraînement comme lors de l'utilisation.</p>
-      <ul>
-      <li><code>temp_hist</code> et <code>pest_hist</code> sont les moyennes des trois années précédentes au plus, pays par pays :
-        2010‑2012 pour prédire 2013. <code>log_pest_hist</code> applique <code>log1p</code> à cette moyenne.</li>
-      <li>Les <strong>683 lignes retirées</strong> sont les premières années de chaque pays, qui n'ont pas d'année
-        précédente ; le dataset commence donc en 1991.</li>
-      <li>Trois contrôles vérifient qu'aucune information future n'est utilisée, dont un recalcul à la main
-        des moyennes sur 300 couples pays-année tirés au hasard.</li>
-      </ul>
-      <figure><img width="1967" height="748" alt="Pesticides : distribution brute et après log1p, dataset historique nettoyé" src="assets/figures/05_pesticides_log.png" /><figcaption>Pesticides : distribution brute et après log1p, dataset historique nettoyé</figcaption></figure>
-      <p>Le logarithme est utile pour les pesticides : en valeur brute, presque toutes les lignes sont
-      regroupées à gauche de l'échelle. Après <code>log1p</code>, la corrélation avec le rendement passe de
-      0,07-0,26 à <strong>0,26-0,56</strong> selon la culture.</p>
-      <h2 id="7-modélisation-de-predict">7. Modélisation de <code>/predict</code></h2>
+      <h2 id="3-predict--estimation-du-rendement">3. <code>/predict</code> — estimation du rendement</h2>
       <p>La modélisation suit cinq étapes, toutes avec le même protocole :</p>
       <ol>
       <li>référence et protocole (notebook 07) ;</li>
@@ -788,10 +328,9 @@
         les métriques principales ; la MAE (t/ha) les complète.</li>
       <li><strong>Pipeline.</strong> Variables catégorielles encodées par <code class="cat">OneHotEncoder(handle_unknown="ignore")</code>,
         variables numériques inchangées, puis le modèle. L'encodage est réappris dans chaque fold : pas de
-        fuite de données. Pas de standardisation : elle ne change les prédictions ni de la régression
-        linéaire non régularisée, ni des modèles à base d'arbres.</li>
+        fuite de données.</li>
       </ul>
-      <h3 id="jeux-de-features-testés">Jeux de features testés</h3>
+      <h3 id="jeux-de-variables-testés">Jeux de variables testés</h3>
       <div class="table-scroll"><table>
       <thead>
       <tr>
@@ -844,11 +383,7 @@
       <code>numérique</code> : gardée telle quelle.</p>
       <p>Les variables réduites retirent <code>Region</code>, <code>Weather_Condition</code> et <code>Days_to_Harvest</code> ; les variables
       sélectionnées sont les 4 qui portent le signal.</p>
-      <p><strong>Feature engineering.</strong> Deux familles d'interactions ont été ajoutées à toutes les variables : la
-      pluie, l'engrais et l'irrigation croisés entre eux, puis une pente de la pluie et de la température
-      propre à chaque culture. Testées avec la régression linéaire (notebook 08), puis avec les 5 modèles
-      d'ensemble (notebook 09), elles n'apportent aucun gain utile.</p>
-      <h3 id="référence-et-sélection-des-features">Référence et sélection des features</h3>
+      <h3 id="référence-et-sélection-des-variables">Référence et sélection des variables</h3>
       <div class="table-scroll"><table class="scores">
       <thead>
       <tr>
@@ -917,58 +452,99 @@
         linéaire la réduit d'environ 70 %.</li>
       <li>Toutes les régressions tiennent dans 0,00001 t/ha, bien moins que la variation d'un fold à
         l'autre : ni les variables supplémentaires ni le feature engineering n'apportent de gain.</li>
-      <li><strong>Features retenues : les 4 variables sélectionnées</strong>, qui portent le signal. À conditions identiques, changer la
-        culture ne modifie la prédiction que d'environ 0,003 t/ha : <code>Crop</code> reste une information de
-        l'application, pas une variable du modèle.</li>
+      <li><strong>Features retenues : les 4 variables sélectionnées</strong>, qui portent le signal.</li>
       </ul>
       <p>Ces scores décrivent une performance prédictive, pas un lien de cause à effet.</p>
+      <h3 id="feature-engineering--des-relations-plus-complexes-aident-elles-">Feature engineering : des relations plus complexes aident-elles ?</h3>
+      <p>L'exploration montre des relations simples et presque linéaires. Avant de garder un modèle aussi simple, on a
+      vérifié si des relations plus complexes apportaient une information en plus. Chaque test est comparé à la
+      régression sur toutes les variables (RMSE 0,500337 t/ha).</p>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Question</th>
+      <th>Test</th>
+      <th>Résultat</th>
+      <th>Décision</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td>L'effet de la pluie dépend-il de l'engrais ou de l'irrigation ?</td>
+      <td>3 colonnes croisées « eau × intrants » : pluie × engrais, pluie × irrigation, engrais × irrigation</td>
+      <td>RMSE 0,500338 ; ces colonnes ne pèsent presque rien dans les prédictions</td>
+      <td>non retenues</td>
+      </tr>
+      <tr>
+      <td>La pluie et la température jouent-elles différemment selon la culture ?</td>
+      <td>une pente de pluie et une pente de température par culture (12 colonnes)</td>
+      <td>RMSE 0,500341 ; les nouvelles colonnes se partagent l'information de la pluie sans en ajouter</td>
+      <td>non retenues</td>
+      </tr>
+      <tr>
+      <td>La culture aide-t-elle à prédire ?</td>
+      <td>modèle avec et sans <code>Crop</code> ; même parcelle rejouée avec les 6 cultures</td>
+      <td>+0,000002 t/ha ; la prédiction ne change que de 0,003 t/ha d'une culture à l'autre, pour une erreur de 0,50 t/ha</td>
+      <td><code>Crop</code> hors du modèle</td>
+      </tr>
+      <tr>
+      <td>Un modèle plus souple en tire-t-il parti ?</td>
+      <td>les deux familles d'interactions ajoutées à 5 modèles d'ensemble (notebook 09)</td>
+      <td>écarts de 0,00014 t/ha au plus, souvent une légère dégradation</td>
+      <td>pas de gain</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <p>Ces relations n'ont pas apporté de gain prédictif mesurable avec nos données et notre protocole. Cela ne veut pas
+      dire qu'elles n'existent pas en agronomie : ce jeu de données ne permet pas de les mettre en évidence. <code>Crop</code> reste
+      une information de l'application, pas une variable du modèle.</p>
       <h3 id="modèles-non-linéaires">Modèles non linéaires</h3>
       <p>Six modèles sont comparés sur les deux jeux de variables, sans optimisation : l'arbre et la forêt
-      avec <code>min_samples_leaf=100</code>, les boostings avec les réglages par défaut de leur librairie. La
-      régression linéaire sert de référence.</p>
+      avec <code>min_samples_leaf=100</code>, les boostings avec les réglages par défaut de leur librairie (sans arrêt anticipé pour
+      HistGradientBoosting). La régression linéaire sert de référence.</p>
       <div class="table-scroll"><table class="scores">
       <thead>
       <tr>
       <th>Modèle</th>
-      <th style="text-align: right;">RMSE CV (t/ha), toutes les variables</th>
-      <th style="text-align: right;">RMSE CV (t/ha), variables réduites</th>
+      <th style="text-align: right;">Toutes les variables — RMSE <span class="s2">(MAE / R²)</span></th>
+      <th style="text-align: right;">Variables réduites — RMSE <span class="s2">(MAE / R²)</span></th>
       </tr>
       </thead>
       <tbody>
       <tr>
       <td><strong><code>LinearRegression</code></strong></td>
-      <td style="text-align: right;"><strong>0,500337</strong></td>
-      <td style="text-align: right;"><strong>0,500334</strong></td>
+      <td style="text-align: right;"><strong>0,500337</strong> <span class="s2">(0,3993 / 0,9129)</span></td>
+      <td style="text-align: right;"><strong>0,500334</strong> <span class="s2">(0,3993 / 0,9129)</span></td>
       </tr>
       <tr>
       <td><code>HistGradientBoosting</code></td>
-      <td style="text-align: right;">0,500886</td>
-      <td style="text-align: right;">0,500881</td>
+      <td style="text-align: right;">0,500886 <span class="s2">(0,3997 / 0,9127)</span></td>
+      <td style="text-align: right;">0,500881 <span class="s2">(0,3997 / 0,9127)</span></td>
       </tr>
       <tr>
       <td><code>LightGBM</code></td>
-      <td style="text-align: right;">0,500924</td>
-      <td style="text-align: right;">0,500922</td>
+      <td style="text-align: right;">0,500924 <span class="s2">(0,3998 / 0,9127)</span></td>
+      <td style="text-align: right;">0,500922 <span class="s2">(0,3998 / 0,9127)</span></td>
       </tr>
       <tr>
       <td><code>CatBoost</code></td>
-      <td style="text-align: right;">0,501029</td>
-      <td style="text-align: right;">0,500935</td>
+      <td style="text-align: right;">0,501029 <span class="s2">(0,3999 / 0,9126)</span></td>
+      <td style="text-align: right;">0,500935 <span class="s2">(0,3998 / 0,9127)</span></td>
       </tr>
       <tr>
       <td><code>RandomForest</code></td>
-      <td style="text-align: right;">0,502018</td>
-      <td style="text-align: right;">0,502129</td>
+      <td style="text-align: right;">0,502018 <span class="s2">(0,4007 / 0,9123)</span></td>
+      <td style="text-align: right;">0,502129 <span class="s2">(0,4008 / 0,9123)</span></td>
       </tr>
       <tr>
       <td><code>XGBoost</code></td>
-      <td style="text-align: right;">0,502183</td>
-      <td style="text-align: right;">0,502008</td>
+      <td style="text-align: right;">0,502183 <span class="s2">(0,4008 / 0,9122)</span></td>
+      <td style="text-align: right;">0,502008 <span class="s2">(0,4006 / 0,9123)</span></td>
       </tr>
       <tr>
       <td><code>DecisionTree</code></td>
-      <td style="text-align: right;">0,508558</td>
-      <td style="text-align: right;">0,507489</td>
+      <td style="text-align: right;">0,508558 <span class="s2">(0,4059 / 0,9100)</span></td>
+      <td style="text-align: right;">0,507489 <span class="s2">(0,4051 / 0,9104)</span></td>
       </tr>
       </tbody>
       </table></div>
@@ -980,10 +556,6 @@
         régression linéaire, HistGradientBoosting et LightGBM, léger gain pour l'arbre, XGBoost et
         CatBoost. Seule la forêt fait un peu mieux avec toutes les variables, d'un écart huit fois plus
         petit que l'écart-type entre folds.</li>
-      <li><strong>Feature engineering.</strong> Les deux familles d'interactions ont été testées sur les 5 modèles
-        d'ensemble. Les interactions pluie, engrais et irrigation les dégradent légèrement, de 0,00006 à
-        0,00014 t/ha ; les effets selon la culture font varier la RMSE de 0,00009 t/ha au plus. Aucune
-        variante ne rattrape la régression linéaire : pas de gain utile.</li>
       <li>Permutation, corrélation de Spearman et SHAP donnent la même hiérarchie : la pluie, puis l'engrais
         et l'irrigation, puis la température ; les autres variables n'apportent rien.</li>
       </ul>
@@ -995,7 +567,7 @@
       <p>Sur les 4 variables sélectionnées et les mêmes folds : tuning léger de 5 familles (10 configurations chacune), puis
       tuning approfondi des deux modèles retenus pour l'approfondissement, CatBoost et HistGradientBoosting
       (35 configurations chacune). Les grilles testées sont détaillées en
-      <a href="#predict--grilles-dhyperparamètres">annexe</a>.</p>
+      <a href="#c-tuning-predict">annexe C</a>.</p>
       <div class="table-scroll"><table class="scores">
       <thead>
       <tr>
@@ -1092,198 +664,482 @@
       <li><strong>Modèle sauvegardé.</strong> Le pipeline complet, entraîné sur le seul jeu d'entraînement, est dans
         <code>models/predict_model.joblib</code>. Ses métadonnées sont dans <code>models/predict_model_metadata.json</code> :
         variables et valeurs attendues, preprocessing, protocole, scores sur le test, versions. Rechargé,
-        il redonne exactement les mêmes prédictions sur 1 000 lignes du test.</li>
+        il redonne les mêmes prédictions sur 1 000 lignes du test.</li>
       <li><strong>Suivi.</strong> Les 150 évaluations sont dans une expérience MLflow dédiée à <code>/predict</code>, un run par
-        évaluation, avec le protocole, le jeu de variables (<code>all_features</code>, <code>reduced_features</code>,
-        <code>selected_features</code>) et les mêmes métriques <code>cv_</code>. Le run d'évaluation finale, à l'étape
-        <code>final_evaluation</code>, ajoute <code>test_rmse</code>, <code>test_mae</code> et <code>test_r2</code>. La capture montre les 11 runs de
+        évaluation, avec le protocole, le jeu de variables et les mêmes métriques <code>cv_</code>. Le run d'évaluation finale, à
+        l'étape <code>final_evaluation</code>, ajoute <code>test_rmse</code>, <code>test_mae</code> et <code>test_r2</code>. La capture montre les 11 runs de
         synthèse : triés par <code>cv_rmse_mean</code>, ils donnent directement le classement des modèles.</li>
       </ul>
       <figure><img width="5113" height="1731" alt="Expérience MLflow /predict : les 11 runs de synthèse (références, modèles non linéaires et meilleurs réglages), triés par RMSE de validation croisée" src="assets/figures/09_mlflow_predict.png" /><figcaption>Expérience MLflow /predict : les 11 runs de synthèse (références, modèles non linéaires et meilleurs réglages), triés par RMSE de validation croisée</figcaption></figure>
-      <h2 id="8-première-modélisation-de-recommend">8. Première modélisation de <code>/recommend</code></h2>
-      <p>Cette première étape pose une baseline pour <code>/recommend</code> et fixe son protocole d'évaluation
-      (notebook 12). Le modèle estime le rendement de chaque culture à partir des conditions d'un pays ;
-      l'application classe ensuite les cultures selon ce rendement prédit.</p>
-      <h3 id="découpage-temporel">Découpage temporel</h3>
-      <p>Pour un pays et une culture, le rendement change peu d'une année à l'autre : sa corrélation avec
-      celui de l'année précédente atteint 0,985. Un découpage aléatoire placerait des lignes presque
-      identiques dans l'entraînement et dans l'évaluation. Le découpage suit donc le temps.</p>
+      <h2 id="4-recommend--recommandation-de-cultures">4. <code>/recommend</code> — recommandation de cultures</h2>
+      <p>La modélisation suit la même progression que pour <code>/predict</code> (notebooks 12 à 15). Le modèle prédit un rendement par
+      culture, puis le service trie les 10 cultures : c'est une régression, pas une classification.</p>
+      <h3 id="protocole_1">Protocole</h3>
+      <p>Pour un pays et une culture, le rendement change peu d'une année à l'autre (corrélation de 0,985 avec l'année
+      précédente) : un découpage aléatoire placerait des lignes presque identiques dans l'apprentissage et dans
+      l'évaluation. Le découpage suit donc le temps.</p>
+      <p>2013 est gardée de côté pour le test final. Pour comparer les modèles, on utilise les 5 années précédentes, de
+      2008 à 2012 : chaque année est prédite uniquement à partir des années qui la précèdent.</p>
+      <figure><img width="1272" height="363" alt="Validation croisée temporelle à 5 folds : chaque fold apprend sur toutes les années précédant l'année validée, de 2008 à 2012 ; 2013 est réservée au test final, hors validation croisée (notebook 12)" src="assets/figures/15_validation_temporelle_recommend.png" /><figcaption>Validation croisée temporelle à 5 folds : chaque fold apprend sur toutes les années précédant l'année validée, de 2008 à 2012 ; 2013 est réservée au test final, hors validation croisée (notebook 12)</figcaption></figure>
+      <p><strong>2013 n'a servi à aucun choix de modèle, de variable ou d'hyperparamètre.</strong></p>
+      <h3 id="feature-engineering--les-variables-construites">Feature engineering : les variables construites</h3>
+      <p>Le jeu historique ne donne que la culture, la température, la pluie et les pesticides de l'année. Les variables
+      suivantes sont construites à partir de ces données, toujours avec les seules années passées.</p>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Variable construite</th>
+      <th>Calcul</th>
+      <th>Pourquoi</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td><code>log_pesticides</code></td>
+      <td>logarithme du tonnage de pesticides</td>
+      <td>le tonnage va de moins d'une tonne à plus d'un million : en brut, presque toutes les lignes sont tassées au bas de l'échelle</td>
+      </tr>
+      <tr>
+      <td><code>lat_abs</code></td>
+      <td>latitude du pays, sans son signe</td>
+      <td>distance à l'équateur : distingue pays tempérés et tropicaux</td>
+      </tr>
+      <tr>
+      <td><code>geo_x</code>, <code>geo_y</code>, <code>geo_z</code></td>
+      <td>latitude et longitude du pays, combinées en une position sur un globe</td>
+      <td>la longitude n'a pas d'équivalent de l'équateur, donc pas de <code>long_abs</code> : elle sert seulement à situer le pays, avec la latitude ; deux pays voisins restent proches, y compris de part et d'autre de ±180°</td>
+      </tr>
+      <tr>
+      <td><code>temp_hist</code>, <code>log_pest_hist</code></td>
+      <td>moyenne des 3 années précédentes de la température et des pesticides</td>
+      <td>les conditions de l'année à venir ne sont pas connues au moment de recommander</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <ul>
+      <li>
+      <p>La position décrit la géographie du pays sans lui donner d'identifiant. Mais chaque pays ayant une position unique,
+        un arbre peut aussi s'en servir pour reconnaître le pays (annexe A.2).</p>
+      </li>
+      <li>
+      <p>Le notebook 13 teste aussi des <strong>interactions culture × variable</strong> : une colonne par culture et par variable, qui
+        ne vaut la variable que pour les lignes de cette culture (0 sinon), pour que chaque culture ait son propre effet
+        plutôt qu'un effet commun. Exemple : <code>Maize x avg_temp</code> reprend la température des lignes de maïs, 0 ailleurs.</p>
+      </li>
+      </ul>
+      <h3 id="jeux-de-variables-testés_1">Jeux de variables testés</h3>
       <div class="table-scroll"><table>
       <thead>
       <tr>
       <th>Jeu</th>
-      <th>Années</th>
-      <th style="text-align: right;">Lignes</th>
-      <th style="text-align: right;">Pays</th>
-      <th>Usage</th>
+      <th>Features</th>
+      <th style="text-align: right;">One‑hot / catégorielles</th>
+      <th style="text-align: right;">Numériques</th>
+      <th style="text-align: right;">Total colonnes</th>
       </tr>
       </thead>
       <tbody>
       <tr>
-      <td>Entraînement</td>
-      <td>1991-2012</td>
-      <td style="text-align: right;">14 941</td>
-      <td style="text-align: right;">115</td>
-      <td>comparaison des modèles, par validation temporelle</td>
+      <td>1. Variables d'origine</td>
+      <td><code class="cat">crop</code>, <code>year</code>, <code>avg_temp</code>, <code>rain_mm</code>, <code>pesticides_t</code></td>
+      <td style="text-align: right;">10</td>
+      <td style="text-align: right;">4</td>
+      <td style="text-align: right;"><strong>14</strong></td>
       </tr>
       <tr>
-      <td>Test</td>
-      <td>2013</td>
-      <td style="text-align: right;">695</td>
-      <td style="text-align: right;">115</td>
-      <td>évaluation finale du modèle retenu, une seule fois</td>
+      <td>2. Pesticides en log</td>
+      <td><code class="cat">crop</code>, <code>year</code>, <code>avg_temp</code>, <code>rain_mm</code>, <code>log_pesticides</code></td>
+      <td style="text-align: right;">10</td>
+      <td style="text-align: right;">4</td>
+      <td style="text-align: right;"><strong>14</strong></td>
+      </tr>
+      <tr>
+      <td>3. + interactions culture × conditions</td>
+      <td><code class="cat">crop</code>, <code>year</code>, <code>avg_temp</code>, <code>rain_mm</code>, <code>log_pesticides</code>, <code class="interact">interactions</code></td>
+      <td style="text-align: right;">10</td>
+      <td style="text-align: right;">4</td>
+      <td style="text-align: right;"><strong>44</strong></td>
+      </tr>
+      <tr>
+      <td>4. + position du pays</td>
+      <td><code class="cat">crop</code>, <code>year</code>, <code>avg_temp</code>, <code>rain_mm</code>, <code>log_pesticides</code>, <code>lat_abs</code>, <code>geo_x</code>, <code>geo_y</code>, <code>geo_z</code>, <code class="interact">interactions</code></td>
+      <td style="text-align: right;">10</td>
+      <td style="text-align: right;">8</td>
+      <td style="text-align: right;"><strong>48</strong></td>
+      </tr>
+      <tr>
+      <td>5. + interactions culture × géographie (<code>crop_x_geography</code>)</td>
+      <td><code class="cat">crop</code>, <code>year</code>, <code>avg_temp</code>, <code>rain_mm</code>, <code>log_pesticides</code>, <code>lat_abs</code>, <code>geo_x</code>, <code>geo_y</code>, <code>geo_z</code>, <code class="interact">interactions</code></td>
+      <td style="text-align: right;">10</td>
+      <td style="text-align: right;">8</td>
+      <td style="text-align: right;"><strong>88</strong></td>
+      </tr>
+      <tr>
+      <td>6. Conditions historiques</td>
+      <td><code class="cat">crop</code>, <code>year</code>, <code>temp_hist</code>, <code>rain_mm</code>, <code>log_pest_hist</code>, <code>lat_abs</code>, <code>geo_x</code>, <code>geo_y</code>, <code>geo_z</code>, <code class="interact">interactions</code></td>
+      <td style="text-align: right;">10</td>
+      <td style="text-align: right;">8</td>
+      <td style="text-align: right;">88 (régression) / <strong>18</strong> (arbres)</td>
       </tr>
       </tbody>
       </table></div>
-      <p>Les 115 pays du test sont tous présents dans l'entraînement. Pour comparer les modèles, chaque année
-      de 2008 à 2012 est prédite par un modèle appris uniquement sur les années précédentes, comme
-      l'application prédira une année qu'elle n'a pas encore vue. Le premier fold apprend déjà sur
-      1991-2007, soit 11 469 lignes, et chaque année évaluée compte environ 700 lignes.</p>
-      <h3 id="baselines-comparées">Baselines comparées</h3>
-      <p>Les conditions sont <code>temp_hist</code>, <code>rain_mm</code> et une version des pesticides historiques, brute ou en
-      logarithme. Comme pour <code>/predict</code>, la culture est encodée dans un pipeline réappris à chaque fold.</p>
+      <p>La température et les pesticides de l'année sont remplacés par leur moyenne sur les 3 années précédentes
+      (<code>temp_hist</code>, <code>log_pest_hist</code>), connues au moment de recommander. La pluie reste celle du pays, fixe dans ce
+      dataset. <code>crop</code> est encodée par one-hot, une colonne par culture (10 modalités) ; les autres variables sont
+      numériques, gardées telles quelles.</p>
+      <p><code class="interact">interactions</code> ajoute une colonne par culture et par variable (0 pour les lignes des
+      autres cultures) : chaque culture peut avoir sa propre pente pour cette variable. Exemples :</p>
+      <ul>
+      <li>ligne 3 : <code>crop × {avg_temp, rain_mm, log_pesticides}</code> — une colonne <code>Maize x avg_temp</code>, une <code>Maize x rain_mm</code>, etc. pour chacune des 10 cultures (30 colonnes) ;</li>
+      <li>ligne 5 : <code>crop × {avg_temp, rain_mm, log_pesticides, lat_abs, geo_x, geo_y, geo_z}</code> — le même principe, étendu à la géographie (70 colonnes).</li>
+      </ul>
+      <p>Ces interactions ne servent qu'à la régression linéaire : les modèles à arbres de la section suivante peuvent apprendre
+      nativement un effet différent selon la culture, sans en avoir besoin. La ligne 6 les garde donc pour la régression
+      (88 colonnes) mais les retire pour les arbres (18 colonnes, section suivante).</p>
+      <h3 id="référence-et-sélection-des-variables_1">Référence et sélection des variables</h3>
+      <div class="table-scroll"><table class="scores">
+      <thead>
+      <tr>
+      <th>Étape</th>
+      <th style="text-align: right;">RMSE (t/ha)</th>
+      <th style="text-align: right;">MAE (t/ha)</th>
+      <th style="text-align: right;">R²</th>
+      <th>Ce qu'on apprend</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td>Référence naïve</td>
+      <td style="text-align: right;">8,503</td>
+      <td style="text-align: right;">5,907</td>
+      <td style="text-align: right;">−0,015</td>
+      <td>prédire le rendement moyen ne suffit pas</td>
+      </tr>
+      <tr>
+      <td>Variables d'origine</td>
+      <td style="text-align: right;">5,507</td>
+      <td style="text-align: right;">3,460</td>
+      <td style="text-align: right;">0,574</td>
+      <td>les variables disponibles apportent déjà beaucoup d'information</td>
+      </tr>
+      <tr>
+      <td>Pesticides en log</td>
+      <td style="text-align: right;">5,346</td>
+      <td style="text-align: right;">3,368</td>
+      <td style="text-align: right;">0,598</td>
+      <td>le logarithme améliore la régression et est conservé</td>
+      </tr>
+      <tr>
+      <td>+ interactions culture × conditions</td>
+      <td style="text-align: right;">4,995</td>
+      <td style="text-align: right;">3,081</td>
+      <td style="text-align: right;">0,649</td>
+      <td>chaque culture peut avoir sa propre pente de température, de pluie et de pesticides</td>
+      </tr>
+      <tr>
+      <td>+ position du pays</td>
+      <td style="text-align: right;">4,851</td>
+      <td style="text-align: right;">3,025</td>
+      <td style="text-align: right;">0,669</td>
+      <td>la position seule, sans lui donner d'interaction, améliore encore, en gardant les interactions culture × conditions de la ligne précédente</td>
+      </tr>
+      <tr>
+      <td><strong>+ interactions culture × géographie</strong></td>
+      <td style="text-align: right;"><strong>4,673</strong></td>
+      <td style="text-align: right;"><strong>2,871</strong></td>
+      <td style="text-align: right;"><strong>0,693</strong></td>
+      <td><strong>meilleure régression linéaire du notebook 13 (<code>crop_x_geography</code>)</strong></td>
+      </tr>
+      </tbody>
+      </table></div>
+      <p>Sur les lignes qui ont un historique, cette régression obtient un RMSE de 4,664 (pas 4,673 : le nombre de lignes
+      diffère). Remplacer la température et les pesticides de l'année par leur moyenne des 3 années précédentes fait
+      passer ce RMSE à 4,644 — les seules conditions connues au moment de recommander.</p>
+      <p><strong>Référence linéaire retenue : interactions culture × géographie, RMSE 4,673 t/ha</strong> — meilleure régression sans
+      identifiant de pays, reprise comme référence au notebook 14.</p>
+      <h3 id="modèles-non-linéaires_1">Modèles non linéaires</h3>
+      <p>On teste d'abord les modèles à arbres avec les variables de base, sans interaction, pour voir l'impact du non
+      linéaire seul.</p>
+      <p>Réglages de départ (annexe D.1), validation temporelle :</p>
       <div class="table-scroll"><table class="scores">
       <thead>
       <tr>
       <th>Modèle</th>
-      <th>Variables</th>
-      <th style="text-align: right;">RMSE CV (t/ha)</th>
-      <th style="text-align: right;">MAE CV (t/ha)</th>
-      <th style="text-align: right;">R² CV</th>
+      <th style="text-align: right;">Pesticides en log — RMSE <span class="s2">(MAE / R²)</span></th>
+      <th style="text-align: right;">Position du pays — RMSE <span class="s2">(MAE / R²)</span></th>
+      <th style="text-align: right;">Repr. finale — RMSE</th>
       </tr>
       </thead>
       <tbody>
       <tr>
-      <td><code>DummyRegressor</code></td>
-      <td>aucune : rendement moyen</td>
-      <td style="text-align: right;">8,4975 ± 0,1544</td>
-      <td style="text-align: right;">5,9183 ± 0,0922</td>
-      <td style="text-align: right;">−0,0142 ± 0,0016</td>
+      <td><strong><code>ExtraTrees</code></strong></td>
+      <td style="text-align: right;"><strong>1,706</strong> <span class="s2">(0,846 / 0,959)</span></td>
+      <td style="text-align: right;"><strong>1,515</strong> <span class="s2">(0,743 / 0,968)</span></td>
+      <td style="text-align: right;"><strong>1,442</strong></td>
       </tr>
       <tr>
-      <td><code>LinearRegression</code></td>
-      <td>culture seule</td>
-      <td style="text-align: right;">5,7747 ± 0,1119</td>
-      <td style="text-align: right;">3,4723 ± 0,0454</td>
-      <td style="text-align: right;">0,5316 ± 0,0060</td>
+      <td><code>RandomForest</code></td>
+      <td style="text-align: right;">2,098 <span class="s2">(1,002 / 0,938)</span></td>
+      <td style="text-align: right;">1,648 <span class="s2">(0,821 / 0,962)</span></td>
+      <td style="text-align: right;">1,609</td>
       </tr>
       <tr>
-      <td><code>LinearRegression</code></td>
-      <td>culture et conditions, pesticides bruts</td>
-      <td style="text-align: right;">5,5912 ± 0,1097</td>
-      <td style="text-align: right;">3,3965 ± 0,0431</td>
-      <td style="text-align: right;">0,5609 ± 0,0066</td>
+      <td><code>XGBoost</code></td>
+      <td style="text-align: right;">2,119 <span class="s2">(1,193 / 0,937)</span></td>
+      <td style="text-align: right;">1,751 <span class="s2">(0,984 / 0,957)</span></td>
+      <td style="text-align: right;">1,693</td>
       </tr>
       <tr>
-      <td><strong><code>LinearRegression</code></strong></td>
-      <td><strong>culture et conditions, pesticides en logarithme</strong></td>
-      <td style="text-align: right;"><strong>5,4034 ± 0,1077</strong></td>
-      <td style="text-align: right;"><strong>3,2913 ± 0,0356</strong></td>
-      <td style="text-align: right;"><strong>0,5899 ± 0,0062</strong></td>
+      <td><code>HistGradientBoosting</code></td>
+      <td style="text-align: right;">2,286 <span class="s2">(1,306 / 0,926)</span></td>
+      <td style="text-align: right;">1,897 <span class="s2">(1,094 / 0,949)</span></td>
+      <td style="text-align: right;">1,844</td>
+      </tr>
+      <tr>
+      <td><code>LightGBM</code></td>
+      <td style="text-align: right;">2,270 <span class="s2">(1,320 / 0,928)</span></td>
+      <td style="text-align: right;">1,916 <span class="s2">(1,116 / 0,948)</span></td>
+      <td style="text-align: right;">1,843</td>
+      </tr>
+      <tr>
+      <td><code>CatBoost</code></td>
+      <td style="text-align: right;">2,306 <span class="s2">(1,430 / 0,925)</span></td>
+      <td style="text-align: right;">1,884 <span class="s2">(1,140 / 0,950)</span></td>
+      <td style="text-align: right;">1,851</td>
       </tr>
       </tbody>
       </table></div>
-      <h3 id="ce-que-montre-la-baseline">Ce que montre la baseline</h3>
-      <p>Prédire le rendement moyen donne une RMSE de 8,50 t/ha, au-dessus de l'écart-type du rendement dans
-      l'entraînement (7,69 t/ha). La culture seule la ramène à 5,77 t/ha, soit 32 % d'erreur en moins :
-      les niveaux de rendement diffèrent beaucoup d'une culture à l'autre, et la culture porte la plus
-      grande partie du signal. Les conditions apportent un complément, avec 5,40 t/ha et encore 6 %
-      d'erreur en moins pour la version en logarithme. Le logarithme fait mieux que les pesticides bruts
-      sur chacune des 5 années de validation, de 0,188 t/ha en moyenne.</p>
-      <h3 id="limite-du-classement">Limite du classement</h3>
-      <p>Pour simuler <code>/recommend</code>, la meilleure baseline, apprise sur tout l'entraînement, prédit les
-      10 cultures dans le contexte de chacun des 115 pays en 2012. Elle donne <strong>un seul classement pour
-      les 115 pays</strong>. La régression est additive et n'a pas d'interaction entre la culture et les
-      conditions : elle ajoute le même effet des conditions à toutes les cultures. Les conditions changent
-      le niveau des prédictions d'un pays à l'autre, mais pas l'ordre des cultures. Cette baseline est une
-      référence utile, pas encore une recommandation adaptée au contexte.</p>
-      <h3 id="erreurs">Erreurs</h3>
-      <p>Sur les années de validation, la baseline sous-estime le rendement chaque année, avec un biais de
-      −0,833 à −1,005 t/ha selon l'année : les rendements augmentent sur la période, alors que l'année
-      ne fait pas partie des variables de cette baseline. L'erreur est plus forte pour les cultures à haut rendement, comme
-      la pomme de terre, la patate douce et le manioc. Dans certains contextes, le modèle prédit aussi des
-      rendements négatifs pour des céréales et pour le soja.</p>
-      <h3 id="baseline-à-battre">Baseline à battre</h3>
-      <p><strong>Baseline actuelle : <code>LinearRegression</code> avec <code>crop</code>, <code>temp_hist</code>, <code>rain_mm</code> et <code>log_pest_hist</code></strong>,
-      avec une RMSE CV de 5,4034 t/ha et un R² CV de 0,5899. Elle n'est pas encore figée : il reste à la
-      comparer aux versions avec <code>year</code>, avec <code>iso3</code>, et avec <code>year</code> et <code>iso3</code>. <strong>Le test 2013 reste
-      réservé.</strong> La suite cherchera ensuite à exploiter l'historique temporel disponible et à mieux
-      différencier l'effet des conditions selon les cultures.</p>
-      <p>Les quatre évaluations sont journalisées dans une expérience MLflow dédiée à <code>/recommend</code>, avec les
-      mêmes métriques <code>cv_</code> que pour <code>/predict</code>.</p>
-      <h2 id="9-limites-identifiées">9. Limites identifiées</h2>
+      <p>Le notebook 14 teste quand même les interactions culture × géographie sur les six familles : elles dégradent les
+      forêts (<code>RandomForest</code>, <code>ExtraTrees</code>) et <code>XGBoost</code>, et n'améliorent que légèrement <code>HistGradientBoosting</code>,
+      <code>LightGBM</code> et <code>CatBoost</code>. La suite garde donc « position du pays » sans interactions, plus simple et aussi bonne.</p>
+      <p>La <strong>représentation finale</strong> reprend « position du pays », en remplaçant la température et les pesticides par leur
+      moyenne des 3 années précédentes (<code>temp_hist</code>, <code>log_pest_hist</code>), connues au moment de recommander.</p>
+      <ul>
+      <li>Contrairement à <code>/predict</code>, la régression linéaire ne suffit pas : les arbres font deux à trois fois moins d'erreur,
+        même sans la position du pays.</li>
+      <li>La position du pays aide les arbres. La représentation finale les améliore encore de 0,05 à 0,09 t/ha, à lignes
+        égales (lignes qui ont un historique).</li>
+      </ul>
+      <h3 id="tuning_1">Tuning</h3>
+      <p>Un tuning léger teste 6 familles de modèles, puis un tuning plus fin approfondit les 3 meilleures.</p>
+      <div class="table-scroll"><table class="scores">
+      <thead>
+      <tr>
+      <th>Étape</th>
+      <th>Résultat (RMSE, MAE, R² de validation)</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td>1. Tuning léger</td>
+      <td>meilleur — <strong>ExtraTrees</strong>, réglage de départ : 1,442 (MAE 0,710, R² 0,971)<br>moins bon — RandomForest : 1,570 (MAE 0,791, R² 0,965)</td>
+      </tr>
+      <tr>
+      <td>2. Trois finalistes</td>
+      <td>1. ExtraTrees 1,442 (MAE 0,710, R² 0,971)<br>2. CatBoost 1,458 (MAE 0,753, R² 0,970)<br>3. LightGBM 1,483 (MAE 0,779, R² 0,969)</td>
+      </tr>
+      <tr>
+      <td>3. Tuning approfondi</td>
+      <td>1. <strong>ExtraTrees 1,436</strong> (MAE 0,713, R² 0,971)<br>2. CatBoost 1,450 (MAE 0,740, R² 0,970)<br>3. LightGBM 1,465 (MAE 0,757, R² 0,970)</td>
+      </tr>
+      <tr>
+      <td>4. Choix, avant 2013</td>
+      <td><strong>ExtraTrees</strong> : meilleures RMSE et MAE, plus stable d'une année à l'autre ; en plus, scikit-learn seul (plus simple à déployer)</td>
+      </tr>
+      <tr>
+      <td>5. Allègement</td>
+      <td><strong>150 arbres, 60,8 Mo compressés</strong>, même RMSE (1,4349 contre 1,4359) et MAE (0,7114 contre 0,7127)</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <ul>
+      <li><strong>Pourquoi alléger ExtraTrees ?</strong> Le modèle doit être enregistré dans le dépôt et chargé par l'API. Avec 300 arbres,
+        il pèse 425 Mo (121,6 Mo compressés) : au-delà de la limite de 100 Mo par fichier de GitHub, et lent à charger.</li>
+      <li>La taille d'une forêt dépend de son nombre de nœuds, donc surtout du nombre d'arbres. Or la RMSE ne baisse plus
+        au-delà de 150 arbres : on garde la même performance pour un fichier deux fois plus petit, plus rapide à charger et
+        à interroger (annexe D.4).</li>
+      </ul>
+      <h3 id="modèle-final_1">Modèle final</h3>
+      <p><strong>ExtraTrees à 150 arbres</strong> : <code>max_features=0.9</code>, <code>min_samples_split=3</code>, <code>random_state=42</code>, <code>n_jobs=1</code>.</p>
+      <ul>
+      <li>Variables : culture, année, température et pesticides moyens des 3 années précédentes, pluie du pays, position du
+        pays (<code>lat_abs</code>, <code>geo_x</code>, <code>geo_y</code>, <code>geo_z</code>).</li>
+      <li>Les conditions historiques utilisent la moyenne des 3 années précédentes : la première année de chaque pays
+        (1990) n'a donc pas d'historique et sort de l'apprentissage, ce qui ramène le développement de 15 624 à 14 941
+        lignes (1991-2012).</li>
+      <li>Pipeline complet de 60,8 Mo compressés, dans <code>models/recommend_model.joblib</code>, avec ses métadonnées.</li>
+      </ul>
+      <h3 id="importance-des-variables">Importance des variables</h3>
+      <figure><img width="983" height="363" alt="Importance par permutation du modèle final, hors apprentissage : hausse de la RMSE quand une famille de variables est mélangée dans une année de validation, 2008-2012 (notebook 15)" src="assets/figures/14_importance_recommend.png" /><figcaption>Importance par permutation du modèle final, hors apprentissage : hausse de la RMSE quand une famille de variables est mélangée dans une année de validation, 2008-2012 (notebook 15)</figcaption></figure>
+      <ul>
+      <li>La culture compte de loin le plus, puis la géographie ; les pesticides, la pluie et la température viennent loin
+        derrière. L'ordre est le même les 5 années.</li>
+      <li><code>year</code> ne peut pas être mélangée dans une seule année de validation : sans elle, le modèle réappris passe de 1,435
+        à 1,830 t/ha de RMSE.</li>
+      <li>Ces importances décrivent l'usage des variables par le modèle, pas un effet causal : pluie, température, pesticides
+        et géographie sont des valeurs du pays, qui portent en partie le même signal.</li>
+      </ul>
+      <h3 id="évaluation-finale">Évaluation finale</h3>
+      <div class="table-scroll"><table class="scores">
+      <thead>
+      <tr>
+      <th>Jeu</th>
+      <th style="text-align: right;">RMSE (t/ha)</th>
+      <th style="text-align: right;">MAE (t/ha)</th>
+      <th style="text-align: right;">R²</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td>Validation temporelle 2008‑2012</td>
+      <td style="text-align: right;">1,4349</td>
+      <td style="text-align: right;">0,7114</td>
+      <td style="text-align: right;">0,9710</td>
+      </tr>
+      <tr>
+      <td><strong>Test final 2013 (695 lignes)</strong></td>
+      <td style="text-align: right;"><strong>1,6584</strong></td>
+      <td style="text-align: right;"><strong>0,7615</strong></td>
+      <td style="text-align: right;"><strong>0,9638</strong></td>
+      </tr>
+      </tbody>
+      </table></div>
+      <ul>
+      <li>Le test est cohérent avec la validation, dont l'erreur augmentait déjà d'une année à l'autre (environ 1,22 t/ha en
+        2008, 1,58 en 2012).</li>
+      <li>2013 n'a servi à aucun choix : le modèle était figé avant l'évaluation finale.</li>
+      <li>Limite : toutes les lignes de 2013 portent sur des couples pays × culture déjà observés.</li>
+      </ul>
+      <h3 id="ce-que-recommande-le-modèle">Ce que recommande le modèle</h3>
+      <figure><img width="1389" height="594" alt="Culture classée n°1 par ExtraTrees dans les conditions de la demande 2012, modèle appris jusqu'en 2011 (notebook 15)" src="assets/figures/12_carte_n1_2012.png" /><figcaption>Culture classée n°1 par ExtraTrees dans les conditions de la demande 2012, modèle appris jusqu'en 2011 (notebook 15)</figcaption></figure>
+      <p>La carte montre, pour chacun des 115 pays, la culture classée n°1 pour la campagne 2012 par un ExtraTrees appris
+      jusqu'en 2011.</p>
+      <ul>
+      <li>Seules cinq cultures arrivent n°1, celles aux rendements les plus élevés en t/ha : pomme de terre, patate douce,
+        manioc, igname et plantain.</li>
+      <li><strong>Limite : 25 des 115 n°1 sont des cultures jamais observées dans le pays</strong>, un cas que la validation ne mesure
+        presque pas (annexe A.3). Le top 3 est plus robuste que le seul n°1.</li>
+      </ul>
+      <h3 id="suivi-mlflow">Suivi MLflow</h3>
+      <p>Les 1 422 évaluations sont journalisées dans une expérience MLflow dédiée à <code>/recommend</code>, avec les mêmes métriques
+      <code>cv_</code> que pour <code>/predict</code> ; le run final, « ExtraTrees final — test 2013 », ajoute <code>test_rmse</code>, <code>test_mae</code> et
+      <code>test_r2</code>. La capture montre 13 runs représentatifs.</p>
+      <figure><img width="5116" height="1912" alt="Expérience MLflow /recommend : 13 runs représentatifs, de la référence naïve au modèle final" src="assets/figures/11_mlflow_recommend.png" /><figcaption>Expérience MLflow /recommend : 13 runs représentatifs, de la référence naïve au modèle final</figcaption></figure>
+      <h2 id="5-de-lanalyse-à-lapi">5. De l'analyse à l'API</h2>
+      <p>Les résultats fixent ce que l'API devra exposer :</p>
+      <ul>
+      <li><strong><code>/predict</code></strong> : l'estimation du rendement avec sa marge d'erreur (MAE de 0,40 t/ha sur le test, 68 % des
+        prédictions à moins de 0,5 t/ha) ;</li>
+      <li><strong><code>/recommend</code></strong> : le top 3 des cultures plutôt qu'un seul verdict, en signalant une culture jamais observée dans
+        le pays ;</li>
+      <li><strong><code>/recommend</code> — valeurs hors plage</strong> : les contrôler ou les signaler, car ExtraTrees n'extrapole pas au-delà des valeurs apprises ;</li>
+      <li><strong>échelle des données</strong> : rappeler que <code>/recommend</code> repose sur des valeurs nationales, pas sur celles d'une
+        parcelle.</li>
+      </ul>
+      <p>Le classement repose sur le rendement prédit ; les données disponibles ne permettent pas d'évaluer la rentabilité
+      économique.</p>
+      <p><strong>Prochaine étape : mettre les deux modèles à disposition via l'API.</strong></p>
+      <h2 id="annexes">Annexes</h2>
+      <h3 id="a-limites-et-précautions">A. Limites et précautions</h3>
+      <h4 id="a1-predict--limites-des-données">A.1 <code>/predict</code> — limites des données</h4>
+      <ul>
+      <li>Le jeu parcellaire est simulé (distributions uniformes, catégories équilibrées) : les liens appris par <code>/predict</code>
+        ne sont pas des preuves agronomiques.</li>
+      <li>Il n'a ni pays ni année, et <code>Region</code> ne correspond à aucun lieu : une estimation ne peut pas être rattachée à un
+        lieu ou à une saison précise.</li>
+      <li>Les six cultures ont des rendements quasiment identiques : l'estimation ne change pas avec la culture choisie.</li>
+      </ul>
+      <h4 id="a2-recommend--limites-des-données">A.2 <code>/recommend</code> — limites des données</h4>
+      <ul>
+      <li>Les conditions sont nationales : la pluie est une valeur fixe par pays, sans variation d'une année à l'autre, et
+        les pesticides sont un tonnage national, qui dépend de la taille du pays.</li>
+      <li>La température moyenne varie surtout d'un pays à l'autre (99,8 % de la variance de <code>temp_hist</code>) : le modèle apprend
+        ces conditions en comparant des pays.</li>
+      <li>Chaque pays a une position unique : un arbre peut s'en servir pour reconnaître le pays.</li>
+      <li>115 pays et un historique jusqu'en 2013 : les autres pays ne peuvent pas être servis, et des campagnes plus récentes
+        demanderont des données à jour.</li>
+      </ul>
+      <h4 id="a3-recommend--limites-de-validation">A.3 <code>/recommend</code> — limites de validation</h4>
+      <ul>
+      <li>La validation ne mesure presque que des couples pays × culture déjà vus pendant l'apprentissage : 3 469 lignes sur
+        3 472. Le test 2013 n'en contient aucun nouveau.</li>
+      <li>Or, pour la campagne 2012, 25 des 115 cultures classées n°1 n'avaient jamais été observées dans le pays : la
+        qualité de ce type de recommandation n'est presque pas mesurée.</li>
+      <li>Comparaison avec les rendements observés en 2012, une année de validation (ce n'est pas un nouveau test) : le n°1
+        du modèle est la culture au meilleur rendement observé dans 83 pays sur 115 ; parmi les 32 différences, 25 viennent
+        de cultures jamais observées dans le pays. En ne classant que les cultures observées dans le pays en 2012, le même
+        n°1 est retrouvé dans 105 pays ; la culture au meilleur rendement observé est dans le top 3 du modèle dans 109 pays.</li>
+      <li>Une seule année de test : en validation, l'erreur variait de 1,22 à 1,58 t/ha selon l'année.</li>
+      </ul>
+      <h4 id="a4-utilisation-extrapolation-et-causalité">A.4 Utilisation, extrapolation et causalité</h4>
+      <ul>
+      <li>Les scores et les importances décrivent des prédictions, pas des effets de cause à effet.</li>
+      <li>ExtraTrees n'extrapole pas : au-delà des valeurs apprises, il répond comme au bord de la plage connue. L'API devra
+        contrôler ou signaler ces valeurs.</li>
+      <li>Un stress test (notebook 15) a modifié les conditions de quelques pays (température ±3 °C, pluie ±30 %,
+        pesticides ±50 %) : le classement d'ExtraTrees reste relativement stable. Ce test décrit le modèle ; il ne
+        démontre aucun effet agronomique.</li>
+      </ul>
+      <h3 id="b-glossaire">B. Glossaire</h3>
       <div class="table-scroll"><table>
       <thead>
       <tr>
-      <th>Limite</th>
-      <th>Conséquence</th>
+      <th>Terme</th>
+      <th>Définition</th>
       </tr>
       </thead>
       <tbody>
       <tr>
-      <td>Le dataset de <code>/predict</code> n'a ni pays ni année, et <code>Region</code> ne correspond à aucun lieu</td>
-      <td>les estimations ne peuvent pas être rattachées à un lieu ou à une saison précise</td>
+      <td>ACP</td>
+      <td>analyse en composantes principales : projection des données sur les axes de plus grande variance</td>
       </tr>
       <tr>
-      <td>Les 6 cultures y ont des rendements quasiment identiques</td>
-      <td><code>Crop</code> n'améliore pas les prédictions et n'est pas une variable du modèle retenu : l'estimation de <code>/predict</code> ne change pas avec la culture choisie</td>
+      <td>F1, F2, …</td>
+      <td>axes de l'ACP, ordonnés par variance décroissante</td>
       </tr>
       <tr>
-      <td><code>/recommend</code> apprend sur des données de pays</td>
-      <td>les valeurs préremplies sont nationales ; l'utilisateur peut les modifier, mais le modèle a appris sur des moyennes de pays, pas sur des parcelles</td>
+      <td>Importance par permutation</td>
+      <td>hausse de l'erreur quand une variable est mélangée : ce que le modèle perd sans cette information</td>
       </tr>
       <tr>
-      <td><code>rain_mm</code> est une valeur de pluie fixe par pays</td>
-      <td>la valeur préremplie est la même quelle que soit l'année ; seule une saisie de l'utilisateur la change</td>
+      <td>MAE</td>
+      <td><em>Mean Absolute Error</em> — écart moyen, en t/ha, entre la prédiction et la valeur réelle</td>
       </tr>
       <tr>
-      <td><code>pesticides_t</code> est un tonnage national</td>
-      <td>il dépend de la taille du pays et ne décrit pas la pratique d'un agriculteur</td>
+      <td>R²</td>
+      <td>part des variations du rendement expliquée par le modèle (1 = parfait, 0 = pas mieux que la moyenne)</td>
       </tr>
       <tr>
-      <td>115 pays seulement</td>
-      <td>les valeurs historiques ne peuvent être préremplies que pour ces pays ; le comportement de l'application pour un autre pays reste à décider</td>
+      <td>RMSE</td>
+      <td><em>Root Mean Squared Error</em> — racine de l'erreur quadratique moyenne, en t/ha ; pénalise davantage les grosses erreurs que la MAE</td>
       </tr>
       <tr>
-      <td>39 % des couples pays-culture n'existent pas dans l'historique</td>
-      <td>une culture peut être classée pour un pays où elle n'a jamais été observée ; igname, plantain et manioc sont rarement observés sous 16-17 °C</td>
+      <td>SHAP</td>
+      <td>valeurs de Shapley appliquées au modèle : contribution de chaque variable à chaque prédiction</td>
       </tr>
       <tr>
-      <td>Cultures inégalement représentées dans le dataset d'entraînement <code>/recommend</code></td>
-      <td>igname : 546 lignes et 24 pays ; plantain : 602 lignes et 27 pays ; maïs : 2 399 lignes et 107 pays</td>
+      <td>Spearman</td>
+      <td>corrélation de rang : mesure si deux variables varient dans le même sens, sans supposer de relation linéaire</td>
       </tr>
       <tr>
-      <td>Niveaux de rendement très différents selon la culture</td>
-      <td>en t/ha, les tubercules passent devant les céréales (pomme de terre : médiane 16 t/ha ; sorgho : 1,3) ; le classement reflète d'abord cette différence</td>
+      <td>Validation croisée</td>
+      <td>le jeu d'entraînement est coupé en 5 parts ; chaque part est prédite par un modèle appris sur les 4 autres</td>
       </tr>
       <tr>
-      <td>La baseline <code>/recommend</code> est une régression additive</td>
-      <td>elle donne le même ordre des cultures pour tous les pays : la recommandation n'est pas encore adaptée au contexte</td>
+      <td>Validation temporelle</td>
+      <td>chaque année est prédite par un modèle appris sur les années précédentes</td>
       </tr>
       </tbody>
       </table></div>
-      <h2 id="10-suite-du-projet">10. Suite du projet</h2>
-      <p><code>/predict</code> est terminé : le modèle est sélectionné, évalué sur le jeu de test et sauvegardé. Les
-      grandes étapes restantes sont :</p>
-      <ol>
-      <li><strong>finaliser <code>/recommend</code></strong> : comparer la baseline avec <code>year</code> et <code>iso3</code>, la figer, tester le
-         feature engineering et des modèles plus riches, puis évaluer une seule fois le modèle retenu sur
-         2013 et le sauvegarder ;</li>
-      <li><strong>développer l'API</strong> <code>/predict</code> et <code>/recommend</code> ;</li>
-      <li><strong>déployer l'application</strong> ;</li>
-      <li><strong>finaliser les slides</strong> de présentation.</li>
-      </ol>
-      <p>Ces travaux seront ajoutés dans une prochaine version du rapport.</p>
-      <h2 id="annexes">Annexes</h2>
-      <h3 id="predict--grilles-dhyperparamètres"><code>/predict</code> — Grilles d'hyperparamètres</h3>
+      <h3 id="c-tuning-predict">C. Tuning <code>/predict</code></h3>
       <p>Grilles reprises du notebook 10. Pour chaque modèle, <code>RandomizedSearchCV</code> tire des configurations au
       hasard parmi toutes les combinaisons de la grille (graine 42), puis les évalue sur les 5 folds de la
-      section 7. Les scores de chaque configuration ne sont pas repris ici : MLflow les conserve, avec un run
+      section 3. Les scores de chaque configuration ne sont pas repris ici : MLflow les conserve, avec un run
       par configuration (étapes <code>light_tuning</code> et <code>deep_tuning</code>).</p>
       <p>Réglages communs aux deux phases : graine 42 pour tous les modèles (<code>random_state</code>, ou <code>random_seed</code>
       pour CatBoost) et <code>early_stopping=False</code> pour HistGradientBoosting, pour que le nombre d'itérations
       testé soit bien celui utilisé. Les autres hyperparamètres gardent leur valeur par défaut.</p>
-      <h4 id="tuning-léger">Tuning léger</h4>
+      <h4 id="c1-tuning-léger">C.1 Tuning léger</h4>
       <div class="table-scroll"><table>
       <thead>
       <tr>
@@ -1320,7 +1176,7 @@
       </tr>
       </tbody>
       </table></div>
-      <h4 id="tuning-approfondi">Tuning approfondi</h4>
+      <h4 id="c2-tuning-approfondi">C.2 Tuning approfondi</h4>
       <p>Les plages sont élargies là où les meilleures valeurs du tuning léger étaient en bordure, en
       particulier vers une vitesse d'apprentissage plus basse et davantage d'arbres.</p>
       <div class="table-scroll"><table>
@@ -1344,13 +1200,192 @@
       </tr>
       </tbody>
       </table></div>
+      <h3 id="d-tuning-recommend">D. Tuning <code>/recommend</code></h3>
+      <p>Même représentation (les 9 variables finales), mêmes 5 années de validation, graine 42 pour tous les modèles. Un run
+      MLflow par configuration.</p>
+      <h4 id="d1-réglages-de-départ">D.1 Réglages de départ</h4>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Modèle</th>
+      <th>Réglages de départ</th>
+      <th>Culture</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td><code>RandomForest</code></td>
+      <td>300 arbres</td>
+      <td>one-hot</td>
+      </tr>
+      <tr>
+      <td><code>ExtraTrees</code></td>
+      <td>300 arbres</td>
+      <td>one-hot</td>
+      </tr>
+      <tr>
+      <td><code>HistGradientBoosting</code></td>
+      <td><code>max_iter</code> 500, <code>learning_rate</code> 0,05, sans arrêt anticipé</td>
+      <td>catégorie native</td>
+      </tr>
+      <tr>
+      <td><code>XGBoost</code></td>
+      <td><code>n_estimators</code> 500, <code>learning_rate</code> 0,05</td>
+      <td>catégorie native</td>
+      </tr>
+      <tr>
+      <td><code>LightGBM</code></td>
+      <td><code>n_estimators</code> 500, <code>learning_rate</code> 0,05</td>
+      <td>catégorie native</td>
+      </tr>
+      <tr>
+      <td><code>CatBoost</code></td>
+      <td>réglages par défaut</td>
+      <td>one-hot</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <h4 id="d2-tuning-léger">D.2 Tuning léger</h4>
+      <p>40 configurations tirées au hasard par famille. Pour LightGBM, <code>subsample_freq=1</code> est fixé, sinon <code>subsample</code> n'a pas
+      d'effet.</p>
+      <div class="table-scroll"><table class="scores">
+      <thead>
+      <tr>
+      <th>Modèle</th>
+      <th>Hyperparamètres et valeurs testées</th>
+      <th style="text-align: right;">Configurations testées</th>
+      <th style="text-align: right;">Meilleure RMSE</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td><code>ExtraTrees</code></td>
+      <td><code>n_estimators</code> : 300 · 500 · 1 000<br><code>max_features</code> : 0,3 · 0,5 · 0,7 · 1,0<br><code>min_samples_leaf</code> : 1 · 2 · 3 · 5<br><code>bootstrap</code> : False · True</td>
+      <td style="text-align: right;">40 sur 96</td>
+      <td style="text-align: right;">1,447 (départ : 1,442)</td>
+      </tr>
+      <tr>
+      <td><code>CatBoost</code></td>
+      <td><code>iterations</code> : 1 000 · 2 000 · 3 000<br><code>learning_rate</code> : 0,03 · 0,06 · 0,1 · 0,2<br><code>depth</code> : 6 · 8 · 10<br><code>l2_leaf_reg</code> : 1 · 3 · 10</td>
+      <td style="text-align: right;">40 sur 108</td>
+      <td style="text-align: right;">1,458</td>
+      </tr>
+      <tr>
+      <td><code>LightGBM</code></td>
+      <td><code>n_estimators</code> : 500 · 1 000 · 2 000<br><code>learning_rate</code> : 0,02 · 0,05 · 0,1<br><code>num_leaves</code> : 31 · 63 · 127 · 255<br><code>min_child_samples</code> : 2 · 5 · 10 · 20<br><code>subsample</code> : 0,7 · 0,85 · 1,0<br><code>colsample_bytree</code> : 0,6 · 0,8 · 1,0<br><code>reg_lambda</code> : 0,0 · 1,0 · 5,0</td>
+      <td style="text-align: right;">40 sur 3 888</td>
+      <td style="text-align: right;">1,483</td>
+      </tr>
+      <tr>
+      <td><code>HistGradientBoosting</code></td>
+      <td><code>learning_rate</code> : 0,03 · 0,05 · 0,1 · 0,2<br><code>max_iter</code> : 500 · 1 000 · 2 000<br><code>max_leaf_nodes</code> : 31 · 63 · 127 · 255<br><code>min_samples_leaf</code> : 2 · 5 · 10 · 20<br><code>l2_regularization</code> : 0,0 · 0,1 · 1,0<br><code>max_features</code> : 0,5 · 0,8 · 1,0</td>
+      <td style="text-align: right;">40 sur 1 728</td>
+      <td style="text-align: right;">1,497</td>
+      </tr>
+      <tr>
+      <td><code>XGBoost</code></td>
+      <td><code>n_estimators</code> : 500 · 1 000 · 2 000<br><code>learning_rate</code> : 0,02 · 0,05 · 0,1<br><code>max_depth</code> : 6 · 8 · 10 · 12<br><code>min_child_weight</code> : 1 · 3 · 5<br><code>subsample</code> : 0,7 · 0,85 · 1,0<br><code>colsample_bytree</code> : 0,6 · 0,8 · 1,0<br><code>reg_lambda</code> : 0,1 · 1,0 · 5,0</td>
+      <td style="text-align: right;">40 sur 2 916</td>
+      <td style="text-align: right;">1,503</td>
+      </tr>
+      <tr>
+      <td><code>RandomForest</code></td>
+      <td><code>n_estimators</code> : 300 · 500<br><code>max_features</code> : 0,3 · 0,5 · 0,7 · 1,0<br><code>min_samples_leaf</code> : 1 · 2 · 3 · 5<br><code>max_depth</code> : <code>None</code> · 15 · 25</td>
+      <td style="text-align: right;">40 sur 96</td>
+      <td style="text-align: right;">1,570</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <h4 id="d3-tuning-approfondi-des-trois-finalistes">D.3 Tuning approfondi des trois finalistes</h4>
+      <p>Toutes les combinaisons d'une grille centrée sur la meilleure zone du tuning léger, élargie d'un cran là où la
+      meilleure valeur touchait un bord. Les autres réglages restent à leur valeur par défaut, la meilleure du tuning
+      léger : <code>min_samples_leaf=1</code> et <code>bootstrap=False</code> pour ExtraTrees, <code>colsample_bytree=1.0</code> pour LightGBM.</p>
+      <div class="table-scroll"><table class="scores">
+      <thead>
+      <tr>
+      <th>Modèle</th>
+      <th>Hyperparamètres et valeurs testées</th>
+      <th style="text-align: right;">Configurations</th>
+      <th>Meilleure configuration</th>
+      <th style="text-align: right;">RMSE</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td><code>ExtraTrees</code></td>
+      <td><code>n_estimators</code> : 200 · 300 · 400 · 500 · 600 · 800<br><code>max_features</code> : 0,6 · 0,7 · 0,8 · 0,9 · 1,0<br><code>min_samples_split</code> : 2 · 3 · 4 · 5 · 6</td>
+      <td style="text-align: right;">150</td>
+      <td>300 arbres, <code>max_features</code> 0,9, <code>min_samples_split</code> 3</td>
+      <td style="text-align: right;">1,436</td>
+      </tr>
+      <tr>
+      <td><code>CatBoost</code></td>
+      <td><code>iterations</code> : 1 000 · 1 500 · 2 000 · 2 500<br><code>learning_rate</code> : 0,1 · 0,15 · 0,2 · 0,3<br><code>depth</code> : 10 · 11 · 12 · 13<br><code>l2_leaf_reg</code> : 3 · 5 · 10 · 20</td>
+      <td style="text-align: right;">256</td>
+      <td><code>iterations</code> 1 000, <code>learning_rate</code> 0,2, <code>depth</code> 12, <code>l2_leaf_reg</code> 3</td>
+      <td style="text-align: right;">1,450</td>
+      </tr>
+      <tr>
+      <td><code>LightGBM</code></td>
+      <td><code>n_estimators</code> : 1 000 · 1 500 · 2 000<br><code>learning_rate</code> : 0,05 · 0,1 · 0,15<br><code>num_leaves</code> : 127 · 255 · 511<br><code>min_child_samples</code> : 10 · 20 · 40<br><code>subsample</code> : 0,5 · 0,6 · 0,7<br><code>reg_lambda</code> : 5 · 10 · 20</td>
+      <td style="text-align: right;">729</td>
+      <td><code>n_estimators</code> 1 500, <code>learning_rate</code> 0,1, <code>num_leaves</code> 127, <code>min_child_samples</code> 10, <code>subsample</code> 0,7, <code>reg_lambda</code> 20</td>
+      <td style="text-align: right;">1,465</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <h4 id="d4-allègement-dextratrees">D.4 Allègement d'ExtraTrees</h4>
+      <p>La taille du fichier ne dépend que du nombre total de nœuds des arbres : 72 octets par nœud avant compression. Le
+      modèle du tuning (300 arbres, 5,9 millions de nœuds) pèse 425 Mo, et 121,6 Mo compressés.</p>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Arbres</th>
+      <th style="text-align: right;">50</th>
+      <th style="text-align: right;">100</th>
+      <th style="text-align: right;"><strong>150</strong></th>
+      <th style="text-align: right;">200</th>
+      <th style="text-align: right;">300</th>
+      <th style="text-align: right;">500</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td>RMSE de validation (t/ha)</td>
+      <td style="text-align: right;">1,4537</td>
+      <td style="text-align: right;">1,4390</td>
+      <td style="text-align: right;"><strong>1,4349</strong></td>
+      <td style="text-align: right;">1,4366</td>
+      <td style="text-align: right;">1,4359</td>
+      <td style="text-align: right;">1,4375</td>
+      </tr>
+      <tr>
+      <td>Taille compressée (Mo)</td>
+      <td style="text-align: right;">20,3</td>
+      <td style="text-align: right;">40,5</td>
+      <td style="text-align: right;"><strong>60,8</strong></td>
+      <td style="text-align: right;">81,0</td>
+      <td style="text-align: right;">121,6</td>
+      <td style="text-align: right;">202,6</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <p>Une recherche à deux critères, RMSE et taille, a aussi fait varier la structure des arbres :</p>
+      <ul>
+      <li>grille : <code>max_features</code> 0,5 à 1,0 ; <code>min_samples_split</code> 2 à 20 ; <code>min_samples_leaf</code> 1 à 8 ; <code>max_depth</code> 15 à 40 ou
+        aucune limite ; <code>max_leaf_nodes</code> 250 à 8 000 ou aucune limite ; de 50 à 1 200 arbres ;</li>
+      <li>2 369 configurations (2 000 pour l'exploration, puis deux tours autour des meilleurs compromis), soit 35 022
+        modèles évalués ;</li>
+      <li>aucun des meilleurs compromis ne dépasse 60,8 Mo : <strong>150 arbres, avec la structure du tuning, sont retenus</strong>. Le
+        meilleur modèle de la recherche ajoutait <code>max_depth=35</code> pour une RMSE de 1,4347 contre 1,4349 : un gain de 0,0002 t/ha, négligeable.</li>
+      </ul>
       <hr />
       <p><em>Les analyses, le code et les notebooks sont disponibles dans le dépôt du projet.</em></p>
     </main>
   </div>
 
   <footer class="page-footer">
-    Agritech Answers — rapport technique
+    Agritech Answers — rapport
   </footer>
 </body>
 </html>
