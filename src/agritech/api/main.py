@@ -20,6 +20,7 @@ from importlib.metadata import version as _package_version
 from fastapi import FastAPI
 
 from agritech.api.core import runtime
+from agritech.api.routers.predict import router as predict_router
 from agritech.serving import load_bundle
 
 
@@ -41,17 +42,18 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Agritech Answers API",
     description=(
-        "API de prédiction agricole. Elle exposera deux services :\n\n"
+        "API de prédiction agricole. Deux services :\n\n"
         "- `POST /predict` : estimation de rendement pour une parcelle ;\n"
         "- `POST /recommend` : classement des cultures pour un contexte donné.\n\n"
-        "Cette version contient le socle FastAPI, le chargement du modèle "
-        "`/predict` au démarrage et l'endpoint `/health`."
+        "Consulter `/docs` pour la liste et le contrat des endpoints disponibles."
     ),
     version=API_VERSION,
     docs_url="/docs",
     openapi_url="/openapi.json",
     lifespan=lifespan,
 )
+
+app.include_router(predict_router)
 
 
 @app.get("/health")

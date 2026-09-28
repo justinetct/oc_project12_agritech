@@ -66,3 +66,37 @@ class PredictResponse(BaseModel):
         ),
         examples=[[]],
     )
+
+
+class VariableSchema(BaseModel):
+    """Bornes d'une variable numérique : min inclusif, max inclusif ou null si pas de borne haute."""
+
+    min: float = Field(description="Valeur minimale acceptée (inclusive).", examples=[0.0])
+    max: float | None = Field(
+        description="Valeur maximale acceptée (inclusive), ou `null` si pas de borne haute.",
+        examples=[1000.0],
+    )
+    unit: str = Field(description="Unité physique de la variable.", examples=["mm"])
+
+
+class PredictSchemaResponse(BaseModel):
+    """Réponse de `GET /predict/schema` : bornes physiques du contrat + domaine d'apprentissage.
+
+    Ce document est destiné à un client (par exemple Streamlit) qui souhaite afficher, à
+    côté d'un champ de saisie, les valeurs acceptables et les valeurs que le modèle a
+    réellement vues. Les clés utilisent les noms publics snake_case du contrat.
+    """
+
+    physical_bounds: dict[str, VariableSchema] = Field(
+        description=(
+            "Bornes physiques du contrat API. Une valeur en dehors est rejetée avec un "
+            "code 422. Clé = nom public snake_case du champ."
+        ),
+    )
+    training_domain: dict[str, VariableSchema] = Field(
+        description=(
+            "Domaine réellement observé pendant l'entraînement du modèle. Une valeur "
+            "physique valide mais hors de ce domaine est acceptée et signalée dans "
+            "`notes` avec `out_of_training_domain=true`. Clé = nom public snake_case."
+        ),
+    )
