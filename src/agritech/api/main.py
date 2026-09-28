@@ -28,7 +28,9 @@ from agritech.api.error_handlers import (
 )
 from agritech.api.exceptions import ModelUnavailableError
 from agritech.api.routers.predict import router as predict_router
-from agritech.serving import load_bundle
+from agritech.api.routers.recommend import router as recommend_router
+from agritech.config import PATHS
+from agritech.serving import load_bundle, load_recommend_context
 
 
 API_VERSION = _package_version("agritech-answers")
@@ -36,13 +38,17 @@ API_VERSION = _package_version("agritech-answers")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Charge le modèle `/predict` avant de servir la première requête.
+    """Charge les modèles et le contexte `/recommend` avant de servir la première requête.
 
-    Si le chargement échoue (`FileNotFoundError`, `ValueError`, ...), l'exception
-    remonte et l'application ne démarre pas : la couche HTTP d'un modèle
-    indisponible sera ajoutée à la sous-étape prévue pour les erreurs.
+    Si un chargement échoue (`FileNotFoundError`, `ValueError`, ...), l'exception
+    remonte et l'application ne démarre pas. La couche HTTP traduira
+    séparément une indisponibilité en 503 via `model_unavailable_handler`.
     """
     runtime.bundle_predict = load_bundle("predict")
+    runtime.bundle_recommend = load_bundle("recommend")
+    runtime.recommend_context = load_recommend_context(
+        PATHS.root / "models" / "recommend_context.json"
+    )
     yield
 
 
@@ -61,6 +67,7 @@ app = FastAPI(
 )
 
 app.include_router(predict_router)
+app.include_router(recommend_router)
 
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(ModelUnavailableError, model_unavailable_handler)
