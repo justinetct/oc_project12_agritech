@@ -16,12 +16,12 @@ from agritech.api.schemas.common import (
     TEMPERATURE_PHYSICAL_MAX,
     TEMPERATURE_PHYSICAL_MIN,
     ErrorResponse,
+    VariableSchema,
 )
 from agritech.api.schemas.predict import (
     PredictRequest,
     PredictResponse,
     PredictSchemaResponse,
-    VariableSchema,
 )
 from agritech.serving import Bundle, predict as serving_predict, public_training_domain
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
-from agritech.api.schemas.common import RainfallMm, TemperatureCelsius
+from agritech.api.schemas.common import RainfallMm, TemperatureCelsius, VariableSchema
 
 
 class PredictRequest(BaseModel):
@@ -66,17 +66,6 @@ class PredictResponse(BaseModel):
         ),
         examples=[[]],
     )
-
-
-class VariableSchema(BaseModel):
-    """Bornes d'une variable numérique : min inclusif, max inclusif ou null si pas de borne haute."""
-
-    min: float = Field(description="Valeur minimale acceptée (inclusive).", examples=[0.0])
-    max: float | None = Field(
-        description="Valeur maximale acceptée (inclusive), ou `null` si pas de borne haute.",
-        examples=[1000.0],
-    )
-    unit: str = Field(description="Unité physique de la variable.", examples=["mm"])
 
 
 class PredictSchemaResponse(BaseModel):

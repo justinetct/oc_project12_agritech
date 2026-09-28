@@ -93,3 +93,19 @@ class ErrorResponse(BaseModel):
         default=None,
         description="Détails structurés pour un 422 ; `null` pour un 503 ou un 500.",
     )
+
+
+class VariableSchema(BaseModel):
+    """Bornes d'une variable numérique : min inclusif, max inclusif ou null si pas de borne haute.
+
+    Utilisé par `GET /predict/schema` et `GET /recommend/schema` pour exposer
+    `physical_bounds` et `training_domain` sous une forme commune. Les clés
+    associées sont les noms publics snake_case du contrat.
+    """
+
+    min: float = Field(description="Valeur minimale acceptée (inclusive).", examples=[0.0])
+    max: float | None = Field(
+        description="Valeur maximale acceptée (inclusive), ou `null` si pas de borne haute.",
+        examples=[1000.0],
+    )
+    unit: str = Field(description="Unité physique de la variable.", examples=["mm"])
