@@ -22,15 +22,17 @@ L'API `/predict` est implémentée avec FastAPI. Elle expose également `/predic
 - le modèle prédit le rendement des 10 cultures ;
 - l'application retourne un classement par rendement prédit décroissant.
 
-Le pays sert à préremplir les valeurs et à le situer sur le globe : le modèle final utilise sa position géographique et l'année (`year`), mais pas son code (`iso3`). Le modèle `/recommend` est entraîné et sauvegardé ; son endpoint API reste à développer.
+Le pays sert à préremplir les valeurs et à le situer sur le globe : le modèle final utilise sa position géographique et l'année, mais pas le code `iso3` lui-même. Les endpoints `POST /recommend` et `GET /recommend/schema` sont implémentés et testés.
 
 ### API disponible
 
-L'API FastAPI expose actuellement :
+L'API FastAPI expose cinq endpoints :
 
-- `GET /health` : état du service et chargement du modèle `/predict` ;
-- `GET /predict/schema` : bornes physiques, domaine d'entraînement et unités ;
-- `POST /predict` : estimation du rendement à partir des quatre variables du modèle.
+- `GET /health` : état du service et version du modèle `/predict` ;
+- `GET /predict/schema` : bornes physiques, domaine d'entraînement et unités de `/predict` ;
+- `POST /predict` : estimation du rendement à partir des quatre variables du modèle ;
+- `GET /recommend/schema` : cultures modélisées, pays servis, bornes physiques et domaine d'entraînement de `/recommend`, avec l'année cible technique et sa note explicative ;
+- `POST /recommend` : à partir d'un `iso3` et d'un bloc optionnel de conditions (température moyenne, pluie annuelle, pesticides annuels en tonnes), retourne les 10 cultures scorées et triées par rendement prédit décroissant. Les valeurs absentes utilisent les moyennes historiques 2011-2013 du pays.
 
 Elle peut être lancée localement avec :
 
@@ -53,7 +55,7 @@ Les deux sources ne sont pas fusionnées ligne à ligne : elles répondent à de
 **Observations :**
 - le premier dataset différencie peu les cultures mais relie fortement le rendement aux conditions de parcelle ;
 - le second différencie davantage les cultures et permet de comparer leurs rendements dans un même contexte national ;
-- pour `/recommend`, les features historiques n'utilisent que les années précédentes : l'application est pensée pour 2014, avec les données connues jusqu'en 2013.
+- pour `/recommend`, les features historiques n'utilisent que les années précédentes du pays ; l'année cible technique 2014 permet au service de construire ces moyennes à partir des données 2011-2013.
 
 ## Notebooks
 
@@ -130,7 +132,7 @@ cp .env.example .env   # facultatif
 
 ## État actuel
 
-L’exploration, l’ACP, le nettoyage des données historiques, la construction des datasets et la modélisation des deux services, `/predict` et `/recommend`, évaluations finales et sauvegarde des modèles comprises, sont terminés. Le socle FastAPI et l’API `/predict` sont implémentés et testés ; l’API `/recommend` reste à développer.
+L’exploration, l’ACP, le nettoyage des données historiques, la construction des datasets et la modélisation des deux services, `/predict` et `/recommend`, évaluations finales et sauvegarde des modèles comprises, sont terminés. Le socle FastAPI et les deux APIs `/predict` et `/recommend` sont implémentés et testés.
 
 Datasets préparés :
 

@@ -1026,23 +1026,15 @@
       <code>test_r2</code>. La capture montre 13 runs représentatifs.</p>
       <figure><img width="5116" height="1912" alt="Expérience MLflow /recommend : 13 runs représentatifs, de la référence naïve au modèle final" src="assets/figures/11_mlflow_recommend.png" /><figcaption>Expérience MLflow /recommend : 13 runs représentatifs, de la référence naïve au modèle final</figcaption></figure>
       <h2 id="5-de-lanalyse-à-lapi">5. De l'analyse à l'API</h2>
-      <p>Les résultats de modélisation fixent ce que l'API doit exposer :</p>
+      <p>L'application propose deux services complémentaires :</p>
       <ul>
-      <li><strong><code>/predict</code></strong> : l'estimation du rendement avec sa marge d'erreur (MAE de 0,40 t/ha sur le test, 68 % des
-        prédictions à moins de 0,5 t/ha) ;</li>
-      <li><strong><code>/recommend</code></strong> : le top 3 des cultures plutôt qu'un seul verdict, en signalant une culture jamais observée dans
-        le pays ;</li>
-      <li><strong><code>/recommend</code> — valeurs hors plage</strong> : les contrôler ou les signaler, car ExtraTrees n'extrapole pas au-delà des valeurs apprises ;</li>
-      <li><strong>échelle des données</strong> : rappeler que <code>/recommend</code> repose sur des valeurs nationales, pas sur celles d'une
-        parcelle.</li>
+      <li><strong><code>/predict</code></strong> : estimation du rendement pour une culture et une parcelle données ;</li>
+      <li><strong><code>/recommend</code></strong> : classement des 10 cultures pour un pays.</li>
       </ul>
-      <p>Le classement repose sur le rendement prédit ; les données disponibles ne permettent pas d'évaluer la rentabilité
-      économique.</p>
       <p>L'API est construite avec <strong>FastAPI</strong> et utilise <strong>Pydantic</strong> pour définir et valider les
-      contrats d'entrée et de sortie. Les modèles sont chargés au démarrage de l'application, tandis
-      que la couche HTTP reste séparée de la logique de prédiction afin de partager le même
-      fonctionnement entre les différents services. FastAPI génère également automatiquement la
-      documentation <strong>OpenAPI/Swagger</strong> de l'API.</p>
+      contrats d'entrée et de sortie. Les modèles sont chargés au démarrage de l'application ; la
+      couche HTTP reste séparée de la logique de prédiction et partage le même fonctionnement entre
+      les deux services. FastAPI génère la documentation <strong>OpenAPI/Swagger</strong> de l'API.</p>
       <h3 id="51-predict--implémentation-actuelle">5.1 <code>/predict</code> — implémentation actuelle</h3>
       <p>Trois endpoints sont disponibles :</p>
       <ul>
@@ -1058,65 +1050,130 @@
       <p>Le champ <code>crop</code> reste une information affichée par l'application à côté du résultat, mais n'est pas
       envoyé au modèle : le chapitre 3 a montré que la culture n'apporte pas de gain mesurable au modèle
       <code>/predict</code>.</p>
-      <h3 id="52-validation-et-signalement">5.2 Validation et signalement</h3>
-      <p>Deux notions distinctes :</p>
+      <h3 id="52-recommend">5.2 <code>/recommend</code></h3>
+      <p>Deux endpoints exposent le classement des cultures :</p>
       <ul>
-      <li><strong>bornes physiques</strong> (portées par Pydantic) : <code>rainfall_mm &gt;= 0</code>, <code>temperature_celsius</code> entre
-        −50 et +60 °C, booléens stricts pour <code>fertilizer_used</code> et <code>irrigation_used</code> (refus de <code>0</code>, <code>1</code>,
-        <code>"true"</code>, <code>"false"</code>). Un champ hors de ces bornes ou de type incorrect provoque une réponse
-        <strong>422</strong> ;</li>
-      <li><strong>domaine d'entraînement</strong> (stocké dans les métadonnées du modèle) :
-        <code>Rainfall_mm ∈ [100 ; 1 000]</code> mm et <code>Temperature_Celsius ∈ [15 ; 40]</code> °C. Une valeur
-        physiquement valide mais hors de ce domaine n'est pas refusée : la prédiction est renvoyée avec
-        <code>out_of_training_domain=true</code> et une note par variable, sous la forme
-        <code>temperature_celsius is out of training domain</code>.</li>
+      <li><strong><code>GET /recommend/schema</code></strong> : liste des pays servis, cultures modélisées, bornes physiques
+        et domaine d'entraînement en unités publiques, à destination du client pour construire son
+        formulaire ; expose également l'année cible technique 2014 et une note qui explique cette
+        convention interne ;</li>
+      <li><strong><code>POST /recommend</code></strong> : reçoit un <code>iso3</code> (obligatoire) et un bloc <code>conditions</code> optionnel, dont
+        chaque champ (<code>average_temperature_celsius</code>, <code>annual_rainfall_mm</code>,
+        <code>average_annual_pesticides_tons</code>) peut être omis. Retourne les 10 cultures modélisées, triées
+        par rendement prédit décroissant, avec pour chacune un rang, le rendement estimé et un
+        indicateur <code>observed_in_country</code> qui signale si le couple pays × culture existe dans
+        l'historique 1990-2013.</li>
       </ul>
-      <h3 id="53-erreurs-unifiées">5.3 Erreurs unifiées</h3>
+      <div class="callout callout-important">
+        <div class="callout-header"><span aria-hidden="true">▲</span>Important</div>
+        <div class="callout-body">
+      <p><strong>Pourquoi 2014 ?</strong> Le dataset historique s'arrête en 2013. 2014 est donc l'année cible
+      <strong>technique</strong> : la première année suivante, choisie pour laisser le service calculer les
+      historiques du pays à partir des données 2011-2013. Ce n'est pas une recommandation actuelle,
+      et l'application en aval ne présente pas cette date à l'agriculteur.</p>
+      </div>
+      </div>
+      <p>Le service prépare les 9 features attendues par le pipeline à partir du seul <code>iso3</code> : moyennes
+      historiques 2011-2013 pour la température et les pesticides (transformés en <code>log1p</code>), pluie
+      constante du pays, features géographiques finales (<code>lat_abs</code>, <code>geo_x</code>, <code>geo_y</code>, <code>geo_z</code>) et
+      année. Les conditions publiques fournies par l'utilisateur remplacent les valeurs par défaut
+      correspondantes avant la construction des features attendues par le modèle. La réponse expose
+      côte à côte les valeurs préremplies du pays (<code>context.country_defaults</code>) et les valeurs
+      effectivement utilisées (<code>context.effective_conditions</code>), sans logique métier à refaire côté
+      client.</p>
+      <h3 id="53-validation-et-signalement">5.3 Validation et signalement</h3>
+      <p>Deux notions distinctes.</p>
+      <p><strong>Bornes physiques</strong> — portées par Pydantic. Un champ hors bornes, de type incorrect, ou un
+      champ inconnu au niveau du corps provoque une réponse <strong>422</strong>.</p>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Service</th>
+      <th>Champs et bornes</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td><code>/predict</code></td>
+      <td><code>rainfall_mm &gt;= 0</code> ; <code>temperature_celsius ∈ [-50, +60]</code> °C ; <code>fertilizer_used</code>, <code>irrigation_used</code> : booléens stricts (refus de <code>0</code>, <code>1</code>, <code>"true"</code>, <code>"false"</code>)</td>
+      </tr>
+      <tr>
+      <td><code>/recommend</code></td>
+      <td><code>iso3</code> au format <code>^[A-Z]{3}$</code> ; bloc <code>conditions</code> optionnel, chaque champ (optionnel, accepte <code>null</code>) : <code>average_temperature_celsius ∈ [-50, +60]</code> °C, <code>annual_rainfall_mm &gt;= 0</code>, <code>average_annual_pesticides_tons &gt;= 0</code></td>
+      </tr>
+      </tbody>
+      </table></div>
+      <p><strong>Domaine d'entraînement</strong> — publié par <code>GET /&lt;service&gt;/schema</code> en unités publiques. Une valeur
+      physiquement valide mais hors du domaine appris n'est pas refusée : la prédiction est renvoyée
+      avec <code>out_of_training_domain=true</code> et une note par variable, sous la forme
+      <code>&lt;champ&gt; is out of training domain</code>.</p>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Service</th>
+      <th>Champs et bornes</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td><code>/predict</code></td>
+      <td><code>rainfall_mm ∈ [100 ; 1 000]</code> mm ; <code>temperature_celsius ∈ [15 ; 40]</code> °C</td>
+      </tr>
+      <tr>
+      <td><code>/recommend</code></td>
+      <td><code>average_temperature_celsius ∈ [2,57 ; 30,25]</code> °C ; <code>annual_rainfall_mm ∈ [51 ; 3 240]</code> mm ; <code>average_annual_pesticides_tons ∈ [0,04 ; 1 783 667]</code> t</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <p>Les pesticides sont stockés en interne sous forme <code>log1p(tonnes)</code> et exposés en tonnes après
+      conversion <code>expm1</code>.</p>
+      <h3 id="54-erreurs-unifiées">5.4 Erreurs unifiées</h3>
       <p>Les trois catégories d'erreur partagent le même contrat <code>ErrorResponse</code> (<code>error</code>, <code>message</code>,
       <code>details</code>) :</p>
       <ul>
       <li><strong>422 <code>validation_error</code></strong> : payload invalide, avec une liste <code>details</code> typée (<code>field</code>, <code>type</code>,
-        <code>message</code>) qui ne recopie ni le payload d'origine ni le contexte interne de Pydantic ;</li>
-      <li><strong>503 <code>model_unavailable</code></strong> : le modèle n'est pas chargé ;</li>
+        <code>message</code>) qui ne recopie ni le payload d'origine ni le contexte interne de Pydantic. Pour
+        <code>/recommend</code>, un <code>iso3</code> syntaxiquement valide mais absent du contexte servi renvoie également
+        un 422 avec <code>type="unknown_country"</code> sur le champ <code>body.iso3</code> ;</li>
+      <li><strong>503 <code>model_unavailable</code></strong> : le modèle ou son contexte n'est pas chargé ;</li>
       <li><strong>500 <code>internal_error</code></strong> : exception non prévue. Le message brut de l'exception, la traceback et
         les chemins de fichiers ne sont jamais retournés au client ; ils sont loggés côté serveur pour
         diagnostic.</li>
       </ul>
-      <h3 id="54-documentation-openapi-et-test-local">5.4 Documentation OpenAPI et test local</h3>
+      <h3 id="55-documentation-openapi-et-test-local">5.5 Documentation OpenAPI et test local</h3>
       <p>FastAPI produit automatiquement la spécification OpenAPI à partir des schémas Pydantic et des
       signatures des endpoints. La documentation interactive est servie sur <code>/docs</code> (Swagger UI) et la
       définition brute sur <code>/openapi.json</code> ; chaque endpoint documente ses codes de réponse et le schéma
       <code>ErrorResponse</code> associé.</p>
       <p>Les tests sont écrits au fil du développement, pas repoussés en fin de branche. Au moment de la
-      sauvegarde du service <code>/predict</code>, la suite compte 50 tests (schémas Pydantic, chargement du modèle,
-      endpoints, handlers d'erreur) et la couverture de branche est de 99 % sur les modules qui servent
-      <code>/predict</code>. Un test manuel via Swagger sur <code>/docs</code> complète la vérification automatisée.</p>
+      sauvegarde du service <code>/predict</code>, la suite comptait 50 tests (schémas Pydantic, chargement du
+      modèle, endpoints, handlers d'erreur) et la couverture de branche était de 99 % sur les modules
+      qui servent <code>/predict</code>. Après l'implémentation de <code>/recommend</code> (schémas, serving, router HTTP),
+      la suite passe à <strong>137 tests</strong> et la couverture globale reste à <strong>98 %</strong> sur <code>agritech.api</code> et
+      <code>agritech.serving</code>. Un test manuel via Swagger sur <code>/docs</code> complète la vérification automatisée.</p>
       <p>Pour tester l'API en local :</p>
       <pre><code class="language-bash"># Lancer l'API
-      poetry run uvicorn agritech.api.main:app --reload
+poetry run uvicorn agritech.api.main:app --reload
 
-      # Dans un second terminal : tester /predict
-      curl -X POST &quot;http://127.0.0.1:8000/predict&quot; \
-        -H &quot;Content-Type: application/json&quot; \
-        -d '{
-          &quot;rainfall_mm&quot;: 500,
-          &quot;temperature_celsius&quot;: 25,
-          &quot;fertilizer_used&quot;: true,
-          &quot;irrigation_used&quot;: false
-        }'
-      </code></pre>
-      <h3 id="55-observabilité-prévue-non-implémentée-à-ce-stade">5.5 Observabilité (prévue, non implémentée à ce stade)</h3>
+# Dans un second terminal
+curl http://127.0.0.1:8000/health
+curl -X POST http://127.0.0.1:8000/predict -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;rainfall_mm&quot;:500,&quot;temperature_celsius&quot;:25,&quot;fertilizer_used&quot;:true,&quot;irrigation_used&quot;:false}'
+curl -X POST http://127.0.0.1:8000/recommend -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;iso3&quot;:&quot;FRA&quot;}'
+</code></pre>
+      <p>La documentation interactive est disponible sur <code>/docs</code>.</p>
+      <h3 id="56-observabilité-prévue-non-implémentée-à-ce-stade">5.6 Observabilité (prévue, non implémentée à ce stade)</h3>
       <p>Un suivi de chaque appel <code>/predict</code> et <code>/recommend</code> est prévu dans une étape ultérieure :
       persistance dans une base <strong>SQLite</strong> unique en mode WAL, avec une table commune (<code>api_requests</code>)
       portant la date, le service appelé, la latence, le code HTTP, la version du modèle, le payload de
       requête et la réponse, ainsi que les erreurs. Les traces détaillées (spans, exceptions internes)
       seront envoyées de façon optionnelle à <strong>Pydantic Logfire</strong>. Un script en ligne de commande
       permettra de rejouer une requête archivée. Aucune de ces briques n'est active dans la version
-      actuelle de l'API : elles seront livrées par une tâche dédiée, après <code>/recommend</code>.</p>
-      <h3 id="56-reste-à-faire">5.6 Reste à faire</h3>
+      actuelle de l'API : elles seront livrées par la tâche dédiée à l'observabilité, qui suit
+      l'implémentation des deux services.</p>
+      <h3 id="57-reste-à-faire">5.7 Reste à faire</h3>
       <ul>
-      <li><strong><code>POST /recommend</code></strong> : contrat spécifique, avec dérivation automatique des features
-        historiques et géographiques à partir du pays choisi par l'utilisateur ;</li>
       <li><strong>containerisation Docker</strong> de l'API complète.</li>
       </ul>
       <h2 id="annexes">Annexes</h2>

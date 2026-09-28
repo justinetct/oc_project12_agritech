@@ -488,24 +488,15 @@ Les 1 422 évaluations sont journalisées dans une expérience MLflow dédiée �
 
 ## 5. De l'analyse à l'API
 
-Les résultats de modélisation fixent ce que l'API doit exposer :
+L'application propose deux services complémentaires :
 
-- **`/predict`** : l'estimation du rendement avec sa marge d'erreur (MAE de 0,40 t/ha sur le test, 68 % des
-  prédictions à moins de 0,5 t/ha) ;
-- **`/recommend`** : le top 3 des cultures plutôt qu'un seul verdict, en signalant une culture jamais observée dans
-  le pays ;
-- **`/recommend` — valeurs hors plage** : les contrôler ou les signaler, car ExtraTrees n'extrapole pas au-delà des valeurs apprises ;
-- **échelle des données** : rappeler que `/recommend` repose sur des valeurs nationales, pas sur celles d'une
-  parcelle.
-
-Le classement repose sur le rendement prédit ; les données disponibles ne permettent pas d'évaluer la rentabilité
-économique.
+- **`/predict`** : estimation du rendement pour une culture et une parcelle données ;
+- **`/recommend`** : classement des 10 cultures pour un pays.
 
 L'API est construite avec **FastAPI** et utilise **Pydantic** pour définir et valider les
-contrats d'entrée et de sortie. Les modèles sont chargés au démarrage de l'application, tandis
-que la couche HTTP reste séparée de la logique de prédiction afin de partager le même
-fonctionnement entre les différents services. FastAPI génère également automatiquement la
-documentation **OpenAPI/Swagger** de l'API.
+contrats d'entrée et de sortie. Les modèles sont chargés au démarrage de l'application ; la
+couche HTTP reste séparée de la logique de prédiction et partage le même fonctionnement entre
+les deux services. FastAPI génère la documentation **OpenAPI/Swagger** de l'API.
 
 ### 5.1 `/predict` — implémentation actuelle
 
@@ -524,33 +515,76 @@ Le champ `crop` reste une information affichée par l'application à côté du r
 envoyé au modèle : le chapitre 3 a montré que la culture n'apporte pas de gain mesurable au modèle
 `/predict`.
 
-### 5.2 Validation et signalement
+### 5.2 `/recommend`
 
-Deux notions distinctes :
+Deux endpoints exposent le classement des cultures :
 
-- **bornes physiques** (portées par Pydantic) : `rainfall_mm >= 0`, `temperature_celsius` entre
-  −50 et +60 °C, booléens stricts pour `fertilizer_used` et `irrigation_used` (refus de `0`, `1`,
-  `"true"`, `"false"`). Un champ hors de ces bornes ou de type incorrect provoque une réponse
-  **422** ;
-- **domaine d'entraînement** (stocké dans les métadonnées du modèle) :
-  `Rainfall_mm ∈ [100 ; 1 000]` mm et `Temperature_Celsius ∈ [15 ; 40]` °C. Une valeur
-  physiquement valide mais hors de ce domaine n'est pas refusée : la prédiction est renvoyée avec
-  `out_of_training_domain=true` et une note par variable, sous la forme
-  `temperature_celsius is out of training domain`.
+- **`GET /recommend/schema`** : liste des pays servis, cultures modélisées, bornes physiques
+  et domaine d'entraînement en unités publiques, à destination du client pour construire son
+  formulaire ; expose également l'année cible technique 2014 et une note qui explique cette
+  convention interne ;
+- **`POST /recommend`** : reçoit un `iso3` (obligatoire) et un bloc `conditions` optionnel, dont
+  chaque champ (`average_temperature_celsius`, `annual_rainfall_mm`,
+  `average_annual_pesticides_tons`) peut être omis. Retourne les 10 cultures modélisées, triées
+  par rendement prédit décroissant, avec pour chacune un rang, le rendement estimé et un
+  indicateur `observed_in_country` qui signale si le couple pays × culture existe dans
+  l'historique 1990-2013.
 
-### 5.3 Erreurs unifiées
+> [!IMPORTANT]
+> **Pourquoi 2014 ?** Le dataset historique s'arrête en 2013. 2014 est donc l'année cible
+> **technique** : la première année suivante, choisie pour laisser le service calculer les
+> historiques du pays à partir des données 2011-2013. Ce n'est pas une recommandation actuelle,
+> et l'application en aval ne présente pas cette date à l'agriculteur.
+
+Le service prépare les 9 features attendues par le pipeline à partir du seul `iso3` : moyennes
+historiques 2011-2013 pour la température et les pesticides (transformés en `log1p`), pluie
+constante du pays, features géographiques finales (`lat_abs`, `geo_x`, `geo_y`, `geo_z`) et
+année. Les conditions publiques fournies par l'utilisateur remplacent les valeurs par défaut
+correspondantes avant la construction des features attendues par le modèle. La réponse expose
+côte à côte les valeurs préremplies du pays (`context.country_defaults`) et les valeurs
+effectivement utilisées (`context.effective_conditions`), sans logique métier à refaire côté
+client.
+
+### 5.3 Validation et signalement
+
+Deux notions distinctes.
+
+**Bornes physiques** — portées par Pydantic. Un champ hors bornes, de type incorrect, ou un
+champ inconnu au niveau du corps provoque une réponse **422**.
+
+| Service | Champs et bornes |
+|---|---|
+| `/predict` | `rainfall_mm >= 0` ; `temperature_celsius ∈ [-50, +60]` °C ; `fertilizer_used`, `irrigation_used` : booléens stricts (refus de `0`, `1`, `"true"`, `"false"`) |
+| `/recommend` | `iso3` au format `^[A-Z]{3}$` ; bloc `conditions` optionnel, chaque champ (optionnel, accepte `null`) : `average_temperature_celsius ∈ [-50, +60]` °C, `annual_rainfall_mm >= 0`, `average_annual_pesticides_tons >= 0` |
+
+**Domaine d'entraînement** — publié par `GET /<service>/schema` en unités publiques. Une valeur
+physiquement valide mais hors du domaine appris n'est pas refusée : la prédiction est renvoyée
+avec `out_of_training_domain=true` et une note par variable, sous la forme
+`<champ> is out of training domain`.
+
+| Service | Champs et bornes |
+|---|---|
+| `/predict` | `rainfall_mm ∈ [100 ; 1 000]` mm ; `temperature_celsius ∈ [15 ; 40]` °C |
+| `/recommend` | `average_temperature_celsius ∈ [2,57 ; 30,25]` °C ; `annual_rainfall_mm ∈ [51 ; 3 240]` mm ; `average_annual_pesticides_tons ∈ [0,04 ; 1 783 667]` t |
+
+Les pesticides sont stockés en interne sous forme `log1p(tonnes)` et exposés en tonnes après
+conversion `expm1`.
+
+### 5.4 Erreurs unifiées
 
 Les trois catégories d'erreur partagent le même contrat `ErrorResponse` (`error`, `message`,
 `details`) :
 
 - **422 `validation_error`** : payload invalide, avec une liste `details` typée (`field`, `type`,
-  `message`) qui ne recopie ni le payload d'origine ni le contexte interne de Pydantic ;
-- **503 `model_unavailable`** : le modèle n'est pas chargé ;
+  `message`) qui ne recopie ni le payload d'origine ni le contexte interne de Pydantic. Pour
+  `/recommend`, un `iso3` syntaxiquement valide mais absent du contexte servi renvoie également
+  un 422 avec `type="unknown_country"` sur le champ `body.iso3` ;
+- **503 `model_unavailable`** : le modèle ou son contexte n'est pas chargé ;
 - **500 `internal_error`** : exception non prévue. Le message brut de l'exception, la traceback et
   les chemins de fichiers ne sont jamais retournés au client ; ils sont loggés côté serveur pour
   diagnostic.
 
-### 5.4 Documentation OpenAPI et test local
+### 5.5 Documentation OpenAPI et test local
 
 FastAPI produit automatiquement la spécification OpenAPI à partir des schémas Pydantic et des
 signatures des endpoints. La documentation interactive est servie sur `/docs` (Swagger UI) et la
@@ -558,9 +592,11 @@ définition brute sur `/openapi.json` ; chaque endpoint documente ses codes de r
 `ErrorResponse` associé.
 
 Les tests sont écrits au fil du développement, pas repoussés en fin de branche. Au moment de la
-sauvegarde du service `/predict`, la suite compte 50 tests (schémas Pydantic, chargement du modèle,
-endpoints, handlers d'erreur) et la couverture de branche est de 99 % sur les modules qui servent
-`/predict`. Un test manuel via Swagger sur `/docs` complète la vérification automatisée.
+sauvegarde du service `/predict`, la suite comptait 50 tests (schémas Pydantic, chargement du
+modèle, endpoints, handlers d'erreur) et la couverture de branche était de 99 % sur les modules
+qui servent `/predict`. Après l'implémentation de `/recommend` (schémas, serving, router HTTP),
+la suite passe à **137 tests** et la couverture globale reste à **98 %** sur `agritech.api` et
+`agritech.serving`. Un test manuel via Swagger sur `/docs` complète la vérification automatisée.
 
 Pour tester l'API en local :
 
@@ -568,18 +604,17 @@ Pour tester l'API en local :
 # Lancer l'API
 poetry run uvicorn agritech.api.main:app --reload
 
-# Dans un second terminal : tester /predict
-curl -X POST "http://127.0.0.1:8000/predict" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "rainfall_mm": 500,
-    "temperature_celsius": 25,
-    "fertilizer_used": true,
-    "irrigation_used": false
-  }'
+# Dans un second terminal
+curl http://127.0.0.1:8000/health
+curl -X POST http://127.0.0.1:8000/predict -H "Content-Type: application/json" \
+  -d '{"rainfall_mm":500,"temperature_celsius":25,"fertilizer_used":true,"irrigation_used":false}'
+curl -X POST http://127.0.0.1:8000/recommend -H "Content-Type: application/json" \
+  -d '{"iso3":"FRA"}'
 ```
 
-### 5.5 Observabilité (prévue, non implémentée à ce stade)
+La documentation interactive est disponible sur `/docs`.
+
+### 5.6 Observabilité (prévue, non implémentée à ce stade)
 
 Un suivi de chaque appel `/predict` et `/recommend` est prévu dans une étape ultérieure :
 persistance dans une base **SQLite** unique en mode WAL, avec une table commune (`api_requests`)
@@ -587,12 +622,11 @@ portant la date, le service appelé, la latence, le code HTTP, la version du mod
 requête et la réponse, ainsi que les erreurs. Les traces détaillées (spans, exceptions internes)
 seront envoyées de façon optionnelle à **Pydantic Logfire**. Un script en ligne de commande
 permettra de rejouer une requête archivée. Aucune de ces briques n'est active dans la version
-actuelle de l'API : elles seront livrées par une tâche dédiée, après `/recommend`.
+actuelle de l'API : elles seront livrées par la tâche dédiée à l'observabilité, qui suit
+l'implémentation des deux services.
 
-### 5.6 Reste à faire
+### 5.7 Reste à faire
 
-- **`POST /recommend`** : contrat spécifique, avec dérivation automatique des features
-  historiques et géographiques à partir du pays choisi par l'utilisateur ;
 - **containerisation Docker** de l'API complète.
 
 ## Annexes
