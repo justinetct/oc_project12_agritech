@@ -1,7 +1,8 @@
 """Types partagés entre les services /predict et /recommend.
 
-Ce module ne dépend d'aucun modèle et d'aucune route : il porte uniquement
-les grandeurs physiques réutilisables (température, pluie).
+Ce module porte les grandeurs physiques réutilisables (température, pluie) et
+la réponse d'erreur unifiée `ErrorResponse` utilisée par les handlers 422 /
+503 / 500.
 
 Les bornes physiques (voir A5 / A9 du Plan de développement — API) sont
 définies UNE SEULE FOIS ici. Tout schéma qui expose une température ou une
@@ -13,7 +14,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 
 # Bornes physiques communes aux deux services. Elles rejettent uniquement des
@@ -49,3 +50,46 @@ RainfallMm = Annotated[
         examples=[500.0],
     ),
 ]
+
+
+class ValidationErrorDetail(BaseModel):
+    """Détail d'une erreur de validation Pydantic exposée au client.
+
+    Reformaté depuis `RequestValidationError.errors()` pour ne pas ré-exposer
+    `input` (le payload) ni `ctx` (le contexte interne).
+    """
+
+    field: str = Field(
+        description="Chemin du champ fautif, par exemple `body.rainfall_mm`.",
+        examples=["body.rainfall_mm"],
+    )
+    type: str = Field(
+        description="Code d'erreur Pydantic (`missing`, `bool_type`, `greater_than_equal`, …).",
+        examples=["greater_than_equal"],
+    )
+    message: str = Field(
+        description="Message court, lisible côté client.",
+        examples=["Input should be greater than or equal to 0"],
+    )
+
+
+class ErrorResponse(BaseModel):
+    """Réponse d'erreur unifiée retournée par les handlers 422 / 503 / 500.
+
+    `error` est un code stable machine-readable ; `message` est une phrase courte
+    constante par catégorie d'erreur ; `details` liste les erreurs de validation
+    pour un 422, et vaut `null` pour un 503 ou un 500.
+    """
+
+    error: str = Field(
+        description="Code d'erreur machine-readable, stable dans le temps.",
+        examples=["validation_error"],
+    )
+    message: str = Field(
+        description="Phrase humaine, constante par catégorie d'erreur.",
+        examples=["Request payload is invalid."],
+    )
+    details: list[ValidationErrorDetail] | None = Field(
+        default=None,
+        description="Détails structurés pour un 422 ; `null` pour un 503 ou un 500.",
+    )

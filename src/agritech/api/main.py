@@ -18,8 +18,15 @@ from contextlib import asynccontextmanager
 from importlib.metadata import version as _package_version
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 
 from agritech.api.core import runtime
+from agritech.api.error_handlers import (
+    model_unavailable_handler,
+    unhandled_exception_handler,
+    validation_exception_handler,
+)
+from agritech.api.exceptions import ModelUnavailableError
 from agritech.api.routers.predict import router as predict_router
 from agritech.serving import load_bundle
 
@@ -54,6 +61,10 @@ app = FastAPI(
 )
 
 app.include_router(predict_router)
+
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(ModelUnavailableError, model_unavailable_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
 
 
 @app.get("/health")

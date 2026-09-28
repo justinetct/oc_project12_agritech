@@ -10,10 +10,12 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from agritech.api.core import runtime
+from agritech.api.exceptions import ModelUnavailableError
 from agritech.api.schemas.common import (
     RAINFALL_PHYSICAL_MIN,
     TEMPERATURE_PHYSICAL_MAX,
     TEMPERATURE_PHYSICAL_MIN,
+    ErrorResponse,
 )
 from agritech.api.schemas.predict import (
     PredictRequest,
@@ -27,22 +29,41 @@ from agritech.serving import Bundle, predict as serving_predict, public_training
 router = APIRouter(tags=["predict"])
 
 
-def _get_bundle() -> Bundle:
-    """Récupère le bundle chargé au démarrage, ou lève une erreur interne explicite.
+# Réponses OpenAPI adaptées à chaque endpoint : POST peut recevoir un payload invalide
+# (422), GET n'a pas de payload à valider — inutile d'y documenter un 422 qui ne peut
+# pas se produire. 503 et 500 restent communs : les deux endpoints dépendent du bundle
+# chargé au démarrage et peuvent subir une exception inattendue côté service.
+_POST_ERROR_RESPONSES: dict = {
+    422: {"model": ErrorResponse, "description": "Requête invalide"},
+    503: {"model": ErrorResponse, "description": "Modèle indisponible"},
+    500: {"model": ErrorResponse, "description": "Erreur interne"},
+}
+_GET_ERROR_RESPONSES: dict = {
+    503: {"model": ErrorResponse, "description": "Modèle indisponible"},
+    500: {"model": ErrorResponse, "description": "Erreur interne"},
+}
 
-    Le handler HTTP qui transforme ce cas en 503 `model_unavailable` est ajouté dans la
-    sous-étape 5 (gestion des erreurs). À ce stade, on lève un `RuntimeError` clair
-    plutôt que de laisser un `AttributeError` accidentel remonter.
+
+def _get_bundle() -> Bundle:
+    """Récupère le bundle chargé au démarrage, ou lève `ModelUnavailableError`.
+
+    Le handler HTTP dédié traduit l'exception en 503 `model_unavailable`. Le router
+    n'a pas à connaître le code HTTP : il exprime une intention métier.
     """
     bundle = runtime.bundle_predict
     if bundle is None:
-        raise RuntimeError(
-            "predict bundle not loaded: lifespan startup did not initialise runtime.bundle_predict"
+        raise ModelUnavailableError(
+            "predict bundle not loaded: lifespan did not initialise runtime.bundle_predict"
         )
     return bundle
 
 
-@router.post("/predict", response_model=PredictResponse, summary="Predict yield from field conditions")
+@router.post(
+    "/predict",
+    response_model=PredictResponse,
+    responses=_POST_ERROR_RESPONSES,
+    summary="Predict yield from field conditions",
+)
 def post_predict(request: PredictRequest) -> PredictResponse:
     """Prédit le rendement d'une parcelle pour les 4 conditions reçues.
 
@@ -58,6 +79,7 @@ def post_predict(request: PredictRequest) -> PredictResponse:
 @router.get(
     "/predict/schema",
     response_model=PredictSchemaResponse,
+    responses=_GET_ERROR_RESPONSES,
     summary="Physical bounds and training domain of the predict model",
 )
 def get_predict_schema() -> PredictSchemaResponse:
