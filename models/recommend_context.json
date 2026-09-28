@@ -1,0 +1,4050 @@
+{
+  "generated_from": {
+    "dataset": "recommend_training_dataset.csv",
+    "geojson": "ne_110m_admin_0_countries.geojson"
+  },
+  "history_years": [
+    2011,
+    2012,
+    2013
+  ],
+  "target_year": 2014,
+  "countries": {
+    "AGO": {
+      "country": "Angola",
+      "rain_mm": 1010.0,
+      "geography": {
+        "lat_abs": 12.182762,
+        "geo_x": 0.9297211832870522,
+        "geo_y": 0.30180217999599845,
+        "geo_z": -0.2110307216899629
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 24.15,
+          "pesticides_t": 40.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 24.24,
+          "pesticides_t": 40.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 24.55,
+          "pesticides_t": 40.0
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "ALB": {
+      "country": "Albania",
+      "rain_mm": 1485.0,
+      "geography": {
+        "lat_abs": 40.654855,
+        "geo_x": 0.7123788919117726,
+        "geo_y": 0.2608887936272216,
+        "geo_z": 0.6515008455238472
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 16.45,
+          "pesticides_t": 1302.63
+        },
+        {
+          "year": 2012,
+          "avg_temp": 16.7,
+          "pesticides_t": 766.25
+        },
+        {
+          "year": 2013,
+          "avg_temp": 17.41,
+          "pesticides_t": 982.32
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "ARG": {
+      "country": "Argentina",
+      "rain_mm": 591.0,
+      "geography": {
+        "lat_abs": 33.501159,
+        "geo_x": 0.3632775913160289,
+        "geo_y": -0.7505839962477723,
+        "geo_z": -0.5519538533467708
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 17.755,
+          "pesticides_t": 100424.62
+        },
+        {
+          "year": 2012,
+          "avg_temp": 18.305,
+          "pesticides_t": 136185.08
+        },
+        {
+          "year": 2013,
+          "avg_temp": 16.665,
+          "pesticides_t": 171945.54
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "ARM": {
+      "country": "Armenia",
+      "rain_mm": 562.0,
+      "geography": {
+        "lat_abs": 40.459077,
+        "geo_x": 0.5398855491133774,
+        "geo_y": 0.5361400879732745,
+        "geo_z": 0.6489047695359901
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 8.93,
+          "pesticides_t": 278.72
+        },
+        {
+          "year": 2012,
+          "avg_temp": 10.2,
+          "pesticides_t": 278.72
+        },
+        {
+          "year": 2013,
+          "avg_temp": 11.08,
+          "pesticides_t": 278.72
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Wheat"
+      ]
+    },
+    "AUS": {
+      "country": "Australia",
+      "rain_mm": 534.0,
+      "geography": {
+        "lat_abs": 24.129522,
+        "geo_x": -0.6345311110031157,
+        "geo_y": 0.6559361374001106,
+        "geo_z": -0.40880074953670903
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 16.805,
+          "pesticides_t": 47632.99
+        },
+        {
+          "year": 2012,
+          "avg_temp": 16.666666666666668,
+          "pesticides_t": 48687.88
+        },
+        {
+          "year": 2013,
+          "avg_temp": 17.088333333333335,
+          "pesticides_t": 45177.18
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "AUT": {
+      "country": "Austria",
+      "rain_mm": 1110.0,
+      "geography": {
+        "lat_abs": 47.518859,
+        "geo_x": 0.6549129192790271,
+        "geo_y": 0.16487360956667274,
+        "geo_z": 0.7374996684947587
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 9.42,
+          "pesticides_t": 3441.5
+        },
+        {
+          "year": 2012,
+          "avg_temp": 9.42,
+          "pesticides_t": 3563.3
+        },
+        {
+          "year": 2013,
+          "avg_temp": 10.03,
+          "pesticides_t": 3108.6
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "AZE": {
+      "country": "Azerbaijan",
+      "rain_mm": 447.0,
+      "geography": {
+        "lat_abs": 40.402387,
+        "geo_x": 0.5172950125697341,
+        "geo_y": 0.5588428566653441,
+        "geo_z": 0.6481516269551412
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 11.79,
+          "pesticides_t": 461.84
+        },
+        {
+          "year": 2012,
+          "avg_temp": 13.0,
+          "pesticides_t": 516.35
+        },
+        {
+          "year": 2013,
+          "avg_temp": 14.12,
+          "pesticides_t": 489.8
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "BDI": {
+      "country": "Burundi",
+      "rain_mm": 1274.0,
+      "geography": {
+        "lat_abs": 3.332836,
+        "geo_x": 0.8652820947661768,
+        "geo_y": 0.4979026842383751,
+        "geo_z": -0.05813616348950132
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 21.23,
+          "pesticides_t": 75.64
+        },
+        {
+          "year": 2012,
+          "avg_temp": 21.44,
+          "pesticides_t": 98.59
+        },
+        {
+          "year": 2013,
+          "avg_temp": 21.53,
+          "pesticides_t": 956.06
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat",
+        "Yams"
+      ]
+    },
+    "BEL": {
+      "country": "Belgium",
+      "rain_mm": 847.0,
+      "geography": {
+        "lat_abs": 50.785392,
+        "geo_x": 0.6300091379232556,
+        "geo_y": 0.05290830624721632,
+        "geo_z": 0.7747833227833747
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 11.69,
+          "pesticides_t": 5740.44
+        },
+        {
+          "year": 2012,
+          "avg_temp": 10.68,
+          "pesticides_t": 6139.3
+        },
+        {
+          "year": 2013,
+          "avg_temp": 10.36,
+          "pesticides_t": 5905.6
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Wheat"
+      ]
+    },
+    "BFA": {
+      "country": "Burkina Faso",
+      "rain_mm": 748.0,
+      "geography": {
+        "lat_abs": 12.673048,
+        "geo_x": 0.9753614473607215,
+        "geo_y": -0.02322208200189869,
+        "geo_z": 0.2193872874847028
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 29.03,
+          "pesticides_t": 843.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 28.67,
+          "pesticides_t": 843.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 29.41,
+          "pesticides_t": 843.0
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Yams"
+      ]
+    },
+    "BGD": {
+      "country": "Bangladesh",
+      "rain_mm": 2666.0,
+      "geography": {
+        "lat_abs": 24.214956,
+        "geo_x": 0.0050146174834545055,
+        "geo_y": 0.9119992959940737,
+        "geo_z": 0.4101611119033696
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 25.8,
+          "pesticides_t": 14798.28
+        },
+        {
+          "year": 2012,
+          "avg_temp": 26.28,
+          "pesticides_t": 13289.18
+        },
+        {
+          "year": 2013,
+          "avg_temp": 26.59,
+          "pesticides_t": 15330.16
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "BGR": {
+      "country": "Bulgaria",
+      "rain_mm": 608.0,
+      "geography": {
+        "lat_abs": 42.508785,
+        "geo_x": 0.6672496231209971,
+        "geo_y": 0.31337368436668334,
+        "geo_z": 0.6757032443250053
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 9.17,
+          "pesticides_t": 1459.75
+        },
+        {
+          "year": 2012,
+          "avg_temp": 9.99,
+          "pesticides_t": 1331.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 11.26,
+          "pesticides_t": 1197.0
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "BHS": {
+      "country": "Bahamas",
+      "rain_mm": 1292.0,
+      "geography": {
+        "lat_abs": 26.401789,
+        "geo_x": 0.1992531417664271,
+        "geo_y": -0.8732541849515209,
+        "geo_z": 0.4446631466187219
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 25.76,
+          "pesticides_t": 268.2
+        },
+        {
+          "year": 2012,
+          "avg_temp": 25.46,
+          "pesticides_t": 268.2
+        },
+        {
+          "year": 2013,
+          "avg_temp": 25.88,
+          "pesticides_t": 268.2
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Sweet potatoes"
+      ]
+    },
+    "BLR": {
+      "country": "Belarus",
+      "rain_mm": 618.0,
+      "geography": {
+        "lat_abs": 53.821888,
+        "geo_x": 0.5191674598688711,
+        "geo_y": 0.28092011627116364,
+        "geo_z": 0.8071858750545007
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 7.29,
+          "pesticides_t": 8306.31
+        },
+        {
+          "year": 2012,
+          "avg_temp": 6.33,
+          "pesticides_t": 9578.67
+        },
+        {
+          "year": 2013,
+          "avg_temp": 7.83,
+          "pesticides_t": 9163.51
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Wheat"
+      ]
+    },
+    "BOL": {
+      "country": "Bolivia (Plurinational State of)",
+      "rain_mm": 1146.0,
+      "geography": {
+        "lat_abs": 16.666015,
+        "geo_x": 0.4110159429259438,
+        "geo_y": -0.8653415800857265,
+        "geo_z": -0.28679233677948135
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 9.28,
+          "pesticides_t": 21144.2
+        },
+        {
+          "year": 2012,
+          "avg_temp": 9.26,
+          "pesticides_t": 24075.02
+        },
+        {
+          "year": 2013,
+          "avg_temp": 8.64,
+          "pesticides_t": 28999.99
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "BRA": {
+      "country": "Brazil",
+      "rain_mm": 1761.0,
+      "geography": {
+        "lat_abs": 12.098687,
+        "geo_x": 0.6342507219165016,
+        "geo_y": -0.7441743567355177,
+        "geo_z": -0.20959615579889607
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 23.226666666666667,
+          "pesticides_t": 345026.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 23.763333333333335,
+          "pesticides_t": 346583.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 23.29111111111111,
+          "pesticides_t": 367778.0
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat",
+        "Yams"
+      ]
+    },
+    "BWA": {
+      "country": "Botswana",
+      "rain_mm": 416.0,
+      "geography": {
+        "lat_abs": 22.102634,
+        "geo_x": 0.845227341664164,
+        "geo_y": 0.3794917563775894,
+        "geo_z": -0.3762668570905268
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 19.19,
+          "pesticides_t": 17.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 19.83,
+          "pesticides_t": 17.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 18.69,
+          "pesticides_t": 17.0
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Sorghum",
+        "Wheat"
+      ]
+    },
+    "CAF": {
+      "country": "Central African Republic",
+      "rain_mm": 1342.0,
+      "geography": {
+        "lat_abs": 6.989681,
+        "geo_x": 0.9272189153618258,
+        "geo_y": 0.35419836944870425,
+        "geo_z": 0.1216905833461179
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 25.23,
+          "pesticides_t": 22.87
+        },
+        {
+          "year": 2012,
+          "avg_temp": 25.28,
+          "pesticides_t": 22.87
+        },
+        {
+          "year": 2013,
+          "avg_temp": 25.69,
+          "pesticides_t": 22.87
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Yams"
+      ]
+    },
+    "CAN": {
+      "country": "Canada",
+      "rain_mm": 537.0,
+      "geography": {
+        "lat_abs": 60.324287,
+        "geo_x": -0.10218018648094566,
+        "geo_y": -0.4844313520083862,
+        "geo_z": 0.8688414554347912
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 7.471666666666667,
+          "pesticides_t": 62107.2
+        },
+        {
+          "year": 2012,
+          "avg_temp": 8.323333333333332,
+          "pesticides_t": 73508.9
+        },
+        {
+          "year": 2013,
+          "avg_temp": 8.758333333333333,
+          "pesticides_t": 81659.8
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "CHE": {
+      "country": "Switzerland",
+      "rain_mm": 1537.0,
+      "geography": {
+        "lat_abs": 46.719114,
+        "geo_x": 0.6797664801370938,
+        "geo_y": 0.08905805568894258,
+        "geo_z": 0.7280015076900124
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 8.68,
+          "pesticides_t": 2132.14
+        },
+        {
+          "year": 2012,
+          "avg_temp": 7.96,
+          "pesticides_t": 2077.9
+        },
+        {
+          "year": 2013,
+          "avg_temp": 7.94,
+          "pesticides_t": 2098.5
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "CHL": {
+      "country": "Chile",
+      "rain_mm": 1522.0,
+      "geography": {
+        "lat_abs": 38.151771,
+        "geo_x": 0.2388379016739055,
+        "geo_y": -0.7492299374424213,
+        "geo_z": -0.6177466775014102
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 9.76,
+          "pesticides_t": 9830.72
+        },
+        {
+          "year": 2012,
+          "avg_temp": 10.15,
+          "pesticides_t": 9830.72
+        },
+        {
+          "year": 2013,
+          "avg_temp": 9.505,
+          "pesticides_t": 9830.72
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "CHN": {
+      "country": "China, mainland",
+      "rain_mm": 645.0,
+      "geography": {
+        "lat_abs": 32.498178,
+        "geo_x": -0.23724348722963876,
+        "geo_y": 0.809353741392569,
+        "geo_z": 0.5372727883123906
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 12.720689655172412,
+          "pesticides_t": 1787002.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 12.741666666666667,
+          "pesticides_t": 1806000.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 14.47,
+          "pesticides_t": 1801862.0
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "CIV": {
+      "country": "Côte d'Ivoire",
+      "rain_mm": 1348.0,
+      "geography": {
+        "lat_abs": 7.49139,
+        "geo_x": 0.9867854452117725,
+        "geo_y": -0.09620951057386667,
+        "geo_z": 0.1303772035033005
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 26.73,
+          "pesticides_t": 93.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 26.48,
+          "pesticides_t": 93.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 26.96,
+          "pesticides_t": 93.0
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Yams"
+      ]
+    },
+    "CMR": {
+      "country": "Cameroon",
+      "rain_mm": 1604.0,
+      "geography": {
+        "lat_abs": 4.585041,
+        "geo_x": 0.9732713747727632,
+        "geo_y": 0.21529662952102863,
+        "geo_z": 0.07993867877830171
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 25.25,
+          "pesticides_t": 1372.47
+        },
+        {
+          "year": 2012,
+          "avg_temp": 25.18,
+          "pesticides_t": 1372.47
+        },
+        {
+          "year": 2013,
+          "avg_temp": 25.45,
+          "pesticides_t": 1372.47
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat",
+        "Yams"
+      ]
+    },
+    "COG": {
+      "country": "Congo",
+      "rain_mm": 1646.0,
+      "geography": {
+        "lat_abs": 0.142331,
+        "geo_x": 0.9617359513358587,
+        "geo_y": 0.2739667661350952,
+        "geo_z": 0.0024841420227247873
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 24.2,
+          "pesticides_t": 0.87
+        },
+        {
+          "year": 2012,
+          "avg_temp": 24.21,
+          "pesticides_t": 0.87
+        },
+        {
+          "year": 2013,
+          "avg_temp": 24.41,
+          "pesticides_t": 0.87
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sweet potatoes",
+        "Yams"
+      ]
+    },
+    "COL": {
+      "country": "Colombia",
+      "rain_mm": 3240.0,
+      "geography": {
+        "lat_abs": 3.373111,
+        "geo_x": 0.28895891247698124,
+        "geo_y": -0.9555317103164518,
+        "geo_z": 0.05883789153119471
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 24.755,
+          "pesticides_t": 53797.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 25.07,
+          "pesticides_t": 48727.73
+        },
+        {
+          "year": 2013,
+          "avg_temp": 25.225,
+          "pesticides_t": 54563.38
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Wheat",
+        "Yams"
+      ]
+    },
+    "CZE": {
+      "country": "Czechia",
+      "rain_mm": 677.0,
+      "geography": {
+        "lat_abs": 49.882364,
+        "geo_x": 0.6212905799237262,
+        "geo_y": 0.17087011602062077,
+        "geo_z": 0.7647230993955522
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 9.84,
+          "pesticides_t": 5306.06
+        },
+        {
+          "year": 2012,
+          "avg_temp": 9.51,
+          "pesticides_t": 5345.4
+        },
+        {
+          "year": 2013,
+          "avg_temp": 9.57,
+          "pesticides_t": 5146.98
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "DEU": {
+      "country": "Germany",
+      "rain_mm": 700.0,
+      "geography": {
+        "lat_abs": 50.961733,
+        "geo_x": 0.6208748366888105,
+        "geo_y": 0.10588661180135443,
+        "geo_z": 0.7767254744167158
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 8.950000000000001,
+          "pesticides_t": 43754.35
+        },
+        {
+          "year": 2012,
+          "avg_temp": 8.346666666666666,
+          "pesticides_t": 45522.5
+        },
+        {
+          "year": 2013,
+          "avg_temp": 8.43,
+          "pesticides_t": 43756.1
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "DNK": {
+      "country": "Denmark",
+      "rain_mm": 703.0,
+      "geography": {
+        "lat_abs": 55.966965,
+        "geo_x": 0.5527525498610979,
+        "geo_y": 0.08772703275201871,
+        "geo_z": 0.8287150211903852
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 9.31,
+          "pesticides_t": 4249.48
+        },
+        {
+          "year": 2012,
+          "avg_temp": 8.7,
+          "pesticides_t": 5716.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 8.81,
+          "pesticides_t": 4118.0
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Wheat"
+      ]
+    },
+    "DOM": {
+      "country": "Dominican Republic",
+      "rain_mm": 1410.0,
+      "geography": {
+        "lat_abs": 19.104137,
+        "geo_x": 0.3130273366103644,
+        "geo_y": -0.8915703434379051,
+        "geo_z": 0.3272861274735575
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 26.725,
+          "pesticides_t": 6316.61
+        },
+        {
+          "year": 2012,
+          "avg_temp": 26.855,
+          "pesticides_t": 6316.61
+        },
+        {
+          "year": 2013,
+          "avg_temp": 26.695,
+          "pesticides_t": 6316.61
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Sweet potatoes",
+        "Yams"
+      ]
+    },
+    "DZA": {
+      "country": "Algeria",
+      "rain_mm": 89.0,
+      "geography": {
+        "lat_abs": 27.397406,
+        "geo_x": 0.8867700174517956,
+        "geo_y": 0.043498141798218946,
+        "geo_z": 0.46015958949982133
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 17.79,
+          "pesticides_t": 13861.76
+        },
+        {
+          "year": 2012,
+          "avg_temp": 17.91,
+          "pesticides_t": 17379.76
+        },
+        {
+          "year": 2013,
+          "avg_temp": 17.65,
+          "pesticides_t": 17278.65
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Wheat"
+      ]
+    },
+    "ECU": {
+      "country": "Ecuador",
+      "rain_mm": 2274.0,
+      "geography": {
+        "lat_abs": 1.259076,
+        "geo_x": 0.20464523276850016,
+        "geo_y": -0.9785895487134914,
+        "geo_z": -0.021973253146756848
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 20.436666666666667,
+          "pesticides_t": 17529.44
+        },
+        {
+          "year": 2012,
+          "avg_temp": 20.493333333333336,
+          "pesticides_t": 11469.74
+        },
+        {
+          "year": 2013,
+          "avg_temp": 20.303333333333335,
+          "pesticides_t": 6471.77
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "EGY": {
+      "country": "Egypt",
+      "rain_mm": 51.0,
+      "geography": {
+        "lat_abs": 26.186173,
+        "geo_x": 0.7814440175097016,
+        "geo_y": 0.4411450946495166,
+        "geo_z": 0.44128930755794
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 21.585,
+          "pesticides_t": 12945.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 22.015,
+          "pesticides_t": 13991.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 22.175,
+          "pesticides_t": 13653.0
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "ERI": {
+      "country": "Eritrea",
+      "rain_mm": 383.0,
+      "geography": {
+        "lat_abs": 15.787401,
+        "geo_x": 0.7553231346481118,
+        "geo_y": 0.5962093671883185,
+        "geo_z": 0.2720686544647421
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 24.78,
+          "pesticides_t": 27.63
+        },
+        {
+          "year": 2012,
+          "avg_temp": 25.16,
+          "pesticides_t": 27.63
+        },
+        {
+          "year": 2013,
+          "avg_temp": 25.87,
+          "pesticides_t": 27.63
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Sorghum",
+        "Wheat"
+      ]
+    },
+    "ESP": {
+      "country": "Spain",
+      "rain_mm": 636.0,
+      "geography": {
+        "lat_abs": 40.090953,
+        "geo_x": 0.763624790833045,
+        "geo_y": -0.04623332139702079,
+        "geo_z": 0.6440028406907753
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 16.386666666666667,
+          "pesticides_t": 53549.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 15.83,
+          "pesticides_t": 48668.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 15.713333333333331,
+          "pesticides_t": 54197.0
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "EST": {
+      "country": "Estonia",
+      "rain_mm": 626.0,
+      "geography": {
+        "lat_abs": 58.724865,
+        "geo_x": 0.4671338767764601,
+        "geo_y": 0.2264968980390183,
+        "geo_z": 0.8546842085510282
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 6.98,
+          "pesticides_t": 460.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 5.57,
+          "pesticides_t": 553.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 7.28,
+          "pesticides_t": 567.0
+        }
+      ],
+      "observed_crops": [
+        "Potatoes",
+        "Wheat"
+      ]
+    },
+    "FIN": {
+      "country": "Finland",
+      "rain_mm": 536.0,
+      "geography": {
+        "lat_abs": 63.252361,
+        "geo_x": 0.40001734598505173,
+        "geo_y": 0.20625616557097773,
+        "geo_z": 0.8929974899600965
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 6.38,
+          "pesticides_t": 1707.54
+        },
+        {
+          "year": 2012,
+          "avg_temp": 5.12,
+          "pesticides_t": 1545.25
+        },
+        {
+          "year": 2013,
+          "avg_temp": 6.17,
+          "pesticides_t": 1475.39
+        }
+      ],
+      "observed_crops": [
+        "Potatoes",
+        "Wheat"
+      ]
+    },
+    "FRA": {
+      "country": "France",
+      "rain_mm": 867.0,
+      "geography": {
+        "lat_abs": 46.696113,
+        "geo_x": 0.685187349337951,
+        "geo_y": 0.030542287541673034,
+        "geo_z": 0.727726229415262
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 12.33,
+          "pesticides_t": 61039.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 11.22,
+          "pesticides_t": 63547.59
+        },
+        {
+          "year": 2013,
+          "avg_temp": 11.01,
+          "pesticides_t": 66497.29
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "GBR": {
+      "country": "United Kingdom",
+      "rain_mm": 1220.0,
+      "geography": {
+        "lat_abs": 54.402739,
+        "geo_x": 0.5816870593981748,
+        "geo_y": -0.0214956714446402,
+        "geo_z": 0.8131285882551716
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 10.1475,
+          "pesticides_t": 16401.66
+        },
+        {
+          "year": 2012,
+          "avg_temp": 9.225,
+          "pesticides_t": 17718.64
+        },
+        {
+          "year": 2013,
+          "avg_temp": 9.1575,
+          "pesticides_t": 17673.46
+        }
+      ],
+      "observed_crops": [
+        "Potatoes",
+        "Wheat"
+      ]
+    },
+    "GHA": {
+      "country": "Ghana",
+      "rain_mm": 1187.0,
+      "geography": {
+        "lat_abs": 7.717639,
+        "geo_x": 0.9907796223918365,
+        "geo_y": -0.017933121860117664,
+        "geo_z": 0.13429126179107875
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 27.11,
+          "pesticides_t": 378.97
+        },
+        {
+          "year": 2012,
+          "avg_temp": 26.86,
+          "pesticides_t": 378.97
+        },
+        {
+          "year": 2013,
+          "avg_temp": 27.24,
+          "pesticides_t": 378.97
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Rice, paddy",
+        "Sorghum",
+        "Sweet potatoes",
+        "Yams"
+      ]
+    },
+    "GIN": {
+      "country": "Guinea",
+      "rain_mm": 1651.0,
+      "geography": {
+        "lat_abs": 10.618516,
+        "geo_x": 0.9678948599747129,
+        "geo_y": -0.17095168562758012,
+        "geo_z": 0.1842689914652485
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 27.51,
+          "pesticides_t": 663.23
+        },
+        {
+          "year": 2012,
+          "avg_temp": 27.28,
+          "pesticides_t": 770.21
+        },
+        {
+          "year": 2013,
+          "avg_temp": 27.29,
+          "pesticides_t": 877.19
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Sweet potatoes",
+        "Yams"
+      ]
+    },
+    "GNB": {
+      "country": "Guinea-Bissau",
+      "rain_mm": 1577.0,
+      "geography": {
+        "lat_abs": 12.163712,
+        "geo_x": 0.9463091166565771,
+        "geo_y": -0.24515741560202262,
+        "geo_z": 0.2107057125660947
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 27.81,
+          "pesticides_t": 82.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 27.8,
+          "pesticides_t": 82.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 28.36,
+          "pesticides_t": 82.0
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Rice, paddy",
+        "Sorghum"
+      ]
+    },
+    "GRC": {
+      "country": "Greece",
+      "rain_mm": 652.0,
+      "geography": {
+        "lat_abs": 39.492763,
+        "geo_x": 0.716888217235287,
+        "geo_y": 0.2856567300959008,
+        "geo_z": 0.6359807517056862
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 17.67,
+          "pesticides_t": 8189.8
+        },
+        {
+          "year": 2012,
+          "avg_temp": 18.82,
+          "pesticides_t": 8002.2
+        },
+        {
+          "year": 2013,
+          "avg_temp": 19.36,
+          "pesticides_t": 8081.72
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "GTM": {
+      "country": "Guatemala",
+      "rain_mm": 1996.0,
+      "geography": {
+        "lat_abs": 14.982133,
+        "geo_x": -0.008381571004382596,
+        "geo_y": -0.9659701268276866,
+        "geo_z": 0.2585178201672019
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 19.85,
+          "pesticides_t": 16540.71
+        },
+        {
+          "year": 2012,
+          "avg_temp": 19.88,
+          "pesticides_t": 19726.3
+        },
+        {
+          "year": 2013,
+          "avg_temp": 20.37,
+          "pesticides_t": 20489.4
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "GUY": {
+      "country": "Guyana",
+      "rain_mm": 2387.0,
+      "geography": {
+        "lat_abs": 5.124317,
+        "geo_x": 0.5138339918718813,
+        "geo_y": -0.8532274601030684,
+        "geo_z": 0.08931702034368678
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 27.43,
+          "pesticides_t": 400.76
+        },
+        {
+          "year": 2012,
+          "avg_temp": 27.42,
+          "pesticides_t": 427.73
+        },
+        {
+          "year": 2013,
+          "avg_temp": 27.3,
+          "pesticides_t": 358.72
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Rice, paddy",
+        "Sweet potatoes",
+        "Yams"
+      ]
+    },
+    "HND": {
+      "country": "Honduras",
+      "rain_mm": 1976.0,
+      "geography": {
+        "lat_abs": 14.794801,
+        "geo_x": 0.052494785415093316,
+        "geo_y": -0.9654204137153561,
+        "geo_z": 0.25535802765116666
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 24.63,
+          "pesticides_t": 6324.41
+        },
+        {
+          "year": 2012,
+          "avg_temp": 24.47,
+          "pesticides_t": 7194.91
+        },
+        {
+          "year": 2013,
+          "avg_temp": 24.86,
+          "pesticides_t": 7194.91
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "HRV": {
+      "country": "Croatia",
+      "rain_mm": 1113.0,
+      "geography": {
+        "lat_abs": 45.805799,
+        "geo_x": 0.6688253123131837,
+        "geo_y": 0.19649608228073354,
+        "geo_z": 0.7169811652041465
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 11.02,
+          "pesticides_t": 1638.74
+        },
+        {
+          "year": 2012,
+          "avg_temp": 11.12,
+          "pesticides_t": 1737.47
+        },
+        {
+          "year": 2013,
+          "avg_temp": 11.58,
+          "pesticides_t": 1836.21
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "HTI": {
+      "country": "Haiti",
+      "rain_mm": 1440.0,
+      "geography": {
+        "lat_abs": 19.263784,
+        "geo_x": 0.2882020041650577,
+        "geo_y": -0.8989404183462164,
+        "geo_z": 0.32991776105383214
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 27.1,
+          "pesticides_t": 27.85
+        },
+        {
+          "year": 2012,
+          "avg_temp": 27.2,
+          "pesticides_t": 27.85
+        },
+        {
+          "year": 2013,
+          "avg_temp": 27.2,
+          "pesticides_t": 27.85
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Sweet potatoes",
+        "Yams"
+      ]
+    },
+    "HUN": {
+      "country": "Hungary",
+      "rain_mm": 589.0,
+      "geography": {
+        "lat_abs": 47.086841,
+        "geo_x": 0.6420408491027766,
+        "geo_y": 0.2267013552508944,
+        "geo_z": 0.7323865397526046
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 10.92,
+          "pesticides_t": 8473.26
+        },
+        {
+          "year": 2012,
+          "avg_temp": 11.31,
+          "pesticides_t": 8141.17
+        },
+        {
+          "year": 2013,
+          "avg_temp": 12.44,
+          "pesticides_t": 7744.5
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "IDN": {
+      "country": "Indonesia",
+      "rain_mm": 2702.0,
+      "geography": {
+        "lat_abs": 0.954404,
+        "geo_x": -0.20605517484132546,
+        "geo_y": 0.9783985990063254,
+        "geo_z": -0.016656721873483882
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 26.766,
+          "pesticides_t": 1597.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 27.026666666666667,
+          "pesticides_t": 1597.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 27.015,
+          "pesticides_t": 1597.0
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Soybeans",
+        "Sweet potatoes"
+      ]
+    },
+    "IND": {
+      "country": "India",
+      "rain_mm": 1083.0,
+      "geography": {
+        "lat_abs": 22.686852,
+        "geo_x": 0.1703814851817069,
+        "geo_y": 0.9067579786442239,
+        "geo_z": 0.3856943319162429
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 25.82,
+          "pesticides_t": 55540.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 26.064736842105265,
+          "pesticides_t": 52980.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 26.78684210526316,
+          "pesticides_t": 45620.0
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "IRL": {
+      "country": "Ireland",
+      "rain_mm": 1118.0,
+      "geography": {
+        "lat_abs": 53.078726,
+        "geo_x": 0.5951611863724368,
+        "geo_y": -0.08151199901573594,
+        "geo_z": 0.7994616665308052
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 9.76,
+          "pesticides_t": 3664.3
+        },
+        {
+          "year": 2012,
+          "avg_temp": 9.28,
+          "pesticides_t": 2925.1
+        },
+        {
+          "year": 2013,
+          "avg_temp": 9.28,
+          "pesticides_t": 2950.8
+        }
+      ],
+      "observed_crops": [
+        "Potatoes",
+        "Wheat"
+      ]
+    },
+    "IRN": {
+      "country": "Iran (Islamic Republic of)",
+      "rain_mm": 228.0,
+      "geography": {
+        "lat_abs": 32.166225,
+        "geo_x": 0.4863652792386099,
+        "geo_y": 0.6928370342212954,
+        "geo_z": 0.5323773653740256
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 14.896666666666668,
+          "pesticides_t": 2009.19
+        },
+        {
+          "year": 2012,
+          "avg_temp": 15.18,
+          "pesticides_t": 3345.49
+        },
+        {
+          "year": 2013,
+          "avg_temp": 16.763333333333332,
+          "pesticides_t": 3025.55
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "IRQ": {
+      "country": "Iraq",
+      "rain_mm": 216.0,
+      "geography": {
+        "lat_abs": 33.09403,
+        "geo_x": 0.6100931024797378,
+        "geo_y": 0.5741553669360991,
+        "geo_z": 0.5460146709797471
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 21.61,
+          "pesticides_t": 1795.94
+        },
+        {
+          "year": 2012,
+          "avg_temp": 22.52,
+          "pesticides_t": 1979.27
+        },
+        {
+          "year": 2013,
+          "avg_temp": 23.455,
+          "pesticides_t": 2162.6
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "ITA": {
+      "country": "Italy",
+      "rain_mm": 832.0,
+      "geography": {
+        "lat_abs": 44.732482,
+        "geo_x": 0.6971659575252294,
+        "geo_y": 0.1364867382523354,
+        "geo_z": 0.7037975546626805
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 11.07,
+          "pesticides_t": 70690.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 10.75,
+          "pesticides_t": 61889.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 10.82,
+          "pesticides_t": 55633.0
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "JAM": {
+      "country": "Jamaica",
+      "rain_mm": 2051.0,
+      "geography": {
+        "lat_abs": 18.137124,
+        "geo_x": 0.20861930984327842,
+        "geo_y": -0.9271327446855354,
+        "geo_z": 0.31129223776442
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 27.17,
+          "pesticides_t": 909.71
+        },
+        {
+          "year": 2012,
+          "avg_temp": 27.51,
+          "pesticides_t": 909.71
+        },
+        {
+          "year": 2013,
+          "avg_temp": 27.41,
+          "pesticides_t": 909.71
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sweet potatoes",
+        "Yams"
+      ]
+    },
+    "JPN": {
+      "country": "Japan",
+      "rain_mm": 1668.0,
+      "geography": {
+        "lat_abs": 36.142538,
+        "geo_x": -0.6042804614634363,
+        "geo_y": 0.5357104819445624,
+        "geo_z": 0.5897960693564015
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 15.092000000000002,
+          "pesticides_t": 51796.3
+        },
+        {
+          "year": 2012,
+          "avg_temp": 14.906,
+          "pesticides_t": 54716.4
+        },
+        {
+          "year": 2013,
+          "avg_temp": 15.754,
+          "pesticides_t": 52794.3
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat",
+        "Yams"
+      ]
+    },
+    "KAZ": {
+      "country": "Kazakhstan",
+      "rain_mm": 250.0,
+      "geography": {
+        "lat_abs": 49.054149,
+        "geo_x": 0.23820905266865453,
+        "geo_y": 0.6105195661977674,
+        "geo_z": 0.7553292702632357
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 4.605,
+          "pesticides_t": 10656.6
+        },
+        {
+          "year": 2012,
+          "avg_temp": 4.285,
+          "pesticides_t": 8674.58
+        },
+        {
+          "year": 2013,
+          "avg_temp": 7.1000000000000005,
+          "pesticides_t": 8738.38
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "KEN": {
+      "country": "Kenya",
+      "rain_mm": 630.0,
+      "geography": {
+        "lat_abs": 0.549043,
+        "geo_x": 0.7889660275460969,
+        "geo_y": 0.6143620950311635,
+        "geo_z": 0.00958246142966899
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 16.9,
+          "pesticides_t": 1578.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 16.84,
+          "pesticides_t": 1578.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 16.91,
+          "pesticides_t": 1578.0
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat",
+        "Yams"
+      ]
+    },
+    "KOR": {
+      "country": "Republic of Korea",
+      "rain_mm": 1274.0,
+      "geography": {
+        "lat_abs": 36.384924,
+        "geo_x": -0.4970708389654458,
+        "geo_y": 0.6332660925762469,
+        "geo_z": 0.5932070777084508
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 11.12,
+          "pesticides_t": 19131.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 11.23,
+          "pesticides_t": 17438.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 12.12,
+          "pesticides_t": 18708.0
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "LAO": {
+      "country": "Lao People's Democratic Republic",
+      "rain_mm": 1834.0,
+      "geography": {
+        "lat_abs": 19.431821,
+        "geo_x": -0.20465568372541584,
+        "geo_y": 0.9205632999857867,
+        "geo_z": 0.33268492878121336
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 24.14,
+          "pesticides_t": 43.8
+        },
+        {
+          "year": 2012,
+          "avg_temp": 25.53,
+          "pesticides_t": 43.53
+        },
+        {
+          "year": 2013,
+          "avg_temp": 25.94,
+          "pesticides_t": 125.89
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Soybeans",
+        "Sweet potatoes"
+      ]
+    },
+    "LBN": {
+      "country": "Lebanon",
+      "rain_mm": 661.0,
+      "geography": {
+        "lat_abs": 34.133368,
+        "geo_x": 0.6697109735219938,
+        "geo_y": 0.486446575637615,
+        "geo_z": 0.5611211464511576
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 19.67,
+          "pesticides_t": 1816.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 20.19,
+          "pesticides_t": 1816.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 20.08,
+          "pesticides_t": 1816.0
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Sorghum",
+        "Wheat"
+      ]
+    },
+    "LBY": {
+      "country": "Libya",
+      "rain_mm": 56.0,
+      "geography": {
+        "lat_abs": 26.638944,
+        "geo_x": 0.8500484529200626,
+        "geo_y": 0.27637816924636915,
+        "geo_z": 0.44836674191138826
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 19.865,
+          "pesticides_t": 3548.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 20.41,
+          "pesticides_t": 3548.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 20.355,
+          "pesticides_t": 3548.0
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Wheat"
+      ]
+    },
+    "LKA": {
+      "country": "Sri Lanka",
+      "rain_mm": 1712.0,
+      "geography": {
+        "lat_abs": 7.581097,
+        "geo_x": 0.1601089163044898,
+        "geo_y": 0.9782432102787755,
+        "geo_z": 0.13192936164204466
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 26.65,
+          "pesticides_t": 1290.31
+        },
+        {
+          "year": 2012,
+          "avg_temp": 26.88,
+          "pesticides_t": 1112.8
+        },
+        {
+          "year": 2013,
+          "avg_temp": 27.03,
+          "pesticides_t": 1235.31
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes"
+      ]
+    },
+    "LSO": {
+      "country": "Lesotho",
+      "rain_mm": 788.0,
+      "geography": {
+        "lat_abs": 29.480158,
+        "geo_x": 0.7668626131032604,
+        "geo_y": 0.41199217514220793,
+        "geo_z": -0.49212211924077476
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 14.32,
+          "pesticides_t": 175.27
+        },
+        {
+          "year": 2012,
+          "avg_temp": 14.62,
+          "pesticides_t": 271.84
+        },
+        {
+          "year": 2013,
+          "avg_temp": 14.03,
+          "pesticides_t": 62.32
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Sorghum",
+        "Wheat"
+      ]
+    },
+    "LTU": {
+      "country": "Lithuania",
+      "rain_mm": 656.0,
+      "geography": {
+        "lat_abs": 55.103703,
+        "geo_x": 0.5222669614159265,
+        "geo_y": 0.2335111744267485,
+        "geo_z": 0.8201888516867415
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 7.32,
+          "pesticides_t": 2062.34
+        },
+        {
+          "year": 2012,
+          "avg_temp": 6.31,
+          "pesticides_t": 2559.9
+        },
+        {
+          "year": 2013,
+          "avg_temp": 7.42,
+          "pesticides_t": 2515.69
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Wheat"
+      ]
+    },
+    "LVA": {
+      "country": "Latvia",
+      "rain_mm": 641.0,
+      "geography": {
+        "lat_abs": 57.066872,
+        "geo_x": 0.4908678422814507,
+        "geo_y": 0.2336980157921435,
+        "geo_z": 0.839305664718622
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 7.25,
+          "pesticides_t": 1070.5
+        },
+        {
+          "year": 2012,
+          "avg_temp": 5.96,
+          "pesticides_t": 1396.96
+        },
+        {
+          "year": 2013,
+          "avg_temp": 7.25,
+          "pesticides_t": 1250.0
+        }
+      ],
+      "observed_crops": [
+        "Potatoes",
+        "Wheat"
+      ]
+    },
+    "MAR": {
+      "country": "Morocco",
+      "rain_mm": 346.0,
+      "geography": {
+        "lat_abs": 31.650723,
+        "geo_x": 0.8445738991878214,
+        "geo_y": -0.10650424796365919,
+        "geo_z": 0.5247397202198201
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 18.56,
+          "pesticides_t": 13697.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 18.22,
+          "pesticides_t": 13697.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 18.705,
+          "pesticides_t": 13697.0
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "MDA": {
+      "country": "Republic of Moldova",
+      "rain_mm": 450.0,
+      "geography": {
+        "lat_abs": 47.434999,
+        "geo_x": 0.5945230469522315,
+        "geo_y": 0.32263718151397164,
+        "geo_z": 0.7365104179489624
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 9.73,
+          "pesticides_t": 2453.95
+        },
+        {
+          "year": 2012,
+          "avg_temp": 10.52,
+          "pesticides_t": 2316.22
+        },
+        {
+          "year": 2013,
+          "avg_temp": 11.94,
+          "pesticides_t": 2409.25
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "MDG": {
+      "country": "Madagascar",
+      "rain_mm": 1513.0,
+      "geography": {
+        "lat_abs": 18.628288,
+        "geo_x": 0.6498378417090861,
+        "geo_y": 0.6896934409361404,
+        "geo_z": -0.3194272014286563
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 20.33,
+          "pesticides_t": 310.36
+        },
+        {
+          "year": 2012,
+          "avg_temp": 19.78,
+          "pesticides_t": 377.71
+        },
+        {
+          "year": 2013,
+          "avg_temp": 19.34,
+          "pesticides_t": 507.94
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "MEX": {
+      "country": "Mexico",
+      "rain_mm": 758.0,
+      "geography": {
+        "lat_abs": 23.919988,
+        "geo_x": -0.19456926403801061,
+        "geo_y": -0.8931654829831999,
+        "geo_z": 0.4054605054738306
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 20.375714285714285,
+          "pesticides_t": 65961.1
+        },
+        {
+          "year": 2012,
+          "avg_temp": 20.638571428571428,
+          "pesticides_t": 64512.22
+        },
+        {
+          "year": 2013,
+          "avg_temp": 21.224285714285713,
+          "pesticides_t": 59920.18
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "MKD": {
+      "country": "The former Yugoslav Republic of Macedonia",
+      "rain_mm": 619.0,
+      "geography": {
+        "lat_abs": 41.558223,
+        "geo_x": 0.69594710620105,
+        "geo_y": 0.2749246503055418,
+        "geo_z": 0.6633807820737347
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 10.25,
+          "pesticides_t": 98.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 10.88,
+          "pesticides_t": 98.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 12.6,
+          "pesticides_t": 98.0
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "MLI": {
+      "country": "Mali",
+      "rain_mm": 282.0,
+      "geography": {
+        "lat_abs": 18.692713,
+        "geo_x": 0.9466516055588666,
+        "geo_y": -0.033693953025114395,
+        "geo_z": 0.3204925197603861
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 27.79,
+          "pesticides_t": 3.25
+        },
+        {
+          "year": 2012,
+          "avg_temp": 27.39,
+          "pesticides_t": 1.52
+        },
+        {
+          "year": 2013,
+          "avg_temp": 28.53,
+          "pesticides_t": 1.52
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat",
+        "Yams"
+      ]
+    },
+    "MOZ": {
+      "country": "Mozambique",
+      "rain_mm": 1032.0,
+      "geography": {
+        "lat_abs": 13.94323,
+        "geo_x": 0.7664795132967912,
+        "geo_y": 0.5953547248676867,
+        "geo_z": -0.24096038527947916
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 21.69,
+          "pesticides_t": 766.93
+        },
+        {
+          "year": 2012,
+          "avg_temp": 21.92,
+          "pesticides_t": 766.93
+        },
+        {
+          "year": 2013,
+          "avg_temp": 21.37,
+          "pesticides_t": 766.93
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "MRT": {
+      "country": "Mauritania",
+      "rain_mm": 92.0,
+      "geography": {
+        "lat_abs": 19.587062,
+        "geo_x": 0.9285520621148519,
+        "geo_y": -0.159392571197955,
+        "geo_z": 0.3352388345480891
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 27.87,
+          "pesticides_t": 13.35
+        },
+        {
+          "year": 2012,
+          "avg_temp": 27.77,
+          "pesticides_t": 26.41
+        },
+        {
+          "year": 2013,
+          "avg_temp": 28.24,
+          "pesticides_t": 26.41
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Sweet potatoes",
+        "Wheat",
+        "Yams"
+      ]
+    },
+    "MWI": {
+      "country": "Malawi",
+      "rain_mm": 1181.0,
+      "geography": {
+        "lat_abs": 13.386737,
+        "geo_x": 0.8102144051841732,
+        "geo_y": 0.5384699151483823,
+        "geo_z": -0.23152271619033493
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 20.92,
+          "pesticides_t": 553.57
+        },
+        {
+          "year": 2012,
+          "avg_temp": 20.42,
+          "pesticides_t": 775.83
+        },
+        {
+          "year": 2013,
+          "avg_temp": 19.68,
+          "pesticides_t": 1500.27
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "MYS": {
+      "country": "Malaysia",
+      "rain_mm": 2875.0,
+      "geography": {
+        "lat_abs": 2.528667,
+        "geo_x": -0.40374382477103254,
+        "geo_y": 0.9138076475333122,
+        "geo_z": 0.044119239214787886
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 27.27,
+          "pesticides_t": 41562.16
+        },
+        {
+          "year": 2012,
+          "avg_temp": 27.36,
+          "pesticides_t": 49810.48
+        },
+        {
+          "year": 2013,
+          "avg_temp": 27.8,
+          "pesticides_t": 61445.6
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Rice, paddy",
+        "Soybeans",
+        "Sweet potatoes"
+      ]
+    },
+    "NAM": {
+      "country": "Namibia",
+      "rain_mm": 285.0,
+      "geography": {
+        "lat_abs": 20.575298,
+        "geo_x": 0.894784823183795,
+        "geo_y": 0.2754113584376745,
+        "geo_z": -0.35143805121736543
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 19.26,
+          "pesticides_t": 56.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 20.11,
+          "pesticides_t": 56.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 20.73,
+          "pesticides_t": 56.0
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Sorghum",
+        "Wheat"
+      ]
+    },
+    "NER": {
+      "country": "Niger",
+      "rain_mm": 151.0,
+      "geography": {
+        "lat_abs": 17.446195,
+        "geo_x": 0.9409034205494557,
+        "geo_y": 0.15752677105332794,
+        "geo_z": 0.2998100558684555
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 30.1,
+          "pesticides_t": 10.59
+        },
+        {
+          "year": 2012,
+          "avg_temp": 29.61,
+          "pesticides_t": 21.37
+        },
+        {
+          "year": 2013,
+          "avg_temp": 30.42,
+          "pesticides_t": 21.37
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "NIC": {
+      "country": "Nicaragua",
+      "rain_mm": 2280.0,
+      "geography": {
+        "lat_abs": 12.670697,
+        "geo_x": 0.08385679962347331,
+        "geo_y": -0.9720364289512139,
+        "geo_z": 0.21934725425379797
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 26.94,
+          "pesticides_t": 4932.05
+        },
+        {
+          "year": 2012,
+          "avg_temp": 26.91,
+          "pesticides_t": 4413.82
+        },
+        {
+          "year": 2013,
+          "avg_temp": 27.26,
+          "pesticides_t": 4413.82
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Yams"
+      ]
+    },
+    "NLD": {
+      "country": "Netherlands",
+      "rain_mm": 778.0,
+      "geography": {
+        "lat_abs": 52.422211,
+        "geo_x": 0.6069155760364168,
+        "geo_y": 0.05963094015114848,
+        "geo_z": 0.7925261096904471
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 10.73,
+          "pesticides_t": 10953.91
+        },
+        {
+          "year": 2012,
+          "avg_temp": 10.08,
+          "pesticides_t": 11348.39
+        },
+        {
+          "year": 2013,
+          "avg_temp": 9.54,
+          "pesticides_t": 10720.17
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Wheat"
+      ]
+    },
+    "NOR": {
+      "country": "Norway",
+      "rain_mm": 1414.0,
+      "geography": {
+        "lat_abs": 61.357092,
+        "geo_x": 0.4725244003476168,
+        "geo_y": 0.08060011142867907,
+        "geo_z": 0.8776242436907777
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 4.14,
+          "pesticides_t": 823.96
+        },
+        {
+          "year": 2012,
+          "avg_temp": 3.09,
+          "pesticides_t": 813.93
+        },
+        {
+          "year": 2013,
+          "avg_temp": 3.5,
+          "pesticides_t": 761.97
+        }
+      ],
+      "observed_crops": [
+        "Potatoes",
+        "Wheat"
+      ]
+    },
+    "NPL": {
+      "country": "Nepal",
+      "rain_mm": 1500.0,
+      "geography": {
+        "lat_abs": 28.297925,
+        "geo_x": 0.09753820354953986,
+        "geo_y": 0.8750753697082547,
+        "geo_z": 0.47405632173644713
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 15.12,
+          "pesticides_t": 342.92
+        },
+        {
+          "year": 2012,
+          "avg_temp": 15.2,
+          "pesticides_t": 410.32
+        },
+        {
+          "year": 2013,
+          "avg_temp": 15.79,
+          "pesticides_t": 454.53
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "NZL": {
+      "country": "New Zealand",
+      "rain_mm": 1732.0,
+      "geography": {
+        "lat_abs": 39.759,
+        "geo_x": -0.7626577438635792,
+        "geo_y": 0.0965218869341964,
+        "geo_z": -0.6395597634838964
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 13.46,
+          "pesticides_t": 5086.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 12.89,
+          "pesticides_t": 5086.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 13.57,
+          "pesticides_t": 5086.0
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "PAK": {
+      "country": "Pakistan",
+      "rain_mm": 494.0,
+      "geography": {
+        "lat_abs": 29.328389,
+        "geo_x": 0.31887941509281925,
+        "geo_y": 0.8114170863761261,
+        "geo_z": 0.48981448586882337
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 24.77,
+          "pesticides_t": 1979.27
+        },
+        {
+          "year": 2012,
+          "avg_temp": 24.46666666666667,
+          "pesticides_t": 990.09
+        },
+        {
+          "year": 2013,
+          "avg_temp": 25.448333333333338,
+          "pesticides_t": 0.92
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "PER": {
+      "country": "Peru",
+      "rain_mm": 1738.0,
+      "geography": {
+        "lat_abs": 12.976679,
+        "geo_x": 0.286528388850692,
+        "geo_y": -0.931384338520682,
+        "geo_z": -0.22455443959320473
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 17.03,
+          "pesticides_t": 15436.91
+        },
+        {
+          "year": 2012,
+          "avg_temp": 17.68,
+          "pesticides_t": 18885.82
+        },
+        {
+          "year": 2013,
+          "avg_temp": 17.0,
+          "pesticides_t": 17942.97
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "PNG": {
+      "country": "Papua New Guinea",
+      "rain_mm": 3142.0,
+      "geography": {
+        "lat_abs": 5.695285,
+        "geo_x": -0.8041059596445743,
+        "geo_y": 0.5861445657928679,
+        "geo_z": -0.099237864021595
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 25.17,
+          "pesticides_t": 105.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 25.14,
+          "pesticides_t": 105.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 25.44,
+          "pesticides_t": 105.0
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Sweet potatoes",
+        "Yams"
+      ]
+    },
+    "POL": {
+      "country": "Poland",
+      "rain_mm": 600.0,
+      "geography": {
+        "lat_abs": 51.990316,
+        "geo_x": 0.5805077804474728,
+        "geo_y": 0.20545990627166097,
+        "geo_z": 0.7879066846745172
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 8.84,
+          "pesticides_t": 21779.27
+        },
+        {
+          "year": 2012,
+          "avg_temp": 8.48,
+          "pesticides_t": 21885.99
+        },
+        {
+          "year": 2013,
+          "avg_temp": 9.32,
+          "pesticides_t": 22204.46
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "PRT": {
+      "country": "Portugal",
+      "rain_mm": 854.0,
+      "geography": {
+        "lat_abs": 39.606675,
+        "geo_x": 0.7624239728966344,
+        "geo_y": -0.11084179321807573,
+        "geo_z": 0.63751375077618
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 16.91,
+          "pesticides_t": 14024.98
+        },
+        {
+          "year": 2012,
+          "avg_temp": 16.24,
+          "pesticides_t": 12444.24
+        },
+        {
+          "year": 2013,
+          "avg_temp": 16.77,
+          "pesticides_t": 10126.8
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sweet potatoes",
+        "Wheat",
+        "Yams"
+      ]
+    },
+    "QAT": {
+      "country": "Qatar",
+      "rain_mm": 74.0,
+      "geography": {
+        "lat_abs": 25.237383,
+        "geo_x": 0.5674886590285417,
+        "geo_y": 0.7043902463954861,
+        "geo_z": 0.42636956112848146
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 28.23,
+          "pesticides_t": 68.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 28.54,
+          "pesticides_t": 68.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 28.68,
+          "pesticides_t": 68.0
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Wheat"
+      ]
+    },
+    "ROU": {
+      "country": "Romania",
+      "rain_mm": 637.0,
+      "geography": {
+        "lat_abs": 45.733237,
+        "geo_x": 0.6327437068636554,
+        "geo_y": 0.2946852537551162,
+        "geo_z": 0.7160977605353358
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 11.26,
+          "pesticides_t": 6582.9
+        },
+        {
+          "year": 2012,
+          "avg_temp": 12.33,
+          "pesticides_t": 6418.7
+        },
+        {
+          "year": 2013,
+          "avg_temp": 13.94,
+          "pesticides_t": 6947.9
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "RUS": {
+      "country": "Russian Federation",
+      "rain_mm": 460.0,
+      "geography": {
+        "lat_abs": 58.249357,
+        "geo_x": 0.3741267659252983,
+        "geo_y": 0.37005445530487635,
+        "geo_z": 0.8503463195235741
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 3.5433333333333334,
+          "pesticides_t": 25961.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 4.137777777777778,
+          "pesticides_t": 25961.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 5.526666666666667,
+          "pesticides_t": 25961.0
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "RWA": {
+      "country": "Rwanda",
+      "rain_mm": 1212.0,
+      "geography": {
+        "lat_abs": 1.897196,
+        "geo_x": 0.8646431093064832,
+        "geo_y": 0.5012945926953738,
+        "geo_z": -0.03310626622251583
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 19.59,
+          "pesticides_t": 181.6
+        },
+        {
+          "year": 2012,
+          "avg_temp": 19.79,
+          "pesticides_t": 925.52
+        },
+        {
+          "year": 2013,
+          "avg_temp": 19.93,
+          "pesticides_t": 1841.5
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat",
+        "Yams"
+      ]
+    },
+    "SAU": {
+      "country": "Saudi Arabia",
+      "rain_mm": 59.0,
+      "geography": {
+        "lat_abs": 23.806908,
+        "geo_x": 0.6503227550503893,
+        "geo_y": 0.6435390156430226,
+        "geo_z": 0.40365560767674347
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 26.485,
+          "pesticides_t": 4840.3
+        },
+        {
+          "year": 2012,
+          "avg_temp": 26.924999999999997,
+          "pesticides_t": 4996.2
+        },
+        {
+          "year": 2013,
+          "avg_temp": 27.675,
+          "pesticides_t": 5412.5
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Sorghum",
+        "Wheat"
+      ]
+    },
+    "SEN": {
+      "country": "Senegal",
+      "rain_mm": 686.0,
+      "geography": {
+        "lat_abs": 15.138125,
+        "geo_x": 0.9333658167632682,
+        "geo_y": -0.24623273060313758,
+        "geo_z": 0.26114688295585636
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 25.41,
+          "pesticides_t": 741.85
+        },
+        {
+          "year": 2012,
+          "avg_temp": 25.47,
+          "pesticides_t": 787.83
+        },
+        {
+          "year": 2013,
+          "avg_temp": 24.7,
+          "pesticides_t": 722.53
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Sweet potatoes"
+      ]
+    },
+    "SLV": {
+      "country": "El Salvador",
+      "rain_mm": 1784.0,
+      "geography": {
+        "lat_abs": 13.685371,
+        "geo_x": 0.01881986249234165,
+        "geo_y": -0.9714272734544541,
+        "geo_z": 0.23659007833088527
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 25.95,
+          "pesticides_t": 3231.13
+        },
+        {
+          "year": 2012,
+          "avg_temp": 26.04,
+          "pesticides_t": 2595.16
+        },
+        {
+          "year": 2013,
+          "avg_temp": 26.36,
+          "pesticides_t": 6005.08
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes"
+      ]
+    },
+    "SUR": {
+      "country": "Suriname",
+      "rain_mm": 2331.0,
+      "geography": {
+        "lat_abs": 4.143987,
+        "geo_x": 0.5590155536227635,
+        "geo_y": -0.8260022058948587,
+        "geo_z": 0.07226317640861536
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 27.42,
+          "pesticides_t": 936.24
+        },
+        {
+          "year": 2012,
+          "avg_temp": 27.4,
+          "pesticides_t": 633.92
+        },
+        {
+          "year": 2013,
+          "avg_temp": 27.17,
+          "pesticides_t": 537.49
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Rice, paddy",
+        "Soybeans",
+        "Sweet potatoes"
+      ]
+    },
+    "SVK": {
+      "country": "Slovakia",
+      "rain_mm": 824.0,
+      "geography": {
+        "lat_abs": 48.734044,
+        "geo_x": 0.6234345316638618,
+        "geo_y": 0.21527285241638539,
+        "geo_z": 0.7516561605824664
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 11.1,
+          "pesticides_t": 1410.5
+        },
+        {
+          "year": 2012,
+          "avg_temp": 11.52,
+          "pesticides_t": 1563.78
+        },
+        {
+          "year": 2013,
+          "avg_temp": 12.27,
+          "pesticides_t": 1620.28
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "SVN": {
+      "country": "Slovenia",
+      "rain_mm": 1162.0,
+      "geography": {
+        "lat_abs": 46.06076,
+        "geo_x": 0.6705159654243453,
+        "geo_y": 0.1786023957088601,
+        "geo_z": 0.7200760545651507
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 11.02,
+          "pesticides_t": 1121.91
+        },
+        {
+          "year": 2012,
+          "avg_temp": 11.12,
+          "pesticides_t": 1016.08
+        },
+        {
+          "year": 2013,
+          "avg_temp": 11.58,
+          "pesticides_t": 917.49
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "SWE": {
+      "country": "Sweden",
+      "rain_mm": 624.0,
+      "geography": {
+        "lat_abs": 65.85918,
+        "geo_x": 0.3866592082863221,
+        "geo_y": 0.13326615892580443,
+        "geo_z": 0.9125430332496965
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 8.18,
+          "pesticides_t": 1781.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 7.21,
+          "pesticides_t": 1814.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 7.1,
+          "pesticides_t": 1620.0
+        }
+      ],
+      "observed_crops": [
+        "Potatoes",
+        "Wheat"
+      ]
+    },
+    "SYR": {
+      "country": "Syrian Arab Republic",
+      "rain_mm": 252.0,
+      "geography": {
+        "lat_abs": 35.006636,
+        "geo_x": 0.6429958286712091,
+        "geo_y": 0.5074027947713144,
+        "geo_z": 0.5736713067338165
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 18.95,
+          "pesticides_t": 974.79
+        },
+        {
+          "year": 2012,
+          "avg_temp": 19.72,
+          "pesticides_t": 974.79
+        },
+        {
+          "year": 2013,
+          "avg_temp": 19.83,
+          "pesticides_t": 974.79
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "THA": {
+      "country": "Thailand",
+      "rain_mm": 1622.0,
+      "geography": {
+        "lat_abs": 15.45974,
+        "geo_x": -0.1851136921290665,
+        "geo_y": 0.9458742250281272,
+        "geo_z": 0.2665611963767137
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 27.56,
+          "pesticides_t": 87191.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 28.48,
+          "pesticides_t": 69921.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 28.98,
+          "pesticides_t": 8136.0
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "TJK": {
+      "country": "Tajikistan",
+      "rain_mm": 691.0,
+      "geography": {
+        "lat_abs": 38.199835,
+        "geo_x": 0.23517032882360545,
+        "geo_y": 0.7498458321795797,
+        "geo_z": 0.618406132249601
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 8.45,
+          "pesticides_t": 264.6
+        },
+        {
+          "year": 2012,
+          "avg_temp": 7.71,
+          "pesticides_t": 264.6
+        },
+        {
+          "year": 2013,
+          "avg_temp": 10.1,
+          "pesticides_t": 264.6
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "TUN": {
+      "country": "Tunisia",
+      "rain_mm": 207.0,
+      "geography": {
+        "lat_abs": 33.687263,
+        "geo_x": 0.8218152788506599,
+        "geo_y": 0.13027863139796317,
+        "geo_z": 0.554659468186279
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 19.53,
+          "pesticides_t": 422.24
+        },
+        {
+          "year": 2012,
+          "avg_temp": 20.12,
+          "pesticides_t": 422.24
+        },
+        {
+          "year": 2013,
+          "avg_temp": 20.0,
+          "pesticides_t": 422.24
+        }
+      ],
+      "observed_crops": [
+        "Potatoes",
+        "Sorghum",
+        "Wheat"
+      ]
+    },
+    "TUR": {
+      "country": "Turkey",
+      "rain_mm": 593.0,
+      "geography": {
+        "lat_abs": 39.345388,
+        "geo_x": 0.6372650659868169,
+        "geo_y": 0.43811555632528204,
+        "geo_z": 0.6339936868602137
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 14.52,
+          "pesticides_t": 39534.43
+        },
+        {
+          "year": 2012,
+          "avg_temp": 15.518,
+          "pesticides_t": 42610.59
+        },
+        {
+          "year": 2013,
+          "avg_temp": 16.558,
+          "pesticides_t": 39440.0
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "TZA": {
+      "country": "United Republic of Tanzania",
+      "rain_mm": 1071.0,
+      "geography": {
+        "lat_abs": 6.051866,
+        "geo_x": 0.8149929263780673,
+        "geo_y": 0.5697993686125836,
+        "geo_z": -0.10542869382864936
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 26.56,
+          "pesticides_t": 1.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 26.51,
+          "pesticides_t": 1.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 26.76,
+          "pesticides_t": 1.0
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat",
+        "Yams"
+      ]
+    },
+    "UGA": {
+      "country": "Uganda",
+      "rain_mm": 1180.0,
+      "geography": {
+        "lat_abs": 1.972589,
+        "geo_x": 0.8386619746076661,
+        "geo_y": 0.5435634843322956,
+        "geo_z": 0.0344213719613946
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 23.89,
+          "pesticides_t": 88.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 24.03,
+          "pesticides_t": 88.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 24.13,
+          "pesticides_t": 88.0
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "UKR": {
+      "country": "Ukraine",
+      "rain_mm": 565.0,
+      "geography": {
+        "lat_abs": 49.724739,
+        "geo_x": 0.5473856367582217,
+        "geo_y": 0.3439186457291719,
+        "geo_z": 0.7629475275473461
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 8.48,
+          "pesticides_t": 79491.7
+        },
+        {
+          "year": 2012,
+          "avg_temp": 8.56,
+          "pesticides_t": 90814.8
+        },
+        {
+          "year": 2013,
+          "avg_temp": 10.33,
+          "pesticides_t": 86781.8
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Wheat"
+      ]
+    },
+    "URY": {
+      "country": "Uruguay",
+      "rain_mm": 1300.0,
+      "geography": {
+        "lat_abs": 32.961127,
+        "geo_x": 0.46958641349461877,
+        "geo_y": -0.6953247731212269,
+        "geo_z": -0.5440699037303711
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 16.9,
+          "pesticides_t": 17517.76
+        },
+        {
+          "year": 2012,
+          "avg_temp": 17.53,
+          "pesticides_t": 23506.4
+        },
+        {
+          "year": 2013,
+          "avg_temp": 15.92,
+          "pesticides_t": 19028.6
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "USA": {
+      "country": "United States of America",
+      "rain_mm": 715.0,
+      "geography": {
+        "lat_abs": 39.538479,
+        "geo_x": -0.10042926060139691,
+        "geo_y": -0.7646300602979194,
+        "geo_z": 0.6365962884779149
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 15.298536585365854,
+          "pesticides_t": 391298.7
+        },
+        {
+          "year": 2012,
+          "avg_temp": 16.093658536585366,
+          "pesticides_t": 407779.2
+        },
+        {
+          "year": 2013,
+          "avg_temp": 16.38375,
+          "pesticides_t": 407779.2
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "VEN": {
+      "country": "Venezuela (Bolivarian Republic of)",
+      "rain_mm": 2044.0,
+      "geography": {
+        "lat_abs": 7.182476,
+        "geo_x": 0.42557895703530774,
+        "geo_y": -0.8962422124942703,
+        "geo_z": 0.1250297879391744
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 26.416000000000004,
+          "pesticides_t": 3928.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 26.51,
+          "pesticides_t": 3928.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 26.598000000000003,
+          "pesticides_t": 3928.0
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Plantains and others",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat",
+        "Yams"
+      ]
+    },
+    "VNM": {
+      "country": "Viet Nam",
+      "rain_mm": 1821.0,
+      "geography": {
+        "lat_abs": 21.715416,
+        "geo_x": -0.24651174687274777,
+        "geo_y": 0.8957311950650154,
+        "geo_z": 0.3699967362574236
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 24.355,
+          "pesticides_t": 19154.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 25.17,
+          "pesticides_t": 19154.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 25.78,
+          "pesticides_t": 19154.0
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Soybeans",
+        "Sweet potatoes"
+      ]
+    },
+    "ZAF": {
+      "country": "South Africa",
+      "rain_mm": 495.0,
+      "geography": {
+        "lat_abs": 29.708776,
+        "geo_x": 0.7955125336700732,
+        "geo_y": 0.34863830077922886,
+        "geo_z": -0.49559171099161115
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 18.32,
+          "pesticides_t": 26857.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 18.756666666666664,
+          "pesticides_t": 26857.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 18.096666666666668,
+          "pesticides_t": 26857.0
+        }
+      ],
+      "observed_crops": [
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "ZMB": {
+      "country": "Zambia",
+      "rain_mm": 1020.0,
+      "geography": {
+        "lat_abs": 14.660804,
+        "geo_x": 0.866583688547541,
+        "geo_y": 0.4300872415792569,
+        "geo_z": -0.2530961781103863
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 20.88,
+          "pesticides_t": 1670.0
+        },
+        {
+          "year": 2012,
+          "avg_temp": 20.8,
+          "pesticides_t": 1670.0
+        },
+        {
+          "year": 2013,
+          "avg_temp": 20.14,
+          "pesticides_t": 1670.0
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    },
+    "ZWE": {
+      "country": "Zimbabwe",
+      "rain_mm": 657.0,
+      "geography": {
+        "lat_abs": 18.91164,
+        "geo_x": 0.8198917574965687,
+        "geo_y": 0.471943284330064,
+        "geo_z": -0.3241096147369592
+      },
+      "history_2011_2013": [
+        {
+          "year": 2011,
+          "avg_temp": 20.78,
+          "pesticides_t": 3340.35
+        },
+        {
+          "year": 2012,
+          "avg_temp": 20.52,
+          "pesticides_t": 3375.53
+        },
+        {
+          "year": 2013,
+          "avg_temp": 19.76,
+          "pesticides_t": 2550.07
+        }
+      ],
+      "observed_crops": [
+        "Cassava",
+        "Maize",
+        "Potatoes",
+        "Rice, paddy",
+        "Sorghum",
+        "Soybeans",
+        "Sweet potatoes",
+        "Wheat"
+      ]
+    }
+  }
+}

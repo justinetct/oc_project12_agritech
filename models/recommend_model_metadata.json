@@ -70,5 +70,23 @@
     "scikit-learn": "1.9.0",
     "numpy": "2.3.5",
     "joblib": "1.6.0"
+  },
+  "model_version": "1.0.0",
+  "training_domain": {
+    "temp_hist": {
+      "min": 2.566666666666667,
+      "max": 30.24666666666667,
+      "unit": "°C"
+    },
+    "rain_mm": {
+      "min": 51.0,
+      "max": 3240.0,
+      "unit": "mm"
+    },
+    "log_pest_hist": {
+      "min": 0.039220713153281295,
+      "max": 14.375888912214942,
+      "unit": "log(t+1)"
+    }
   }
 }
