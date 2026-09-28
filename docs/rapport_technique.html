@@ -1026,7 +1026,7 @@
       <code>test_r2</code>. La capture montre 13 runs représentatifs.</p>
       <figure><img width="5116" height="1912" alt="Expérience MLflow /recommend : 13 runs représentatifs, de la référence naïve au modèle final" src="assets/figures/11_mlflow_recommend.png" /><figcaption>Expérience MLflow /recommend : 13 runs représentatifs, de la référence naïve au modèle final</figcaption></figure>
       <h2 id="5-de-lanalyse-à-lapi">5. De l'analyse à l'API</h2>
-      <p>Les résultats fixent ce que l'API devra exposer :</p>
+      <p>Les résultats de modélisation fixent ce que l'API doit exposer :</p>
       <ul>
       <li><strong><code>/predict</code></strong> : l'estimation du rendement avec sa marge d'erreur (MAE de 0,40 t/ha sur le test, 68 % des
         prédictions à moins de 0,5 t/ha) ;</li>
@@ -1038,7 +1038,87 @@
       </ul>
       <p>Le classement repose sur le rendement prédit ; les données disponibles ne permettent pas d'évaluer la rentabilité
       économique.</p>
-      <p><strong>Prochaine étape : mettre les deux modèles à disposition via l'API.</strong></p>
+      <p>L'API est construite avec <strong>FastAPI</strong> et utilise <strong>Pydantic</strong> pour définir et valider les
+      contrats d'entrée et de sortie. Les modèles sont chargés au démarrage de l'application, tandis
+      que la couche HTTP reste séparée de la logique de prédiction afin de partager le même
+      fonctionnement entre les différents services. FastAPI génère également automatiquement la
+      documentation <strong>OpenAPI/Swagger</strong> de l'API.</p>
+      <h3 id="51-predict--implémentation-actuelle">5.1 <code>/predict</code> — implémentation actuelle</h3>
+      <p>Trois endpoints sont disponibles :</p>
+      <ul>
+      <li><strong><code>GET /health</code></strong> : état du service (version de l'API, présence du modèle, version du modèle) ;</li>
+      <li><strong><code>GET /predict/schema</code></strong> : bornes physiques acceptées par le contrat, domaine d'entraînement
+        du modèle et unités, à destination d'une future interface qui pourra afficher les plages avant
+        la saisie utilisateur ;</li>
+      <li><strong><code>POST /predict</code></strong> : reçoit les quatre variables retenues au chapitre 3
+        (<code>rainfall_mm</code>, <code>temperature_celsius</code>, <code>fertilizer_used</code>, <code>irrigation_used</code>), renvoie le rendement
+        estimé, la version du modèle, un drapeau <code>out_of_training_domain</code> et une note par variable hors
+        domaine.</li>
+      </ul>
+      <p>Le champ <code>crop</code> reste une information affichée par l'application à côté du résultat, mais n'est pas
+      envoyé au modèle : le chapitre 3 a montré que la culture n'apporte pas de gain mesurable au modèle
+      <code>/predict</code>.</p>
+      <h3 id="52-validation-et-signalement">5.2 Validation et signalement</h3>
+      <p>Deux notions distinctes :</p>
+      <ul>
+      <li><strong>bornes physiques</strong> (portées par Pydantic) : <code>rainfall_mm &gt;= 0</code>, <code>temperature_celsius</code> entre
+        −50 et +60 °C, booléens stricts pour <code>fertilizer_used</code> et <code>irrigation_used</code> (refus de <code>0</code>, <code>1</code>,
+        <code>"true"</code>, <code>"false"</code>). Un champ hors de ces bornes ou de type incorrect provoque une réponse
+        <strong>422</strong> ;</li>
+      <li><strong>domaine d'entraînement</strong> (stocké dans les métadonnées du modèle) :
+        <code>Rainfall_mm ∈ [100 ; 1 000]</code> mm et <code>Temperature_Celsius ∈ [15 ; 40]</code> °C. Une valeur
+        physiquement valide mais hors de ce domaine n'est pas refusée : la prédiction est renvoyée avec
+        <code>out_of_training_domain=true</code> et une note par variable, sous la forme
+        <code>temperature_celsius is out of training domain</code>.</li>
+      </ul>
+      <h3 id="53-erreurs-unifiées">5.3 Erreurs unifiées</h3>
+      <p>Les trois catégories d'erreur partagent le même contrat <code>ErrorResponse</code> (<code>error</code>, <code>message</code>,
+      <code>details</code>) :</p>
+      <ul>
+      <li><strong>422 <code>validation_error</code></strong> : payload invalide, avec une liste <code>details</code> typée (<code>field</code>, <code>type</code>,
+        <code>message</code>) qui ne recopie ni le payload d'origine ni le contexte interne de Pydantic ;</li>
+      <li><strong>503 <code>model_unavailable</code></strong> : le modèle n'est pas chargé ;</li>
+      <li><strong>500 <code>internal_error</code></strong> : exception non prévue. Le message brut de l'exception, la traceback et
+        les chemins de fichiers ne sont jamais retournés au client ; ils sont loggés côté serveur pour
+        diagnostic.</li>
+      </ul>
+      <h3 id="54-documentation-openapi-et-test-local">5.4 Documentation OpenAPI et test local</h3>
+      <p>FastAPI produit automatiquement la spécification OpenAPI à partir des schémas Pydantic et des
+      signatures des endpoints. La documentation interactive est servie sur <code>/docs</code> (Swagger UI) et la
+      définition brute sur <code>/openapi.json</code> ; chaque endpoint documente ses codes de réponse et le schéma
+      <code>ErrorResponse</code> associé.</p>
+      <p>Les tests sont écrits au fil du développement, pas repoussés en fin de branche. Au moment de la
+      sauvegarde du service <code>/predict</code>, la suite compte 50 tests (schémas Pydantic, chargement du modèle,
+      endpoints, handlers d'erreur) et la couverture de branche est de 99 % sur les modules qui servent
+      <code>/predict</code>. Un test manuel via Swagger sur <code>/docs</code> complète la vérification automatisée.</p>
+      <p>Pour tester l'API en local :</p>
+      <pre><code class="language-bash"># Lancer l'API
+      poetry run uvicorn agritech.api.main:app --reload
+
+      # Dans un second terminal : tester /predict
+      curl -X POST &quot;http://127.0.0.1:8000/predict&quot; \
+        -H &quot;Content-Type: application/json&quot; \
+        -d '{
+          &quot;rainfall_mm&quot;: 500,
+          &quot;temperature_celsius&quot;: 25,
+          &quot;fertilizer_used&quot;: true,
+          &quot;irrigation_used&quot;: false
+        }'
+      </code></pre>
+      <h3 id="55-observabilité-prévue-non-implémentée-à-ce-stade">5.5 Observabilité (prévue, non implémentée à ce stade)</h3>
+      <p>Un suivi de chaque appel <code>/predict</code> et <code>/recommend</code> est prévu dans une étape ultérieure :
+      persistance dans une base <strong>SQLite</strong> unique en mode WAL, avec une table commune (<code>api_requests</code>)
+      portant la date, le service appelé, la latence, le code HTTP, la version du modèle, le payload de
+      requête et la réponse, ainsi que les erreurs. Les traces détaillées (spans, exceptions internes)
+      seront envoyées de façon optionnelle à <strong>Pydantic Logfire</strong>. Un script en ligne de commande
+      permettra de rejouer une requête archivée. Aucune de ces briques n'est active dans la version
+      actuelle de l'API : elles seront livrées par une tâche dédiée, après <code>/recommend</code>.</p>
+      <h3 id="56-reste-à-faire">5.6 Reste à faire</h3>
+      <ul>
+      <li><strong><code>POST /recommend</code></strong> : contrat spécifique, avec dérivation automatique des features
+        historiques et géographiques à partir du pays choisi par l'utilisateur ;</li>
+      <li><strong>containerisation Docker</strong> de l'API complète.</li>
+      </ul>
       <h2 id="annexes">Annexes</h2>
       <h3 id="a-limites-et-précautions">A. Limites et précautions</h3>
       <h4 id="a1-predict--limites-des-données">A.1 <code>/predict</code> — limites des données</h4>

@@ -488,7 +488,7 @@ Les 1 422 évaluations sont journalisées dans une expérience MLflow dédiée �
 
 ## 5. De l'analyse à l'API
 
-Les résultats fixent ce que l'API devra exposer :
+Les résultats de modélisation fixent ce que l'API doit exposer :
 
 - **`/predict`** : l'estimation du rendement avec sa marge d'erreur (MAE de 0,40 t/ha sur le test, 68 % des
   prédictions à moins de 0,5 t/ha) ;
@@ -501,7 +501,99 @@ Les résultats fixent ce que l'API devra exposer :
 Le classement repose sur le rendement prédit ; les données disponibles ne permettent pas d'évaluer la rentabilité
 économique.
 
-**Prochaine étape : mettre les deux modèles à disposition via l'API.**
+L'API est construite avec **FastAPI** et utilise **Pydantic** pour définir et valider les
+contrats d'entrée et de sortie. Les modèles sont chargés au démarrage de l'application, tandis
+que la couche HTTP reste séparée de la logique de prédiction afin de partager le même
+fonctionnement entre les différents services. FastAPI génère également automatiquement la
+documentation **OpenAPI/Swagger** de l'API.
+
+### 5.1 `/predict` — implémentation actuelle
+
+Trois endpoints sont disponibles :
+
+- **`GET /health`** : état du service (version de l'API, présence du modèle, version du modèle) ;
+- **`GET /predict/schema`** : bornes physiques acceptées par le contrat, domaine d'entraînement
+  du modèle et unités, à destination d'une future interface qui pourra afficher les plages avant
+  la saisie utilisateur ;
+- **`POST /predict`** : reçoit les quatre variables retenues au chapitre 3
+  (`rainfall_mm`, `temperature_celsius`, `fertilizer_used`, `irrigation_used`), renvoie le rendement
+  estimé, la version du modèle, un drapeau `out_of_training_domain` et une note par variable hors
+  domaine.
+
+Le champ `crop` reste une information affichée par l'application à côté du résultat, mais n'est pas
+envoyé au modèle : le chapitre 3 a montré que la culture n'apporte pas de gain mesurable au modèle
+`/predict`.
+
+### 5.2 Validation et signalement
+
+Deux notions distinctes :
+
+- **bornes physiques** (portées par Pydantic) : `rainfall_mm >= 0`, `temperature_celsius` entre
+  −50 et +60 °C, booléens stricts pour `fertilizer_used` et `irrigation_used` (refus de `0`, `1`,
+  `"true"`, `"false"`). Un champ hors de ces bornes ou de type incorrect provoque une réponse
+  **422** ;
+- **domaine d'entraînement** (stocké dans les métadonnées du modèle) :
+  `Rainfall_mm ∈ [100 ; 1 000]` mm et `Temperature_Celsius ∈ [15 ; 40]` °C. Une valeur
+  physiquement valide mais hors de ce domaine n'est pas refusée : la prédiction est renvoyée avec
+  `out_of_training_domain=true` et une note par variable, sous la forme
+  `temperature_celsius is out of training domain`.
+
+### 5.3 Erreurs unifiées
+
+Les trois catégories d'erreur partagent le même contrat `ErrorResponse` (`error`, `message`,
+`details`) :
+
+- **422 `validation_error`** : payload invalide, avec une liste `details` typée (`field`, `type`,
+  `message`) qui ne recopie ni le payload d'origine ni le contexte interne de Pydantic ;
+- **503 `model_unavailable`** : le modèle n'est pas chargé ;
+- **500 `internal_error`** : exception non prévue. Le message brut de l'exception, la traceback et
+  les chemins de fichiers ne sont jamais retournés au client ; ils sont loggés côté serveur pour
+  diagnostic.
+
+### 5.4 Documentation OpenAPI et test local
+
+FastAPI produit automatiquement la spécification OpenAPI à partir des schémas Pydantic et des
+signatures des endpoints. La documentation interactive est servie sur `/docs` (Swagger UI) et la
+définition brute sur `/openapi.json` ; chaque endpoint documente ses codes de réponse et le schéma
+`ErrorResponse` associé.
+
+Les tests sont écrits au fil du développement, pas repoussés en fin de branche. Au moment de la
+sauvegarde du service `/predict`, la suite compte 50 tests (schémas Pydantic, chargement du modèle,
+endpoints, handlers d'erreur) et la couverture de branche est de 99 % sur les modules qui servent
+`/predict`. Un test manuel via Swagger sur `/docs` complète la vérification automatisée.
+
+Pour tester l'API en local :
+
+```bash
+# Lancer l'API
+poetry run uvicorn agritech.api.main:app --reload
+
+# Dans un second terminal : tester /predict
+curl -X POST "http://127.0.0.1:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rainfall_mm": 500,
+    "temperature_celsius": 25,
+    "fertilizer_used": true,
+    "irrigation_used": false
+  }'
+```
+
+### 5.5 Observabilité (prévue, non implémentée à ce stade)
+
+Un suivi de chaque appel `/predict` et `/recommend` est prévu dans une étape ultérieure :
+persistance dans une base **SQLite** unique en mode WAL, avec une table commune (`api_requests`)
+portant la date, le service appelé, la latence, le code HTTP, la version du modèle, le payload de
+requête et la réponse, ainsi que les erreurs. Les traces détaillées (spans, exceptions internes)
+seront envoyées de façon optionnelle à **Pydantic Logfire**. Un script en ligne de commande
+permettra de rejouer une requête archivée. Aucune de ces briques n'est active dans la version
+actuelle de l'API : elles seront livrées par une tâche dédiée, après `/recommend`.
+
+### 5.6 Reste à faire
+
+- **`POST /recommend`** : contrat spécifique, avec dérivation automatique des features
+  historiques et géographiques à partir du pays choisi par l'utilisateur ;
+- **containerisation Docker** de l'API complète.
 
 ## Annexes
 

@@ -8,9 +8,11 @@ Deux services sont visés :
 
 ### `/predict` — estimation de rendement
 
-- l'utilisateur choisit une culture ;
-- il renseigne les conditions de sa parcelle ;
-- le système retourne une estimation du rendement.
+- l'utilisateur renseigne les conditions de sa parcelle : pluie, température, utilisation d'engrais et irrigation ;
+- le système retourne une estimation du rendement en t/ha ;
+- si les conditions sont physiquement valides mais sortent du domaine observé pendant l'entraînement, la prédiction est retournée avec un avertissement.
+
+L'API `/predict` est implémentée avec FastAPI. Elle expose également `/predict/schema` pour fournir les bornes physiques, le domaine d'entraînement et les unités utilisés par l'application. Les erreurs de validation, d'indisponibilité du modèle et les erreurs internes ont un format de réponse commun.
 
 ### `/recommend` — classement des cultures
 
@@ -20,7 +22,21 @@ Deux services sont visés :
 - le modèle prédit le rendement des 10 cultures ;
 - l'application retourne un classement par rendement prédit décroissant.
 
-Le pays sert à préremplir les valeurs et à le situer sur le globe : le modèle final utilise sa position géographique et l'année (`year`), mais pas son code (`iso3`). Ce parcours décrit l'application visée : l'API qui le mettra en œuvre, y compris la modification des valeurs par l'utilisateur, reste à construire.
+Le pays sert à préremplir les valeurs et à le situer sur le globe : le modèle final utilise sa position géographique et l'année (`year`), mais pas son code (`iso3`). Le modèle `/recommend` est entraîné et sauvegardé ; son endpoint API reste à développer.
+
+### API disponible
+
+L'API FastAPI expose actuellement :
+
+- `GET /health` : état du service et chargement du modèle `/predict` ;
+- `GET /predict/schema` : bornes physiques, domaine d'entraînement et unités ;
+- `POST /predict` : estimation du rendement à partir des quatre variables du modèle.
+
+Elle peut être lancée localement avec :
+
+```bash
+poetry run uvicorn agritech.api.main:app --reload
+```
 
 ## Données
 
@@ -113,7 +129,7 @@ cp .env.example .env   # facultatif
 
 ## État actuel
 
-L’exploration, l’ACP, le nettoyage des données historiques, la construction des datasets et la modélisation des deux services, `/predict` et `/recommend`, évaluations finales et sauvegarde des modèles comprises, sont terminés. Reste à construire l’API qui servira les deux modèles.
+L’exploration, l’ACP, le nettoyage des données historiques, la construction des datasets et la modélisation des deux services, `/predict` et `/recommend`, évaluations finales et sauvegarde des modèles comprises, sont terminés. Le socle FastAPI et l’API `/predict` sont implémentés et testés ; l’API `/recommend` reste à développer.
 
 Datasets préparés :
 
