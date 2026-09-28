@@ -25,6 +25,8 @@ dependencies = [
     "uvicorn[standard] (>=0.54.0,<0.55.0)",
     "joblib (>=1.6.0,<2.0.0)",
     "pydantic (>=2.13.5,<3.0.0)",
+    "sqlalchemy (>=2,<3)",
+    "logfire (>=5,<6)",
 ]
 
 [tool.poetry]
@@ -44,10 +46,10 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=agritech.api --cov=agritech.serving --cov-report=term-missing"
+addopts = "--cov=agritech.api --cov=agritech.serving --cov=agritech.monitoring --cov-report=term-missing"
 
 [tool.coverage.run]
-source = ["agritech.api", "agritech.serving"]
+source = ["agritech.api", "agritech.serving", "agritech.monitoring"]
 branch = true
 
 [tool.coverage.report]
