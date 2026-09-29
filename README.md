@@ -138,6 +138,34 @@ exécutable sans configuration distante.
 cp .env.example .env   # facultatif
 ```
 
+## Tests
+
+| Domaine | Tests |
+|---|---:|
+| API `/predict` (schémas, router) | 23 |
+| API `/recommend` (schémas, router) | 53 |
+| Middleware, `/health` et handlers d'erreur | 56 |
+| Serving (chargement des modèles, prédiction) | 48 |
+| Monitoring SQLite, Logfire et CLI de rejeu | 55 |
+| **Total** | **235** |
+
+Couverture de branche : **95 %** sur `agritech.api`, `agritech.serving`, `agritech.monitoring` et `agritech.observability`.
+
+Durée observée d'environ **5,8 s** sur la machine de développement (mesure locale, pas une garantie CI).
+
+## Makefile
+
+Un `Makefile` fournit des raccourcis pour les commandes courantes :
+
+- `make test` : lance la suite `pytest` complète ;
+- `make test-durations` : lance `pytest --durations=20` pour identifier les tests les plus lents ;
+- `make api` : démarre l'API locale avec `uvicorn --reload` sur `http://127.0.0.1:8000` ;
+- `make health` : appelle `GET /health` ;
+- `make predict` : envoie un exemple valide à `POST /predict` ;
+- `make recommend` : envoie un exemple valide à `POST /recommend`.
+
+Les cibles `health`, `predict` et `recommend` supposent que l'API locale tourne, par exemple via `make api`.
+
 ## Structure du dépôt
 
 ```

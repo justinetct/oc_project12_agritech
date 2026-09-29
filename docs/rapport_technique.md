@@ -592,28 +592,29 @@ signatures des endpoints. La documentation interactive est servie sur `/docs` (S
 définition brute sur `/openapi.json` ; chaque endpoint documente ses codes de réponse et le schéma
 `ErrorResponse` associé.
 
-Les tests sont écrits au fil du développement, pas repoussés en fin de branche. Au moment de la
-sauvegarde du service `/predict`, la suite comptait 50 tests (schémas Pydantic, chargement du
-modèle, endpoints, handlers d'erreur) et la couverture de branche était de 99 % sur les modules
-qui servent `/predict`. Après l'implémentation de `/recommend` (schémas, serving, router HTTP),
-la suite passe à **137 tests** et la couverture globale reste à **98 %** sur `agritech.api` et
-`agritech.serving`. L'ajout de la couche d'observabilité (SQLite, Logfire, replay CLI) porte la
-suite à **235 tests** avec une couverture de branche de **95 %** sur `agritech.api`,
-`agritech.serving`, `agritech.monitoring` et `agritech.observability`. Un test manuel via Swagger
-sur `/docs` complète la vérification automatisée.
+Les tests sont écrits au fil du développement, pas repoussés en fin de branche. Un test manuel via Swagger sur `/docs` complète la vérification automatisée.
 
-Pour tester l'API en local :
+| Domaine | Tests |
+|---|---:|
+| API `/predict` (schémas, router) | 23 |
+| API `/recommend` (schémas, router) | 53 |
+| Middleware, `/health` et handlers d'erreur | 56 |
+| Serving (chargement des modèles, prédiction) | 48 |
+| Monitoring SQLite, Logfire et CLI de rejeu | 55 |
+| **Total** | **235** |
+
+Couverture de branche : **95 %** sur `agritech.api`, `agritech.serving`, `agritech.monitoring` et `agritech.observability`.
+
+Le `Makefile` fournit les commandes courantes pour lancer et tester l'API localement :
 
 ```bash
 # Lancer l'API
-poetry run uvicorn agritech.api.main:app --reload
+make api
 
 # Dans un second terminal
-curl http://127.0.0.1:8000/health
-curl -X POST http://127.0.0.1:8000/predict -H "Content-Type: application/json" \
-  -d '{"rainfall_mm":500,"temperature_celsius":25,"fertilizer_used":true,"irrigation_used":false}'
-curl -X POST http://127.0.0.1:8000/recommend -H "Content-Type: application/json" \
-  -d '{"iso3":"FRA"}'
+make health
+make predict
+make recommend
 ```
 
 La documentation interactive est disponible sur `/docs`.

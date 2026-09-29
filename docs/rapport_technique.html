@@ -1145,25 +1145,50 @@
       signatures des endpoints. La documentation interactive est servie sur <code>/docs</code> (Swagger UI) et la
       définition brute sur <code>/openapi.json</code> ; chaque endpoint documente ses codes de réponse et le schéma
       <code>ErrorResponse</code> associé.</p>
-      <p>Les tests sont écrits au fil du développement, pas repoussés en fin de branche. Au moment de la
-      sauvegarde du service <code>/predict</code>, la suite comptait 50 tests (schémas Pydantic, chargement du
-      modèle, endpoints, handlers d'erreur) et la couverture de branche était de 99 % sur les modules
-      qui servent <code>/predict</code>. Après l'implémentation de <code>/recommend</code> (schémas, serving, router HTTP),
-      la suite passe à <strong>137 tests</strong> et la couverture globale reste à <strong>98 %</strong> sur <code>agritech.api</code> et
-      <code>agritech.serving</code>. L'ajout de la couche d'observabilité (SQLite, Logfire, replay CLI) porte la
-      suite à <strong>235 tests</strong> avec une couverture de branche de <strong>95 %</strong> sur <code>agritech.api</code>,
-      <code>agritech.serving</code>, <code>agritech.monitoring</code> et <code>agritech.observability</code>. Un test manuel via Swagger
-      sur <code>/docs</code> complète la vérification automatisée.</p>
-      <p>Pour tester l'API en local :</p>
+      <p>Les tests sont écrits au fil du développement, pas repoussés en fin de branche. Un test manuel via Swagger sur <code>/docs</code> complète la vérification automatisée.</p>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Domaine</th>
+      <th style="text-align: right;">Tests</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td>API <code>/predict</code> (schémas, router)</td>
+      <td style="text-align: right;">23</td>
+      </tr>
+      <tr>
+      <td>API <code>/recommend</code> (schémas, router)</td>
+      <td style="text-align: right;">53</td>
+      </tr>
+      <tr>
+      <td>Middleware, <code>/health</code> et handlers d'erreur</td>
+      <td style="text-align: right;">56</td>
+      </tr>
+      <tr>
+      <td>Serving (chargement des modèles, prédiction)</td>
+      <td style="text-align: right;">48</td>
+      </tr>
+      <tr>
+      <td>Monitoring SQLite, Logfire et CLI de rejeu</td>
+      <td style="text-align: right;">55</td>
+      </tr>
+      <tr>
+      <td><strong>Total</strong></td>
+      <td style="text-align: right;"><strong>235</strong></td>
+      </tr>
+      </tbody>
+      </table></div>
+      <p>Couverture de branche : <strong>95 %</strong> sur <code>agritech.api</code>, <code>agritech.serving</code>, <code>agritech.monitoring</code> et <code>agritech.observability</code>.</p>
+      <p>Le <code>Makefile</code> fournit les commandes courantes pour lancer et tester l'API localement :</p>
       <pre><code class="language-bash"># Lancer l'API
-poetry run uvicorn agritech.api.main:app --reload
+make api
 
 # Dans un second terminal
-curl http://127.0.0.1:8000/health
-curl -X POST http://127.0.0.1:8000/predict -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;rainfall_mm&quot;:500,&quot;temperature_celsius&quot;:25,&quot;fertilizer_used&quot;:true,&quot;irrigation_used&quot;:false}'
-curl -X POST http://127.0.0.1:8000/recommend -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;iso3&quot;:&quot;FRA&quot;}'
+make health
+make predict
+make recommend
 </code></pre>
       <p>La documentation interactive est disponible sur <code>/docs</code>.</p>
       <h3 id="56-observabilité">5.6 Observabilité</h3>
