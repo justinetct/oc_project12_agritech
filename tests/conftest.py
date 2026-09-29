@@ -15,6 +15,49 @@ from pathlib import Path
 import pytest
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _preload_api_bundles():
+    """Charge les artefacts ML une seule fois par session pytest et fait
+    réutiliser ces objets par le lifespan de l'API.
+
+    Le reste du lifespan (engine SQLite, session factory, Logfire,
+    startup/shutdown) continue de s'exécuter normalement à chaque
+    `TestClient(app)`. Les vrais loaders `load_bundle` et
+    `load_recommend_context` restent testés directement dans
+    `tests/agritech/test_serving.py`.
+    """
+    from agritech.api import main as api_main
+    from agritech.config import PATHS
+    from agritech.serving import load_bundle, load_recommend_context
+
+    bundle_predict = load_bundle("predict")
+    bundle_recommend = load_bundle("recommend")
+    recommend_context = load_recommend_context(
+        PATHS.root / "models" / "recommend_context.json"
+    )
+
+    original_load_bundle = api_main.load_bundle
+    original_load_recommend_context = api_main.load_recommend_context
+
+    def _cached_load_bundle(name: str):
+        if name == "predict":
+            return bundle_predict
+        if name == "recommend":
+            return bundle_recommend
+        return original_load_bundle(name)
+
+    def _cached_load_recommend_context(path: Path):
+        return recommend_context
+
+    api_main.load_bundle = _cached_load_bundle
+    api_main.load_recommend_context = _cached_load_recommend_context
+    try:
+        yield
+    finally:
+        api_main.load_bundle = original_load_bundle
+        api_main.load_recommend_context = original_load_recommend_context
+
+
 @pytest.fixture(autouse=True)
 def _isolate_monitoring_database(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
