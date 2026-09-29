@@ -17,6 +17,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from importlib.metadata import version as _package_version
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 
@@ -27,9 +28,16 @@ from agritech.api.error_handlers import (
     validation_exception_handler,
 )
 from agritech.api.exceptions import ModelUnavailableError
+from agritech.api.middleware.request_logger import RequestLoggerMiddleware
 from agritech.api.routers.predict import router as predict_router
 from agritech.api.routers.recommend import router as recommend_router
 from agritech.config import PATHS
+from agritech.monitoring.config import load_config
+from agritech.monitoring.models import Base as MonitoringBase
+from agritech.monitoring.session import (
+    create_monitoring_engine,
+    create_session_factory,
+)
 from agritech.serving import load_bundle, load_recommend_context
 
 
@@ -38,7 +46,13 @@ API_VERSION = _package_version("agritech-answers")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Charge les modèles et le contexte `/recommend` avant de servir la première requête.
+    """Prépare l'état applicatif avant de servir la première requête.
+
+    - Charge les deux bundles et le contexte `/recommend` (comportement existant).
+    - Charge un éventuel `.env` local, lit la configuration monitoring, crée
+      l'engine SQLite (PRAGMAs WAL appliqués), matérialise la table
+      `api_requests` au premier boot, puis publie la session factory et les
+      métadonnées runtime pour le middleware de persistance.
 
     Si un chargement échoue (`FileNotFoundError`, `ValueError`, ...), l'exception
     remonte et l'application ne démarre pas. La couche HTTP traduira
@@ -49,7 +63,25 @@ async def lifespan(app: FastAPI):
     runtime.recommend_context = load_recommend_context(
         PATHS.root / "models" / "recommend_context.json"
     )
-    yield
+
+    # Sans .env, `load_dotenv()` est un no-op ; il ne surcharge pas les
+    # variables déjà présentes dans l'environnement (tests via monkeypatch,
+    # variables Docker Compose en prod).
+    load_dotenv(override=False)
+    monitoring_config = load_config()
+    monitoring_engine = create_monitoring_engine(monitoring_config)
+    MonitoringBase.metadata.create_all(monitoring_engine)
+    runtime.monitoring_session_factory = create_session_factory(monitoring_engine)
+    runtime.monitoring_api_version = API_VERSION
+    runtime.monitoring_environment = monitoring_config.environment
+
+    try:
+        yield
+    finally:
+        monitoring_engine.dispose()
+        runtime.monitoring_session_factory = None
+        runtime.monitoring_api_version = None
+        runtime.monitoring_environment = None
 
 
 app = FastAPI(
@@ -72,6 +104,11 @@ app.include_router(recommend_router)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(ModelUnavailableError, model_unavailable_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
+
+# Middleware de persistance : voit les 422 Pydantic générées par les handlers
+# ci-dessus et toutes les réponses métier. Placé après les handlers pour que
+# les 422/503/500 traversent bien le middleware avant de repartir au client.
+app.add_middleware(RequestLoggerMiddleware)
 
 
 @app.get("/health")
