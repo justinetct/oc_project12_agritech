@@ -64,7 +64,7 @@ def test_post_predict_success_persists_full_row():
     assert row.status_code == 200
     assert row.success is True
     assert row.duration_ms > 0
-    assert row.api_version == "0.1.0"
+    assert row.api_version == "1.0.0"
     assert row.model_version == "1.0.0"
     assert row.environment == "test"
     assert row.request_payload == VALID_PREDICT_PAYLOAD

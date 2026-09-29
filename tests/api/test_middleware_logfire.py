@@ -104,7 +104,7 @@ def test_persisted_event_is_emitted_after_successful_insert(
     assert attrs["status_code"] == 200
     assert attrs["success"] is True
     assert attrs["duration_ms"] > 0
-    assert attrs["api_version"] == "0.1.0"
+    assert attrs["api_version"] == "1.0.0"
     assert attrs["model_version"] == "1.0.0"
     assert attrs["environment"] == "test"
 
