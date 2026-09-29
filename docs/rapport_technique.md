@@ -16,6 +16,7 @@
 - [B. Glossaire](#b-glossaire)
 - [C. Tuning `/predict`](#c-tuning-predict)
 - [D. Tuning `/recommend`](#d-tuning-recommend)
+- [E. Schéma du monitoring SQLite](#e-schéma-du-monitoring-sqlite)
 
 ## 1. Contexte et données
 
@@ -596,7 +597,10 @@ sauvegarde du service `/predict`, la suite comptait 50 tests (schémas Pydantic,
 modèle, endpoints, handlers d'erreur) et la couverture de branche était de 99 % sur les modules
 qui servent `/predict`. Après l'implémentation de `/recommend` (schémas, serving, router HTTP),
 la suite passe à **137 tests** et la couverture globale reste à **98 %** sur `agritech.api` et
-`agritech.serving`. Un test manuel via Swagger sur `/docs` complète la vérification automatisée.
+`agritech.serving`. L'ajout de la couche d'observabilité (SQLite, Logfire, replay CLI) porte la
+suite à **235 tests** avec une couverture de branche de **95 %** sur `agritech.api`,
+`agritech.serving`, `agritech.monitoring` et `agritech.observability`. Un test manuel via Swagger
+sur `/docs` complète la vérification automatisée.
 
 Pour tester l'API en local :
 
@@ -614,20 +618,44 @@ curl -X POST http://127.0.0.1:8000/recommend -H "Content-Type: application/json"
 
 La documentation interactive est disponible sur `/docs`.
 
-### 5.6 Observabilité (prévue, non implémentée à ce stade)
+### 5.6 Observabilité
 
-Un suivi de chaque appel `/predict` et `/recommend` est prévu dans une étape ultérieure :
-persistance dans une base **SQLite** unique en mode WAL, avec une table commune (`api_requests`)
-portant la date, le service appelé, la latence, le code HTTP, la version du modèle, le payload de
-requête et la réponse, ainsi que les erreurs. Les traces détaillées (spans, exceptions internes)
-seront envoyées de façon optionnelle à **Pydantic Logfire**. Un script en ligne de commande
-permettra de rejouer une requête archivée. Aucune de ces briques n'est active dans la version
-actuelle de l'API : elles seront livrées par la tâche dédiée à l'observabilité, qui suit
-l'implémentation des deux services.
+Une fois `/predict` et `/recommend` en service, on veut savoir quels appels arrivent, s'ils
+réussissent ou échouent, et pouvoir vérifier plus tard qu'une prédiction faite hier reste
+cohérente avec le modèle disponible aujourd'hui. Cette couche s'ajoute sans changer le contrat
+HTTP, et une panne d'observabilité ne fait jamais échouer une prédiction valide.
+
+**SQLite — l'historique persistant.** Chaque `POST /predict` et `POST /recommend` est archivé
+dans une table `api_requests` : payloads, statut, durée, versions API et modèle, trace ID
+Logfire. Les endpoints techniques ne sont pas persistés, aucun en-tête ni IP n'est capturé. Le
+schéma détaillé de la table est en [annexe E](#e-schéma-du-monitoring-sqlite).
+
+**Logfire — l'observabilité externe optionnelle.** Configurée uniquement si `LOGFIRE_TOKEN` est
+présent ; sinon aucun envoi réseau. Chaque appel observé apparaît comme un span nommé d'après la
+route, avec requête et réponse en attributs — y compris `GET /health`, tracé côté Logfire mais
+jamais persisté en SQLite. Les 4xx ressortent en warning, les 5xx en error. La corrélation avec
+SQLite passe par un `trace_id` commun.
+
+![Capture Logfire de la timeline des appels API et du détail d'un POST /predict](assets/figures/16_observability_logfire.png)
+
+_La timeline Logfire permet de distinguer immédiatement les appels réussis (200) des erreurs de
+validation (422). Le panneau de détail donne accès à la requête, à la réponse et au statut de
+l'appel._
+
+**CLI de rejeu.** Le module `agritech.monitoring.replay` reprend une ligne archivée et invoque
+directement `agritech.serving` avec le modèle actuellement disponible :
+
+    poetry run python -m agritech.monitoring.replay 42
+    poetry run python -m agritech.monitoring.replay --failed --since 2026-09-29
+
+Il affiche la requête, la réponse archivée, la réponse actuelle et un diff JSON. Le dépôt ne
+conserve qu'un artefact par service : si `model_version` a changé depuis l'appel archivé, un
+WARNING est affiché et le replay ne constitue pas une reproduction stricte.
 
 ### 5.7 Reste à faire
 
-- **containerisation Docker** de l'API complète.
+- **containerisation Docker** de l'API complète, avec volume nommé `agritech_monitoring` sur
+  `/app/data/monitoring/` pour que la base SQLite survive aux redémarrages.
 
 ## Annexes
 
@@ -780,6 +808,35 @@ Une recherche à deux critères, RMSE et taille, a aussi fait varier la structur
   meilleur modèle de la recherche ajoutait `max_depth=35` pour une RMSE de 1,4347 contre 1,4349 : un gain de 0,0002 t/ha, négligeable.
 
 Le modèle retenu (150 arbres) est sauvegardé en lzma (44,7 Mo) au lieu de zlib (60,8 Mo), pour passer sous la recommandation de 50 Mo par fichier de GitHub.
+
+### E. Schéma du monitoring SQLite
+
+Table `api_requests` : une ligne par appel `POST /predict` ou `/recommend`. Elle conserve les
+informations nécessaires au suivi, au diagnostic et au rejeu des requêtes.
+
+| Colonne | Type SQLAlchemy | Nullable | Rôle |
+|---|---|---|---|
+| `id` | `Integer` (PK, autoincrement) | non | identifiant auto |
+| `timestamp` | `UtcDateTime` (`DateTime(timezone=True)` normalisé UTC) | non | date/heure de la requête |
+| `service` | `String(20)` | non | `predict` ou `recommend` |
+| `endpoint` | `String(255)` | non | chemin HTTP appelé |
+| `method` | `String(10)` | non | méthode HTTP (`POST`) |
+| `status_code` | `Integer` | non | code HTTP renvoyé au client |
+| `success` | `Boolean` | non | `True` si `status_code < 400` |
+| `duration_ms` | `Integer` | non | durée en millisecondes (≥ 1) |
+| `api_version` | `String(20)` | non | version de l'API au moment de la requête |
+| `model_version` | `String(20)` | oui | version du bundle chargé ; `NULL` si aucun modèle |
+| `request_payload` | `JSON` | non | corps de la requête tel que reçu |
+| `response_payload` | `JSON` | oui | corps de la réponse tel que renvoyé |
+| `error_type` | `String(50)` | oui | code d'erreur unifié — `NULL` en succès |
+| `error_message` | `Text` | oui | message d'erreur tronqué à 2 000 caractères |
+| `logfire_trace_id` | `String(32)` | oui | trace_id OTel hex ; `NULL` si Logfire désactivé |
+| `environment` | `String(20)` | non | environnement d'exécution (`local`, `prod`, …) |
+
+Deux index couvrent les seuls accès attendus :
+
+- `(service, timestamp)` — lister les appels d'un service par ordre chronologique ;
+- `(success, timestamp)` — retrouver les erreurs récentes, utilisé par le mode replay batch.
 
 ---
 

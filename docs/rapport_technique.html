@@ -1150,7 +1150,10 @@
       modèle, endpoints, handlers d'erreur) et la couverture de branche était de 99 % sur les modules
       qui servent <code>/predict</code>. Après l'implémentation de <code>/recommend</code> (schémas, serving, router HTTP),
       la suite passe à <strong>137 tests</strong> et la couverture globale reste à <strong>98 %</strong> sur <code>agritech.api</code> et
-      <code>agritech.serving</code>. Un test manuel via Swagger sur <code>/docs</code> complète la vérification automatisée.</p>
+      <code>agritech.serving</code>. L'ajout de la couche d'observabilité (SQLite, Logfire, replay CLI) porte la
+      suite à <strong>235 tests</strong> avec une couverture de branche de <strong>95 %</strong> sur <code>agritech.api</code>,
+      <code>agritech.serving</code>, <code>agritech.monitoring</code> et <code>agritech.observability</code>. Un test manuel via Swagger
+      sur <code>/docs</code> complète la vérification automatisée.</p>
       <p>Pour tester l'API en local :</p>
       <pre><code class="language-bash"># Lancer l'API
 poetry run uvicorn agritech.api.main:app --reload
@@ -1163,18 +1166,36 @@ curl -X POST http://127.0.0.1:8000/recommend -H &quot;Content-Type: application/
   -d '{&quot;iso3&quot;:&quot;FRA&quot;}'
 </code></pre>
       <p>La documentation interactive est disponible sur <code>/docs</code>.</p>
-      <h3 id="56-observabilité-prévue-non-implémentée-à-ce-stade">5.6 Observabilité (prévue, non implémentée à ce stade)</h3>
-      <p>Un suivi de chaque appel <code>/predict</code> et <code>/recommend</code> est prévu dans une étape ultérieure :
-      persistance dans une base <strong>SQLite</strong> unique en mode WAL, avec une table commune (<code>api_requests</code>)
-      portant la date, le service appelé, la latence, le code HTTP, la version du modèle, le payload de
-      requête et la réponse, ainsi que les erreurs. Les traces détaillées (spans, exceptions internes)
-      seront envoyées de façon optionnelle à <strong>Pydantic Logfire</strong>. Un script en ligne de commande
-      permettra de rejouer une requête archivée. Aucune de ces briques n'est active dans la version
-      actuelle de l'API : elles seront livrées par la tâche dédiée à l'observabilité, qui suit
-      l'implémentation des deux services.</p>
+      <h3 id="56-observabilité">5.6 Observabilité</h3>
+      <p>Une fois <code>/predict</code> et <code>/recommend</code> en service, on veut savoir quels appels arrivent, s'ils
+      réussissent ou échouent, et pouvoir vérifier plus tard qu'une prédiction faite hier reste
+      cohérente avec le modèle disponible aujourd'hui. Cette couche s'ajoute sans changer le contrat
+      HTTP, et une panne d'observabilité ne fait jamais échouer une prédiction valide.</p>
+      <p><strong>SQLite — l'historique persistant.</strong> Chaque <code>POST /predict</code> et <code>POST /recommend</code> est archivé
+      dans une table <code>api_requests</code> : payloads, statut, durée, versions API et modèle, trace ID
+      Logfire. Les endpoints techniques ne sont pas persistés, aucun en-tête ni IP n'est capturé. Le
+      schéma détaillé de la table est en <a href="#e-schéma-du-monitoring-sqlite">annexe E</a>.</p>
+      <p><strong>Logfire — l'observabilité externe optionnelle.</strong> Configurée uniquement si <code>LOGFIRE_TOKEN</code> est
+      présent ; sinon aucun envoi réseau. Chaque appel observé apparaît comme un span nommé d'après la
+      route, avec requête et réponse en attributs — y compris <code>GET /health</code>, tracé côté Logfire mais
+      jamais persisté en SQLite. Les 4xx ressortent en warning, les 5xx en error. La corrélation avec
+      SQLite passe par un <code>trace_id</code> commun.</p>
+      <figure><img width="4944" height="2310" alt="Capture Logfire de la timeline des appels API et du détail d'un POST /predict" src="assets/figures/16_observability_logfire.png" /><figcaption>Capture Logfire de la timeline des appels API et du détail d'un POST /predict</figcaption></figure>
+      <p><em>La timeline Logfire permet de distinguer immédiatement les appels réussis (200) des erreurs de
+      validation (422). Le panneau de détail donne accès à la requête, à la réponse et au statut de
+      l'appel.</em></p>
+      <p><strong>CLI de rejeu.</strong> Le module <code>agritech.monitoring.replay</code> reprend une ligne archivée et invoque
+      directement <code>agritech.serving</code> avec le modèle actuellement disponible :</p>
+      <pre><code>poetry run python -m agritech.monitoring.replay 42
+poetry run python -m agritech.monitoring.replay --failed --since 2026-09-29
+</code></pre>
+      <p>Il affiche la requête, la réponse archivée, la réponse actuelle et un diff JSON. Le dépôt ne
+      conserve qu'un artefact par service : si <code>model_version</code> a changé depuis l'appel archivé, un
+      WARNING est affiché et le replay ne constitue pas une reproduction stricte.</p>
       <h3 id="57-reste-à-faire">5.7 Reste à faire</h3>
       <ul>
-      <li><strong>containerisation Docker</strong> de l'API complète.</li>
+      <li><strong>containerisation Docker</strong> de l'API complète, avec volume nommé <code>agritech_monitoring</code> sur
+        <code>/app/data/monitoring/</code> pour que la base SQLite survive aux redémarrages.</li>
       </ul>
       <h2 id="annexes">Annexes</h2>
       <h3 id="a-limites-et-précautions">A. Limites et précautions</h3>
@@ -1517,6 +1538,122 @@ curl -X POST http://127.0.0.1:8000/recommend -H &quot;Content-Type: application/
         meilleur modèle de la recherche ajoutait <code>max_depth=35</code> pour une RMSE de 1,4347 contre 1,4349 : un gain de 0,0002 t/ha, négligeable.</li>
       </ul>
       <p>Le modèle retenu (150 arbres) est sauvegardé en lzma (44,7 Mo) au lieu de zlib (60,8 Mo), pour passer sous la recommandation de 50 Mo par fichier de GitHub.</p>
+      <h3 id="e-schéma-du-monitoring-sqlite">E. Schéma du monitoring SQLite</h3>
+      <p>Table <code>api_requests</code> : une ligne par appel <code>POST /predict</code> ou <code>/recommend</code>. Elle conserve les
+      informations nécessaires au suivi, au diagnostic et au rejeu des requêtes.</p>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Colonne</th>
+      <th>Type SQLAlchemy</th>
+      <th>Nullable</th>
+      <th>Rôle</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td><code>id</code></td>
+      <td><code>Integer</code> (PK, autoincrement)</td>
+      <td>non</td>
+      <td>identifiant auto</td>
+      </tr>
+      <tr>
+      <td><code>timestamp</code></td>
+      <td><code>UtcDateTime</code> (<code>DateTime(timezone=True)</code> normalisé UTC)</td>
+      <td>non</td>
+      <td>date/heure de la requête</td>
+      </tr>
+      <tr>
+      <td><code>service</code></td>
+      <td><code>String(20)</code></td>
+      <td>non</td>
+      <td><code>predict</code> ou <code>recommend</code></td>
+      </tr>
+      <tr>
+      <td><code>endpoint</code></td>
+      <td><code>String(255)</code></td>
+      <td>non</td>
+      <td>chemin HTTP appelé</td>
+      </tr>
+      <tr>
+      <td><code>method</code></td>
+      <td><code>String(10)</code></td>
+      <td>non</td>
+      <td>méthode HTTP (<code>POST</code>)</td>
+      </tr>
+      <tr>
+      <td><code>status_code</code></td>
+      <td><code>Integer</code></td>
+      <td>non</td>
+      <td>code HTTP renvoyé au client</td>
+      </tr>
+      <tr>
+      <td><code>success</code></td>
+      <td><code>Boolean</code></td>
+      <td>non</td>
+      <td><code>True</code> si <code>status_code &lt; 400</code></td>
+      </tr>
+      <tr>
+      <td><code>duration_ms</code></td>
+      <td><code>Integer</code></td>
+      <td>non</td>
+      <td>durée en millisecondes (≥ 1)</td>
+      </tr>
+      <tr>
+      <td><code>api_version</code></td>
+      <td><code>String(20)</code></td>
+      <td>non</td>
+      <td>version de l'API au moment de la requête</td>
+      </tr>
+      <tr>
+      <td><code>model_version</code></td>
+      <td><code>String(20)</code></td>
+      <td>oui</td>
+      <td>version du bundle chargé ; <code>NULL</code> si aucun modèle</td>
+      </tr>
+      <tr>
+      <td><code>request_payload</code></td>
+      <td><code>JSON</code></td>
+      <td>non</td>
+      <td>corps de la requête tel que reçu</td>
+      </tr>
+      <tr>
+      <td><code>response_payload</code></td>
+      <td><code>JSON</code></td>
+      <td>oui</td>
+      <td>corps de la réponse tel que renvoyé</td>
+      </tr>
+      <tr>
+      <td><code>error_type</code></td>
+      <td><code>String(50)</code></td>
+      <td>oui</td>
+      <td>code d'erreur unifié — <code>NULL</code> en succès</td>
+      </tr>
+      <tr>
+      <td><code>error_message</code></td>
+      <td><code>Text</code></td>
+      <td>oui</td>
+      <td>message d'erreur tronqué à 2 000 caractères</td>
+      </tr>
+      <tr>
+      <td><code>logfire_trace_id</code></td>
+      <td><code>String(32)</code></td>
+      <td>oui</td>
+      <td>trace_id OTel hex ; <code>NULL</code> si Logfire désactivé</td>
+      </tr>
+      <tr>
+      <td><code>environment</code></td>
+      <td><code>String(20)</code></td>
+      <td>non</td>
+      <td>environnement d'exécution (<code>local</code>, <code>prod</code>, …)</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <p>Deux index couvrent les seuls accès attendus :</p>
+      <ul>
+      <li><code>(service, timestamp)</code> — lister les appels d'un service par ordre chronologique ;</li>
+      <li><code>(success, timestamp)</code> — retrouver les erreurs récentes, utilisé par le mode replay batch.</li>
+      </ul>
       <hr />
       <p><em>Les analyses, le code et les notebooks sont disponibles dans le dépôt du projet.</em></p>
     </main>

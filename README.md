@@ -40,6 +40,33 @@ Elle peut être lancée localement avec :
 poetry run uvicorn agritech.api.main:app --reload
 ```
 
+### Observabilité
+
+Chaque appel des endpoints métier est archivé et tracé sans changer le contrat HTTP. Une panne
+de la couche d'observabilité ne fait jamais échouer une prédiction valide.
+
+- **SQLite — historique persistant.** Chaque `POST /predict` et `POST /recommend` est archivé
+  dans une table `api_requests` : payloads, statut, durée, versions API et modèle, trace ID
+  Logfire. Les endpoints techniques (`/health`, `*/schema`, `/docs`) ne sont pas persistés ;
+  aucun en-tête ni IP n'est capturé. Base par défaut :
+  `sqlite:///data/monitoring/api.sqlite`, configurable via `DATABASE_URL`. Schéma détaillé de la
+  table : voir [annexe E du rapport technique](docs/rapport_technique.md#e-schéma-du-monitoring-sqlite).
+- **Logfire — observabilité externe optionnelle.** Configurée uniquement si `LOGFIRE_TOKEN` est
+  présent ; sinon aucun envoi réseau. Chaque appel observé apparaît comme un span nommé d'après
+  la route (y compris `GET /health`, tracé mais jamais persisté). Non bloquant : une erreur de
+  Logfire ne fait pas échouer une prédiction.
+- **Replay CLI.** Rejoue un appel archivé avec le modèle actuellement disponible et affiche un
+  diff JSON.
+
+  ```bash
+  poetry run python -m agritech.monitoring.replay <id>
+  poetry run python -m agritech.monitoring.replay --failed --since YYYY-MM-DD
+  ```
+
+  Si `model_version` archivée diffère de la version actuelle, un WARNING explicite est affiché :
+  le dépôt ne conserve qu'un artefact par service, donc le replay n'est pas une reproduction
+  stricte.
+
 ## Données
 
 Deux jeux de données sont utilisés :
@@ -119,12 +146,16 @@ cp .env.example .env   # facultatif
 │   ├── agriculture-crop-yield/      # dataset parcelle
 │   ├── crop-yield-prediction/       # sources historiques
 │   ├── geo/                         # données géographiques
+│   ├── monitoring/                  # base SQLite des appels API (non versionné)
 │   └── processed/                   # datasets générés, non versionnés
 ├── docs/                            # rapport (Markdown, HTML publié, figures)
 ├── models/                          # modèles finaux versionnés et leurs métadonnées
 ├── notebooks/                       # analyses, préparation des données et modélisation
 ├── scripts/                         # génération du rapport HTML
 ├── src/agritech/                    # code réutilisable
+│   ├── api/                         # FastAPI, routers, schémas, middleware
+│   ├── monitoring/                  # SQLite (config, modèle, session, repository, replay CLI)
+│   └── observability/               # configuration Logfire optionnelle
 ├── pyproject.toml
 └── README.md
 ```
