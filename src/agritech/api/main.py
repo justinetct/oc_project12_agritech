@@ -38,6 +38,7 @@ from agritech.monitoring.session import (
     create_monitoring_engine,
     create_session_factory,
 )
+from agritech.observability.logfire_setup import configure_logfire
 from agritech.serving import load_bundle, load_recommend_context
 
 
@@ -74,6 +75,11 @@ async def lifespan(app: FastAPI):
     runtime.monitoring_session_factory = create_session_factory(monitoring_engine)
     runtime.monitoring_api_version = API_VERSION
     runtime.monitoring_environment = monitoring_config.environment
+
+    # Logfire est strictement optionnel : sans token dans `MonitoringConfig`,
+    # cet appel est un no-op silencieux. Une erreur d'initialisation est
+    # loggée en `warning` et n'empêche pas l'API de démarrer.
+    configure_logfire(monitoring_config)
 
     try:
         yield

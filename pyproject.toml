@@ -46,10 +46,10 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=agritech.api --cov=agritech.serving --cov=agritech.monitoring --cov-report=term-missing"
+addopts = "--cov=agritech.api --cov=agritech.serving --cov=agritech.monitoring --cov=agritech.observability --cov-report=term-missing"
 
 [tool.coverage.run]
-source = ["agritech.api", "agritech.serving", "agritech.monitoring"]
+source = ["agritech.api", "agritech.serving", "agritech.monitoring", "agritech.observability"]
 branch = true
 
 [tool.coverage.report]
