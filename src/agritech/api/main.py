@@ -7,15 +7,14 @@ Ce module expose :
 - l'endpoint `GET /health` qui confirme que l'API répond et renseigne l'état
   du modèle chargé.
 
-La version de l'API est lue une seule fois depuis le paquet installé
-(`agritech-answers`) via `importlib.metadata` : la source de vérité reste
-`pyproject.toml`. La version du modèle est lue depuis `bundle.metadata`.
+La version de l'API est déclarée en dur ci-dessous. Elle doit être maintenue
+alignée avec `[project] version` de `pyproject.toml` lors d'un bump. La
+version du modèle est lue depuis `bundle.metadata`.
 """
 
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from importlib.metadata import version as _package_version
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -42,7 +41,7 @@ from agritech.observability.logfire_setup import configure_logfire
 from agritech.serving import load_bundle, load_recommend_context
 
 
-API_VERSION = _package_version("agritech-answers")
+API_VERSION = "1.0.0"
 
 
 @asynccontextmanager
