@@ -1035,7 +1035,7 @@
       contrats d'entrée et de sortie. Les modèles sont chargés au démarrage de l'application ; la
       couche HTTP reste séparée de la logique de prédiction et partage le même fonctionnement entre
       les deux services. FastAPI génère la documentation <strong>OpenAPI/Swagger</strong> de l'API.</p>
-      <h3 id="51-predict--implémentation-actuelle">5.1 <code>/predict</code> — implémentation actuelle</h3>
+      <h3 id="predict--implémentation-actuelle"><code>/predict</code> — implémentation actuelle</h3>
       <p>Trois endpoints sont disponibles :</p>
       <ul>
       <li><strong><code>GET /health</code></strong> : état du service (version de l'API, présence du modèle, version du modèle) ;</li>
@@ -1050,7 +1050,7 @@
       <p>Le champ <code>crop</code> reste une information affichée par l'application à côté du résultat, mais n'est pas
       envoyé au modèle : le chapitre 3 a montré que la culture n'apporte pas de gain mesurable au modèle
       <code>/predict</code>.</p>
-      <h3 id="52-recommend">5.2 <code>/recommend</code></h3>
+      <h3 id="recommend"><code>/recommend</code></h3>
       <p>Deux endpoints exposent le classement des cultures :</p>
       <ul>
       <li><strong><code>GET /recommend/schema</code></strong> : liste des pays servis, cultures modélisées, bornes physiques
@@ -1081,7 +1081,7 @@
       côte à côte les valeurs préremplies du pays (<code>context.country_defaults</code>) et les valeurs
       effectivement utilisées (<code>context.effective_conditions</code>), sans logique métier à refaire côté
       client.</p>
-      <h3 id="53-validation-et-signalement">5.3 Validation et signalement</h3>
+      <h3 id="validation-et-signalement">Validation et signalement</h3>
       <p>Deux notions distinctes.</p>
       <p><strong>Bornes physiques</strong> — portées par Pydantic. Un champ hors bornes, de type incorrect, ou un
       champ inconnu au niveau du corps provoque une réponse <strong>422</strong>.</p>
@@ -1127,7 +1127,7 @@
       </table></div>
       <p>Les pesticides sont stockés en interne sous forme <code>log1p(tonnes)</code> et exposés en tonnes après
       conversion <code>expm1</code>.</p>
-      <h3 id="54-erreurs-unifiées">5.4 Erreurs unifiées</h3>
+      <h3 id="erreurs-unifiées">Erreurs unifiées</h3>
       <p>Les trois catégories d'erreur partagent le même contrat <code>ErrorResponse</code> (<code>error</code>, <code>message</code>,
       <code>details</code>) :</p>
       <ul>
@@ -1140,7 +1140,7 @@
         les chemins de fichiers ne sont jamais retournés au client ; ils sont loggés côté serveur pour
         diagnostic.</li>
       </ul>
-      <h3 id="55-documentation-openapi-et-test-local">5.5 Documentation OpenAPI et test local</h3>
+      <h3 id="documentation-openapi-et-test-local">Documentation OpenAPI et test local</h3>
       <p>FastAPI produit automatiquement la spécification OpenAPI à partir des schémas Pydantic et des
       signatures des endpoints. La documentation interactive est servie sur <code>/docs</code> (Swagger UI) et la
       définition brute sur <code>/openapi.json</code> ; chaque endpoint documente ses codes de réponse et le schéma
@@ -1191,7 +1191,7 @@ make predict
 make recommend
 </code></pre>
       <p>La documentation interactive est disponible sur <code>/docs</code>.</p>
-      <h3 id="56-observabilité">5.6 Observabilité</h3>
+      <h3 id="observabilité">Observabilité</h3>
       <p>Une fois <code>/predict</code> et <code>/recommend</code> en service, on veut savoir quels appels arrivent, s'ils
       réussissent ou échouent, et pouvoir vérifier plus tard qu'une prédiction faite hier reste
       cohérente avec le modèle disponible aujourd'hui. Cette couche s'ajoute sans changer le contrat
@@ -1217,11 +1217,47 @@ poetry run python -m agritech.monitoring.replay --failed --since 2026-09-29
       <p>Il affiche la requête, la réponse archivée, la réponse actuelle et un diff JSON. Le dépôt ne
       conserve qu'un artefact par service : si <code>model_version</code> a changé depuis l'appel archivé, un
       WARNING est affiché et le replay ne constitue pas une reproduction stricte.</p>
-      <h3 id="57-reste-à-faire">5.7 Reste à faire</h3>
-      <ul>
-      <li><strong>containerisation Docker</strong> de l'API complète, avec volume nommé <code>agritech_monitoring</code> sur
-        <code>/app/data/monitoring/</code> pour que la base SQLite survive aux redémarrages.</li>
-      </ul>
+      <h3 id="containerisation-docker">Containerisation Docker</h3>
+      <p>L'API est packagée dans une image Docker pour la rendre portable et reproductible. L'image
+      ne contient que le nécessaire au runtime : le code du service et les artefacts modèles. Les
+      données d'observabilité (base SQLite <code>api.sqlite</code>) vivent dans un volume Docker nommé
+      <code>agritech_monitoring</code> qui survit aux recréations du conteneur.</p>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Variable</th>
+      <th>Valeur Compose</th>
+      <th>Rôle</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td><code>DATABASE_URL</code></td>
+      <td><code>sqlite:////app/data/monitoring/api.sqlite</code></td>
+      <td>Base SQLite d'observabilité</td>
+      </tr>
+      <tr>
+      <td><code>ENVIRONMENT</code></td>
+      <td><code>prod</code></td>
+      <td>Persistée dans <code>api_requests.environment</code></td>
+      </tr>
+      <tr>
+      <td><code>LOGFIRE_ENVIRONMENT</code></td>
+      <td><code>prod</code></td>
+      <td>Contexte Logfire</td>
+      </tr>
+      <tr>
+      <td><code>LOGFIRE_SERVICE_NAME</code></td>
+      <td><code>agritech-answers-api</code></td>
+      <td>Nom de service Logfire</td>
+      </tr>
+      <tr>
+      <td><code>LOGFIRE_TOKEN</code></td>
+      <td><em>optionnel</em></td>
+      <td>Sans token, mode silencieux, aucun envoi réseau</td>
+      </tr>
+      </tbody>
+      </table></div>
       <h2 id="annexes">Annexes</h2>
       <h3 id="a-limites-et-précautions">A. Limites et précautions</h3>
       <h4 id="a1-predict--limites-des-données">A.1 <code>/predict</code> — limites des données</h4>

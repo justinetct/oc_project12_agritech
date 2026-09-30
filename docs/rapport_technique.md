@@ -499,7 +499,7 @@ contrats d'entrée et de sortie. Les modèles sont chargés au démarrage de l'a
 couche HTTP reste séparée de la logique de prédiction et partage le même fonctionnement entre
 les deux services. FastAPI génère la documentation **OpenAPI/Swagger** de l'API.
 
-### 5.1 `/predict` — implémentation actuelle
+### `/predict` — implémentation actuelle
 
 Trois endpoints sont disponibles :
 
@@ -516,7 +516,7 @@ Le champ `crop` reste une information affichée par l'application à côté du r
 envoyé au modèle : le chapitre 3 a montré que la culture n'apporte pas de gain mesurable au modèle
 `/predict`.
 
-### 5.2 `/recommend`
+### `/recommend`
 
 Deux endpoints exposent le classement des cultures :
 
@@ -546,7 +546,7 @@ côte à côte les valeurs préremplies du pays (`context.country_defaults`) et 
 effectivement utilisées (`context.effective_conditions`), sans logique métier à refaire côté
 client.
 
-### 5.3 Validation et signalement
+### Validation et signalement
 
 Deux notions distinctes.
 
@@ -571,7 +571,7 @@ avec `out_of_training_domain=true` et une note par variable, sous la forme
 Les pesticides sont stockés en interne sous forme `log1p(tonnes)` et exposés en tonnes après
 conversion `expm1`.
 
-### 5.4 Erreurs unifiées
+### Erreurs unifiées
 
 Les trois catégories d'erreur partagent le même contrat `ErrorResponse` (`error`, `message`,
 `details`) :
@@ -585,7 +585,7 @@ Les trois catégories d'erreur partagent le même contrat `ErrorResponse` (`erro
   les chemins de fichiers ne sont jamais retournés au client ; ils sont loggés côté serveur pour
   diagnostic.
 
-### 5.5 Documentation OpenAPI et test local
+### Documentation OpenAPI et test local
 
 FastAPI produit automatiquement la spécification OpenAPI à partir des schémas Pydantic et des
 signatures des endpoints. La documentation interactive est servie sur `/docs` (Swagger UI) et la
@@ -619,7 +619,7 @@ make recommend
 
 La documentation interactive est disponible sur `/docs`.
 
-### 5.6 Observabilité
+### Observabilité
 
 Une fois `/predict` et `/recommend` en service, on veut savoir quels appels arrivent, s'ils
 réussissent ou échouent, et pouvoir vérifier plus tard qu'une prédiction faite hier reste
@@ -653,10 +653,20 @@ Il affiche la requête, la réponse archivée, la réponse actuelle et un diff J
 conserve qu'un artefact par service : si `model_version` a changé depuis l'appel archivé, un
 WARNING est affiché et le replay ne constitue pas une reproduction stricte.
 
-### 5.7 Reste à faire
+### Containerisation Docker
 
-- **containerisation Docker** de l'API complète, avec volume nommé `agritech_monitoring` sur
-  `/app/data/monitoring/` pour que la base SQLite survive aux redémarrages.
+L'API est packagée dans une image Docker pour la rendre portable et reproductible. L'image
+ne contient que le nécessaire au runtime : le code du service et les artefacts modèles. Les
+données d'observabilité (base SQLite `api.sqlite`) vivent dans un volume Docker nommé
+`agritech_monitoring` qui survit aux recréations du conteneur.
+
+| Variable | Valeur Compose | Rôle |
+|---|---|---|
+| `DATABASE_URL` | `sqlite:////app/data/monitoring/api.sqlite` | Base SQLite d'observabilité |
+| `ENVIRONMENT` | `prod` | Persistée dans `api_requests.environment` |
+| `LOGFIRE_ENVIRONMENT` | `prod` | Contexte Logfire |
+| `LOGFIRE_SERVICE_NAME` | `agritech-answers-api` | Nom de service Logfire |
+| `LOGFIRE_TOKEN` | *optionnel* | Sans token, mode silencieux, aucun envoi réseau |
 
 ## Annexes
 

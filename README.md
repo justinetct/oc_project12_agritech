@@ -158,13 +158,51 @@ Durée observée d'environ **5,8 s** sur la machine de développement (mesure lo
 Un `Makefile` fournit des raccourcis pour les commandes courantes :
 
 - `make test` : lance la suite `pytest` complète ;
-- `make test-durations` : lance `pytest --durations=20` pour identifier les tests les plus lents ;
 - `make api` : démarre l'API locale avec `uvicorn --reload` sur `http://127.0.0.1:8000` ;
 - `make health` : appelle `GET /health` ;
 - `make predict` : envoie un exemple valide à `POST /predict` ;
-- `make recommend` : envoie un exemple valide à `POST /recommend`.
+- `make recommend` : envoie un exemple valide à `POST /recommend` ;
+- `make docker-down` : arrête et supprime le conteneur (le volume `agritech_monitoring` est conservé) ;
+- `make docker-demo` : construit l'image, démarre l'API, attend `/health`, ouvre Swagger et suit les logs en live.
 
 Les cibles `health`, `predict` et `recommend` supposent que l'API locale tourne, par exemple via `make api`.
+
+## Docker
+
+L'API tourne dans une image Python 3.12 slim orchestrée par Docker Compose. Un volume nommé
+`agritech_monitoring` conserve la base SQLite d'observabilité entre les recréations du conteneur.
+
+### Démarrage rapide
+
+```bash
+make docker-demo
+```
+
+La commande construit l'image, démarre le service, attend que `/health` réponde
+(timeout ~30 s), ouvre Swagger sur `http://127.0.0.1:8000/docs` puis affiche les logs en live.
+`Ctrl+C` interrompt les logs sans arrêter l'API.
+
+### Arrêt
+
+```bash
+make docker-down
+```
+
+Cette commande supprime uniquement le conteneur. **Ne jamais utiliser `docker compose down -v`** :
+cela détruirait le volume `agritech_monitoring` et l'historique SQLite.
+
+### Configuration
+
+| Variable | Valeur Compose | Rôle |
+|---|---|---|
+| `DATABASE_URL` | `sqlite:////app/data/monitoring/api.sqlite` | Base SQLite d'observabilité |
+| `ENVIRONMENT` | `prod` | Persistée dans `api_requests.environment` |
+| `LOGFIRE_ENVIRONMENT` | `prod` | Contexte Logfire (si activé) |
+| `LOGFIRE_SERVICE_NAME` | `agritech-answers-api` | Nom de service Logfire |
+| `LOGFIRE_TOKEN` | *optionnel* | Si vide, aucun envoi réseau (mode local silencieux) |
+
+Les dépendances runtime de l'image sont exportées depuis Poetry vers `requirements.txt` via
+`poetry export --only main,api --without-hashes`.
 
 ## Structure du dépôt
 
@@ -184,14 +222,18 @@ Les cibles `health`, `predict` et `recommend` supposent que l'API locale tourne,
 │   ├── api/                         # FastAPI, routers, schémas, middleware
 │   ├── monitoring/                  # SQLite (config, modèle, session, repository, replay CLI)
 │   └── observability/               # configuration Logfire optionnelle
+├── .dockerignore                    # exclusions du contexte de build Docker
+├── Dockerfile                       # image Python 3.12 slim de l'API
+├── docker-compose.yml               # orchestration locale du service API
 ├── pyproject.toml
+├── requirements.txt                 # dépendances runtime exportées depuis Poetry
 └── README.md
 ```
 
 
 ## État actuel
 
-L’exploration, l’ACP, le nettoyage des données historiques, la construction des datasets et la modélisation des deux services, `/predict` et `/recommend`, évaluations finales et sauvegarde des modèles comprises, sont terminés. Le socle FastAPI et les deux APIs `/predict` et `/recommend` sont implémentés et testés.
+L’exploration, l’ACP, le nettoyage des données historiques, la construction des datasets et la modélisation des deux services, `/predict` et `/recommend`, évaluations finales et sauvegarde des modèles comprises, sont terminés. Le socle FastAPI et les deux APIs `/predict` et `/recommend` sont implémentés et testés. L'API est containerisée avec Docker Compose et l'exécution locale est validée (`make docker-demo`).
 
 Datasets préparés :
 
