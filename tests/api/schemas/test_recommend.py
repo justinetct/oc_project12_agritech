@@ -22,6 +22,7 @@ from agritech.api.schemas.recommend import (
     RecommendContextResponse,
     RecommendRequest,
     RecommendResponse,
+    SelectedCountry,
 )
 
 
@@ -416,7 +417,7 @@ def _valid_context_payload(crops_count: int = 10) -> dict:
 
 
 def test_context_response_serializes_expected_keys():
-    """`RecommendContextResponse` : les 6 clés attendues."""
+    """`RecommendContextResponse` : les 7 clés attendues, `country` optionnel."""
     schema = RecommendContextResponse(**_valid_context_payload())
     assert set(schema.model_dump()) == {
         "year",
@@ -425,7 +426,20 @@ def test_context_response_serializes_expected_keys():
         "countries",
         "physical_bounds",
         "training_domain",
+        "country",
     }
+
+
+def test_context_response_country_defaults_to_none_when_omitted():
+    """`country` est optionnel : absent du payload → sérialisé à `None`."""
+    schema = RecommendContextResponse(**_valid_context_payload())
+    assert schema.country is None
+
+
+def test_selected_country_requires_country_defaults():
+    """`SelectedCountry` sans `country_defaults` : rejeté."""
+    with pytest.raises(ValidationError):
+        SelectedCountry(iso3="FRA", country="France")
 
 
 def test_context_response_countries_are_country_entry_instances():

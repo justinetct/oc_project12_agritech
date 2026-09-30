@@ -9,7 +9,9 @@ ni preprocessing ne vivent ici.
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Query
 from fastapi.exceptions import RequestValidationError
 
 from agritech.api.core import runtime
@@ -24,14 +26,17 @@ from agritech.api.schemas.common import (
 from agritech.api.schemas.recommend import (
     PESTICIDES_PHYSICAL_MIN,
     CountryEntry,
+    RecommendConditionValues,
     RecommendContextResponse,
     RecommendRequest,
     RecommendResponse,
+    SelectedCountry,
 )
 from agritech.serving import (
     RECOMMEND_TARGET_YEAR,
     Bundle,
     RecommendContext,
+    _country_defaults,
     public_training_domain_recommend,
     recommend as serving_recommend,
 )
@@ -51,15 +56,11 @@ TARGET_YEAR_NOTE = (
     "learned values along the year axis."
 )
 
-# Réponses OpenAPI adaptées à chaque endpoint : POST peut recevoir un payload
-# invalide (422), GET n'a pas de payload à valider. 503 et 500 restent communs :
-# les deux endpoints dépendent du bundle et du contexte chargés au démarrage.
-_POST_ERROR_RESPONSES: dict = {
+# Réponses OpenAPI communes : les deux endpoints peuvent renvoyer 422 (payload
+# POST invalide, ou paramètre de requête `iso3` invalide/inconnu sur le GET),
+# 503 (bundle ou contexte indisponible), 500 (exception inattendue).
+_ERROR_RESPONSES: dict = {
     422: {"model": ErrorResponse, "description": "Requête invalide"},
-    503: {"model": ErrorResponse, "description": "Modèle ou contexte indisponible"},
-    500: {"model": ErrorResponse, "description": "Erreur interne"},
-}
-_GET_ERROR_RESPONSES: dict = {
     503: {"model": ErrorResponse, "description": "Modèle ou contexte indisponible"},
     500: {"model": ErrorResponse, "description": "Erreur interne"},
 }
@@ -84,7 +85,7 @@ def _get_bundle_and_context() -> tuple[Bundle, RecommendContext]:
 @router.post(
     "/recommend",
     response_model=RecommendResponse,
-    responses=_POST_ERROR_RESPONSES,
+    responses=_ERROR_RESPONSES,
     summary="Score and rank the 10 crops for a country",
 )
 def post_recommend(request: RecommendRequest) -> RecommendResponse:
@@ -114,10 +115,24 @@ def post_recommend(request: RecommendRequest) -> RecommendResponse:
 @router.get(
     "/recommend/context",
     response_model=RecommendContextResponse,
-    responses=_GET_ERROR_RESPONSES,
+    responses=_ERROR_RESPONSES,
     summary="Available countries, crops, physical bounds and training domain",
 )
-def get_recommend_context() -> RecommendContextResponse:
+def get_recommend_context(
+    iso3: Annotated[
+        str | None,
+        Query(
+            pattern=r"^[A-Z]{3}$",
+            description=(
+                "Optionnel. Code pays ISO 3166-1 alpha-3 (3 lettres majuscules, "
+                "ex. `FRA`). Fourni, la réponse ajoute un bloc `country` avec les "
+                "valeurs préremplies calculées à partir de l'historique 2011-2013 "
+                "du pays. Sans ce paramètre, `country` vaut `null`."
+            ),
+            examples=["FRA"],
+        ),
+    ] = None,
+) -> RecommendContextResponse:
     """Retourne l'ensemble des informations utiles au client pour construire son formulaire.
 
     - `crops` : les 10 modalités connues par le modèle chargé.
@@ -125,8 +140,31 @@ def get_recommend_context() -> RecommendContextResponse:
     - `physical_bounds` : bornes physiques du contrat (mêmes que Pydantic).
     - `training_domain` : bornes apprises, en unités publiques (tonnes pour les
       pesticides via `expm1` depuis `log_pest_hist`).
+    - `country` : contexte du pays sélectionné si `iso3` est fourni, sinon `null`.
+
+    Un `iso3` syntaxiquement invalide est rejeté par Pydantic → 422
+    `validation_error` sur `query.iso3`. Un `iso3` syntaxiquement valide mais
+    absent du contexte servi renvoie 422 `validation_error` avec
+    `type="unknown_country"` sur `query.iso3`, en réutilisant le handler
+    existant — même convention que `POST /recommend`.
     """
     bundle, context = _get_bundle_and_context()
+
+    selected_country: SelectedCountry | None = None
+    if iso3 is not None:
+        if iso3 not in context.countries:
+            raise RequestValidationError([{
+                "loc": ("query", "iso3"),
+                "type": "unknown_country",
+                "msg": f"Country not served: {iso3}",
+            }])
+        entry = context.countries[iso3]
+        selected_country = SelectedCountry(
+            iso3=iso3,
+            country=entry["country"],
+            country_defaults=RecommendConditionValues(**_country_defaults(entry)),
+        )
+
     physical_bounds = {
         "average_temperature_celsius": VariableSchema(
             min=TEMPERATURE_PHYSICAL_MIN, max=TEMPERATURE_PHYSICAL_MAX, unit="°C"
@@ -147,9 +185,10 @@ def get_recommend_context() -> RecommendContextResponse:
         target_year_note=TARGET_YEAR_NOTE,
         crops=bundle.metadata["categorical_values"]["crop"],
         countries=[
-            CountryEntry(iso3=iso3, country=name)
-            for iso3, name in context.country_entries
+            CountryEntry(iso3=iso3_code, country=name)
+            for iso3_code, name in context.country_entries
         ],
         physical_bounds=physical_bounds,
         training_domain=training_domain,
+        country=selected_country,
     )

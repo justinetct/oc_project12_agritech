@@ -252,6 +252,27 @@ class CountryEntry(BaseModel):
     country: str = Field(description="Nom du pays, pour affichage.", examples=["France"])
 
 
+class SelectedCountry(BaseModel):
+    """Contexte du pays sélectionné, exposé par `GET /recommend/context?iso3=<...>`.
+
+    Permet à un client (par exemple Streamlit) de préremplir le formulaire du
+    pays choisi sans reconstruire ni transformer aucune feature ML. Les
+    valeurs `country_defaults` sont **exactement** celles calculées par le
+    service à partir de l'historique 2011-2013 : mêmes valeurs que
+    `context.country_defaults` de `POST /recommend`.
+    """
+
+    iso3: str = Field(description="Code ISO3 sélectionné.", examples=["FRA"])
+    country: str = Field(description="Nom du pays sélectionné.", examples=["France"])
+    country_defaults: RecommendConditionValues = Field(
+        description=(
+            "Valeurs préremplies calculées à partir de l'historique 2011-2013 "
+            "du pays, en unités publiques. Modifiables par l'utilisateur avant "
+            "d'envoyer `POST /recommend`."
+        ),
+    )
+
+
 class RecommendContextResponse(BaseModel):
     """Réponse de `GET /recommend/context`.
 
@@ -293,5 +314,12 @@ class RecommendContextResponse(BaseModel):
             "Domaine réellement observé pendant l'entraînement, en unités publiques "
             "(les pesticides sont convertis via `expm1` depuis la feature interne "
             "`log_pest_hist`). Clé = nom public snake_case."
+        ),
+    )
+    country: SelectedCountry | None = Field(
+        default=None,
+        description=(
+            "Contexte du pays sélectionné, présent uniquement si le paramètre "
+            "de requête `iso3` a été fourni. Vaut `null` sinon."
         ),
     )

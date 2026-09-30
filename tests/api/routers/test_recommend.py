@@ -179,7 +179,7 @@ def test_post_recommend_pipeline_exception_returns_500():
 
 
 def test_get_recommend_context_returns_200_and_expected_keys():
-    """`GET /recommend/context` : 200 + 6 clés attendues + `year=2014`."""
+    """`GET /recommend/context` sans `iso3` : 200 + 7 clés attendues + `year=2014` + `country=null`."""
     with TestClient(app) as client:
         response = client.get("/recommend/context")
 
@@ -187,10 +187,11 @@ def test_get_recommend_context_returns_200_and_expected_keys():
     body = response.json()
     assert set(body) == {
         "year", "target_year_note", "crops", "countries",
-        "physical_bounds", "training_domain",
+        "physical_bounds", "training_domain", "country",
     }
     assert body["year"] == 2014
     assert isinstance(body["target_year_note"], str) and "2013" in body["target_year_note"]
+    assert body["country"] is None
 
 
 def test_get_recommend_context_crops_come_from_bundle_metadata():
@@ -279,3 +280,67 @@ def test_get_recommend_context_context_none_returns_503():
 
     assert response.status_code == 503
     assert response.json()["error"] == "model_unavailable"
+
+
+# ===========================================================================
+# GET /recommend/context?iso3=<...> — préremplissage du pays sélectionné
+# ===========================================================================
+
+
+def test_get_recommend_context_with_valid_iso3_returns_country_defaults():
+    """`?iso3=FRA` : bloc `country` peuplé, defaults calculés côté serveur."""
+    with TestClient(app) as client:
+        response = client.get("/recommend/context", params={"iso3": VALID_ISO3})
+
+    assert response.status_code == 200
+    body = response.json()
+    country = body["country"]
+    assert country is not None
+    assert country["iso3"] == VALID_ISO3
+    assert country["country"] == "France"
+    assert set(country["country_defaults"]) == {
+        "average_temperature_celsius",
+        "annual_rainfall_mm",
+        "average_annual_pesticides_tons",
+    }
+    for value in country["country_defaults"].values():
+        assert isinstance(value, float)
+
+
+def test_get_recommend_context_defaults_match_post_recommend_context():
+    """Les `country_defaults` du GET sont exactement ceux exposés par le POST."""
+    with TestClient(app) as client:
+        get_body = client.get("/recommend/context", params={"iso3": VALID_ISO3}).json()
+        post_body = client.post("/recommend", json=VALID_MINIMAL_PAYLOAD).json()
+
+    assert get_body["country"]["country_defaults"] == post_body["context"]["country_defaults"]
+
+
+def test_get_recommend_context_iso3_pattern_mismatch_returns_422():
+    """`?iso3=fra` : 422 `validation_error` sur `query.iso3` (pattern)."""
+    with TestClient(app) as client:
+        response = client.get("/recommend/context", params={"iso3": "fra"})
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["error"] == "validation_error"
+    assert isinstance(body["details"], list) and len(body["details"]) == 1
+    detail = body["details"][0]
+    assert detail["field"] == "query.iso3"
+    assert detail["type"] == "string_pattern_mismatch"
+
+
+def test_get_recommend_context_iso3_unknown_country_returns_422():
+    """`?iso3=ZZZ` : 422 `validation_error` avec `unknown_country` sur `query.iso3`."""
+    with TestClient(app) as client:
+        response = client.get("/recommend/context", params={"iso3": "ZZZ"})
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["error"] == "validation_error"
+    assert body["message"] == "Request payload is invalid."
+    assert isinstance(body["details"], list) and len(body["details"]) == 1
+    detail = body["details"][0]
+    assert detail["field"] == "query.iso3"
+    assert detail["type"] == "unknown_country"
+    assert "ZZZ" in detail["message"]
