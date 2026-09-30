@@ -1,0 +1,45 @@
+# Git & CI
+.git
+.github
+.gitignore
+
+# Python local
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.coverage
+.coverage.*
+htmlcov
+.ruff_cache
+.mypy_cache
+
+# Environnement / secrets — jamais dans l'image, variables passées par compose
+.env
+.env.example
+
+# IDE & OS
+.idea
+.DS_Store
+
+# Notebooks, scripts, tests et docs — hors runtime API
+notebooks
+docs
+scripts
+tests
+
+# Données locales (SQLite de monitoring, datasets Kaggle) — jamais dans l'image
+data
+mlruns
+
+# Poetry et fichiers projet non nécessaires au runtime
+pyproject.toml
+poetry.lock
+Makefile
+README.md
+
+# Les fichiers Docker eux-mêmes n'ont pas à être copiés dans l'image
+Dockerfile
+.dockerignore
