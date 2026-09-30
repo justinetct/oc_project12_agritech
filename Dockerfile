@@ -12,7 +12,8 @@
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/src
 
 WORKDIR /app
 
@@ -20,9 +21,11 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 2. Code applicatif — copié directement à la racine de /app, donc importable
-#    en tant que `agritech` sans PYTHONPATH ni installation du paquet.
-COPY src/agritech ./agritech
+# 2. Code applicatif — copié sous /app/src pour préserver la structure du dépôt.
+#    `config.py` fait `Path(__file__).resolve().parents[2]` et attend donc /app
+#    comme PATHS.root. PYTHONPATH=/app/src (défini plus haut) rend `agritech.*`
+#    importable sans installation du paquet.
+COPY src ./src
 
 # 3. Artefacts modèles — couche dédiée (~45 Mo), indépendante du code.
 COPY models ./models
