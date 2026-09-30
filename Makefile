@@ -1,4 +1,4 @@
-.PHONY: test test-durations api health predict recommend \
+.PHONY: test test-durations api streamlit health predict recommend \
         docker-build docker-up docker-down docker-logs docker-demo
 
 test:
@@ -9,6 +9,9 @@ test-durations:
 
 api:
 	poetry run uvicorn agritech.api.main:app --reload
+
+streamlit:
+	poetry run streamlit run streamlit_app/app.py
 
 health:
 	curl http://127.0.0.1:8000/health

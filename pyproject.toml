@@ -9,6 +9,7 @@ dependencies = [
     "numpy (>=2.0,<3.0)",
     "scikit-learn (>=1.5,<2.0)",
     "joblib (>=1.6.0,<2.0.0)",
+    "requests (>=2.32,<3.0)",
 ]
 
 [tool.poetry]
@@ -34,7 +35,9 @@ lightgbm = ">=4.7.0,<5.0.0"
 catboost = ">=1.2.10,<2.0.0"
 shap = ">=0.52.0,<0.53.0"
 setuptools = "<82"
-requests = ">=2.32,<3.0"
+
+[tool.poetry.group.streamlit.dependencies]
+streamlit = ">=1.40,<2.0"
 
 [build-system]
 requires = ["poetry-core>=2.0"]
@@ -50,10 +53,10 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=agritech.api --cov=agritech.serving --cov=agritech.monitoring --cov=agritech.observability --cov-report=term-missing"
+addopts = "--cov=agritech.api --cov=agritech.serving --cov=agritech.monitoring --cov=agritech.observability --cov=agritech.ui --cov-report=term-missing"
 
 [tool.coverage.run]
-source = ["agritech.api", "agritech.serving", "agritech.monitoring", "agritech.observability"]
+source = ["agritech.api", "agritech.serving", "agritech.monitoring", "agritech.observability", "agritech.ui"]
 branch = true
 
 [tool.coverage.report]
