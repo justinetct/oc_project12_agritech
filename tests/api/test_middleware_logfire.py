@@ -293,8 +293,8 @@ def test_health_creates_span_but_no_sqlite_row(
 @pytest.mark.parametrize(
     "path, path_not_in_routes",
     [
-        ("/predict/schema", "GET"),
-        ("/recommend/schema", "GET"),
+        ("/predict/context", "GET"),
+        ("/recommend/context", "GET"),
         ("/openapi.json", "GET"),
     ],
 )

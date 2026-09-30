@@ -24,9 +24,9 @@ from agritech.api.schemas.common import (
 from agritech.api.schemas.recommend import (
     PESTICIDES_PHYSICAL_MIN,
     CountryEntry,
+    RecommendContextResponse,
     RecommendRequest,
     RecommendResponse,
-    RecommendSchemaResponse,
 )
 from agritech.serving import (
     RECOMMEND_TARGET_YEAR,
@@ -40,7 +40,7 @@ from agritech.serving import (
 router = APIRouter(tags=["recommend"])
 
 
-# Note structurelle affichée par `GET /recommend/schema`. Convention interne :
+# Note structurelle affichée par `GET /recommend/context`. Convention interne :
 # le modèle est appris jusqu'en 2013 ; 2014 est la première année à recommander,
 # construite à partir de l'historique 2011-2013. En anglais pour l'UI.
 TARGET_YEAR_NOTE = (
@@ -96,7 +96,8 @@ def post_recommend(request: RecommendRequest) -> RecommendResponse:
 
     Un `iso3` syntaxiquement valide (Pydantic accepte) mais absent du contexte
     servi renvoie 422 `validation_error` avec `type="unknown_country"` sur
-    `body.iso3`, en réutilisant le handler existant.
+    `body.iso3`, en réutilisant le handler existant. La liste des pays servis
+    est exposée par `GET /recommend/context`.
     """
     bundle, context = _get_bundle_and_context()
     if request.iso3 not in context.countries:
@@ -111,12 +112,12 @@ def post_recommend(request: RecommendRequest) -> RecommendResponse:
 
 
 @router.get(
-    "/recommend/schema",
-    response_model=RecommendSchemaResponse,
+    "/recommend/context",
+    response_model=RecommendContextResponse,
     responses=_GET_ERROR_RESPONSES,
     summary="Available countries, crops, physical bounds and training domain",
 )
-def get_recommend_schema() -> RecommendSchemaResponse:
+def get_recommend_context() -> RecommendContextResponse:
     """Retourne l'ensemble des informations utiles au client pour construire son formulaire.
 
     - `crops` : les 10 modalités connues par le modèle chargé.
@@ -141,7 +142,7 @@ def get_recommend_schema() -> RecommendSchemaResponse:
         name: VariableSchema(**bounds)
         for name, bounds in public_training_domain_recommend(bundle).items()
     }
-    return RecommendSchemaResponse(
+    return RecommendContextResponse(
         year=RECOMMEND_TARGET_YEAR,
         target_year_note=TARGET_YEAR_NOTE,
         crops=bundle.metadata["categorical_values"]["crop"],

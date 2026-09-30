@@ -1,4 +1,4 @@
-"""Tests HTTP de `POST /predict` et `GET /predict/schema`.
+"""Tests HTTP de `POST /predict` et `GET /predict/context`.
 
 Chaque test s'exécute dans le cycle de vie normal de l'application, via
 `with TestClient(app) as client:` : le lifespan charge le modèle avant la
@@ -84,10 +84,10 @@ def test_post_predict_both_out_of_domain_returns_two_notes():
     ]
 
 
-def test_get_predict_schema_exposes_physical_bounds_and_training_domain():
-    """`GET /predict/schema` : bornes physiques + domaine d'apprentissage, snake_case."""
+def test_get_predict_context_exposes_physical_bounds_and_training_domain():
+    """`GET /predict/context` : bornes physiques + domaine d'apprentissage, snake_case."""
     with TestClient(app) as client:
-        response = client.get("/predict/schema")
+        response = client.get("/predict/context")
 
     assert response.status_code == 200
     body = response.json()
@@ -111,10 +111,10 @@ def test_get_predict_schema_exposes_physical_bounds_and_training_domain():
 
 
 def test_predict_contract_never_mentions_crop():
-    """`crop` n'apparaît ni dans la requête, ni dans la réponse, ni dans /predict/schema."""
+    """`crop` n'apparaît ni dans la requête, ni dans la réponse, ni dans /predict/context."""
     with TestClient(app) as client:
         post_body = client.post("/predict", json=VALID_PAYLOAD).text
-        schema_body = client.get("/predict/schema").text
+        context_body = client.get("/predict/context").text
 
     assert "crop" not in post_body.lower()
-    assert "crop" not in schema_body.lower()
+    assert "crop" not in context_body.lower()

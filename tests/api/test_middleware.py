@@ -6,7 +6,7 @@ Vérifie sur une base SQLite jetable :
   en une seule ligne, avec tous les champs attendus ;
 - les 422 (Pydantic et `unknown_country`), 500 et 503 sont persistées avec
   l'`error_type` extrait de l'`ErrorResponse` unifiée existante ;
-- les endpoints non métier (`/health`, `*/schema`, `/docs`, `/openapi.json`,
+- les endpoints non métier (`/health`, `*/context`, `/docs`, `/openapi.json`,
   `/redoc`) ne sont jamais persistés ;
 - une panne du repository ne casse pas la réponse HTTP ;
 - aucun header sensible (`Authorization`) ne fuite dans les payloads
@@ -210,15 +210,15 @@ def test_post_predict_500_is_persisted():
     "method, path",
     [
         ("GET", "/health"),
-        ("GET", "/predict/schema"),
-        ("GET", "/recommend/schema"),
+        ("GET", "/predict/context"),
+        ("GET", "/recommend/context"),
         ("GET", "/docs"),
         ("GET", "/openapi.json"),
         ("GET", "/redoc"),
     ],
 )
 def test_non_business_endpoints_are_not_persisted(method: str, path: str):
-    """`/health`, les schémas et la doc ne créent aucune ligne monitoring."""
+    """`/health`, les contextes et la doc ne créent aucune ligne monitoring."""
     with TestClient(app) as client:
         response = client.request(method, path)
         # Toutes ces routes doivent au moins répondre — mais l'important est

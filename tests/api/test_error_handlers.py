@@ -127,13 +127,13 @@ def test_503_post_predict_when_bundle_is_none():
     assert body["details"] is None
 
 
-def test_503_get_predict_schema_when_bundle_is_none():
-    """GET `/predict/schema` avec `bundle_predict = None` → 503 également."""
+def test_503_get_predict_context_when_bundle_is_none():
+    """GET `/predict/context` avec `bundle_predict = None` → 503 également."""
     with TestClient(app) as client:
         saved = runtime.bundle_predict
         runtime.bundle_predict = None
         try:
-            response = client.get("/predict/schema")
+            response = client.get("/predict/context")
         finally:
             runtime.bundle_predict = saved
 

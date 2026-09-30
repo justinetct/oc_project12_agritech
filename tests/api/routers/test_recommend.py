@@ -1,4 +1,4 @@
-"""Tests HTTP de `POST /recommend` et `GET /recommend/schema`.
+"""Tests HTTP de `POST /recommend` et `GET /recommend/context`.
 
 Chaque test s'exécute dans le cycle de vie normal de l'application, via
 `with TestClient(app) as client:` : le lifespan charge bundle et contexte
@@ -174,14 +174,14 @@ def test_post_recommend_pipeline_exception_returns_500():
 
 
 # ===========================================================================
-# GET /recommend/schema
+# GET /recommend/context
 # ===========================================================================
 
 
-def test_get_recommend_schema_returns_200_and_expected_keys():
-    """`GET /recommend/schema` : 200 + 6 clés attendues + `year=2014`."""
+def test_get_recommend_context_returns_200_and_expected_keys():
+    """`GET /recommend/context` : 200 + 6 clés attendues + `year=2014`."""
     with TestClient(app) as client:
-        response = client.get("/recommend/schema")
+        response = client.get("/recommend/context")
 
     assert response.status_code == 200
     body = response.json()
@@ -193,20 +193,20 @@ def test_get_recommend_schema_returns_200_and_expected_keys():
     assert isinstance(body["target_year_note"], str) and "2013" in body["target_year_note"]
 
 
-def test_get_recommend_schema_crops_come_from_bundle_metadata():
+def test_get_recommend_context_crops_come_from_bundle_metadata():
     """Les 10 cultures exposées sont exactement celles du metadata du modèle chargé."""
     with TestClient(app) as client:
-        body = client.get("/recommend/schema").json()
+        body = client.get("/recommend/context").json()
         expected_crops = runtime.bundle_recommend.metadata["categorical_values"]["crop"]
 
     assert body["crops"] == expected_crops
     assert len(body["crops"]) == 10
 
 
-def test_get_recommend_schema_countries_sorted_by_country_name():
+def test_get_recommend_context_countries_sorted_by_country_name():
     """Les 115 pays sont triés par nom (ordre du contexte)."""
     with TestClient(app) as client:
-        body = client.get("/recommend/schema").json()
+        body = client.get("/recommend/context").json()
 
     countries = body["countries"]
     assert len(countries) == 115
@@ -216,10 +216,10 @@ def test_get_recommend_schema_countries_sorted_by_country_name():
         assert set(entry) == {"iso3", "country"}
 
 
-def test_get_recommend_schema_physical_bounds_expose_three_conditions():
+def test_get_recommend_context_physical_bounds_expose_three_conditions():
     """`physical_bounds` : 3 conditions avec noms publics et bornes attendues."""
     with TestClient(app) as client:
-        body = client.get("/recommend/schema").json()
+        body = client.get("/recommend/context").json()
 
     bounds = body["physical_bounds"]
     assert set(bounds) == {
@@ -232,10 +232,10 @@ def test_get_recommend_schema_physical_bounds_expose_three_conditions():
     assert bounds["average_annual_pesticides_tons"] == {"min": 0.0, "max": None, "unit": "t"}
 
 
-def test_get_recommend_schema_training_domain_pesticides_in_public_tons():
+def test_get_recommend_context_training_domain_pesticides_in_public_tons():
     """`training_domain` : bornes en unités publiques (tonnes pour pesticides via `expm1`)."""
     with TestClient(app) as client:
-        body = client.get("/recommend/schema").json()
+        body = client.get("/recommend/context").json()
         log_bounds = runtime.bundle_recommend.metadata["training_domain"]["log_pest_hist"]
 
     td = body["training_domain"]
@@ -253,13 +253,13 @@ def test_get_recommend_schema_training_domain_pesticides_in_public_tons():
     assert td["annual_rainfall_mm"]["unit"] == "mm"
 
 
-def test_get_recommend_schema_bundle_none_returns_503():
-    """`runtime.bundle_recommend = None` → 503 pour le schema également."""
+def test_get_recommend_context_bundle_none_returns_503():
+    """`runtime.bundle_recommend = None` → 503 pour le context également."""
     with TestClient(app) as client:
         saved = runtime.bundle_recommend
         runtime.bundle_recommend = None
         try:
-            response = client.get("/recommend/schema")
+            response = client.get("/recommend/context")
         finally:
             runtime.bundle_recommend = saved
 
@@ -267,13 +267,13 @@ def test_get_recommend_schema_bundle_none_returns_503():
     assert response.json()["error"] == "model_unavailable"
 
 
-def test_get_recommend_schema_context_none_returns_503():
-    """`runtime.recommend_context = None` → 503 pour le schema également."""
+def test_get_recommend_context_context_none_returns_503():
+    """`runtime.recommend_context = None` → 503 pour le context également."""
     with TestClient(app) as client:
         saved = runtime.recommend_context
         runtime.recommend_context = None
         try:
-            response = client.get("/recommend/schema")
+            response = client.get("/recommend/context")
         finally:
             runtime.recommend_context = saved
 

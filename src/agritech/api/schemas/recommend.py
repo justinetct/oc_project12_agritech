@@ -37,7 +37,7 @@ IsoAlpha3 = Annotated[
         pattern=r"^[A-Z]{3}$",
         description=(
             "Code pays ISO 3166-1 alpha-3 (3 lettres majuscules). "
-            "La liste des pays servis est exposée par `GET /recommend/schema`."
+            "La liste des pays servis est exposée par `GET /recommend/context`."
         ),
         examples=["FRA"],
     ),
@@ -110,7 +110,7 @@ class RecommendRequest(BaseModel):
     iso3: IsoAlpha3 = Field(
         description=(
             "Code pays ISO 3166-1 alpha-3 (3 lettres majuscules, ex. `FRA`). "
-            "Doit correspondre à l'un des pays servis (voir `GET /recommend/schema`)."
+            "Doit correspondre à l'un des pays servis (voir `GET /recommend/context`)."
         ),
     )
     conditions: RecommendConditions | None = Field(
@@ -204,7 +204,7 @@ class RecommendResponse(BaseModel):
     year: int = Field(
         description=(
             "Année cible technique de la recommandation, fixée par le service. "
-            "Voir `GET /recommend/schema.target_year_note` pour l'explication de "
+            "Voir `GET /recommend/context.target_year_note` pour l'explication de "
             "cette convention interne."
         ),
         examples=[2014],
@@ -230,7 +230,7 @@ class RecommendResponse(BaseModel):
             "True si au moins une condition effective sort du domaine appris. Le "
             "détail est dans `notes`. Le fait que `year` soit hors plage "
             "d'apprentissage n'est pas signalé ici (limite structurelle documentée "
-            "dans `GET /recommend/schema.target_year_note`)."
+            "dans `GET /recommend/context.target_year_note`)."
         ),
         examples=[False],
     )
@@ -246,18 +246,18 @@ class RecommendResponse(BaseModel):
 
 
 class CountryEntry(BaseModel):
-    """Un pays disponible pour `/recommend`, exposé par `GET /recommend/schema`."""
+    """Un pays disponible pour `/recommend`, exposé par `GET /recommend/context`."""
 
     iso3: str = Field(description="Code ISO3.", examples=["FRA"])
     country: str = Field(description="Nom du pays, pour affichage.", examples=["France"])
 
 
-class RecommendSchemaResponse(BaseModel):
-    """Réponse de `GET /recommend/schema`.
+class RecommendContextResponse(BaseModel):
+    """Réponse de `GET /recommend/context`.
 
     Fournit au client tout ce qu'il faut pour construire son formulaire :
     liste des pays, cultures, bornes physiques et domaine d'apprentissage.
-    Aligné sur la structure de `GET /predict/schema` pour `physical_bounds` et
+    Aligné sur la structure de `GET /predict/context` pour `physical_bounds` et
     `training_domain` (dict de `VariableSchema` indexé par nom public).
     """
 

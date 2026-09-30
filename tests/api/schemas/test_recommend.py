@@ -1,5 +1,5 @@
 """Tests des schémas Pydantic de /recommend : `RecommendRequest`, `RecommendResponse`,
-`RecommendSchemaResponse` et leurs sous-modèles.
+`RecommendContextResponse` et leurs sous-modèles.
 
 À cette sous-étape, le routeur `/recommend` n'existe pas encore : ces tests
 vérifient uniquement le comportement des schémas (validation d'entrée et forme
@@ -19,9 +19,9 @@ from agritech.api.schemas.recommend import (
     Recommendation,
     RecommendConditions,
     RecommendConditionValues,
+    RecommendContextResponse,
     RecommendRequest,
     RecommendResponse,
-    RecommendSchemaResponse,
 )
 
 
@@ -392,11 +392,11 @@ def test_response_recommendations_exactly_10_accepted():
 
 
 # ===========================================================================
-# RecommendSchemaResponse — sérialisation
+# RecommendContextResponse — sérialisation
 # ===========================================================================
 
 
-def _valid_schema_payload(crops_count: int = 10) -> dict:
+def _valid_context_payload(crops_count: int = 10) -> dict:
     return {
         "year": 2014,
         "target_year_note": "The model has been trained on years 1991-2013. Year 2014 is a technical convention.",
@@ -415,9 +415,9 @@ def _valid_schema_payload(crops_count: int = 10) -> dict:
     }
 
 
-def test_schema_response_serializes_expected_keys():
-    """`RecommendSchemaResponse` : les 6 clés attendues."""
-    schema = RecommendSchemaResponse(**_valid_schema_payload())
+def test_context_response_serializes_expected_keys():
+    """`RecommendContextResponse` : les 6 clés attendues."""
+    schema = RecommendContextResponse(**_valid_context_payload())
     assert set(schema.model_dump()) == {
         "year",
         "target_year_note",
@@ -428,30 +428,30 @@ def test_schema_response_serializes_expected_keys():
     }
 
 
-def test_schema_response_countries_are_country_entry_instances():
+def test_context_response_countries_are_country_entry_instances():
     """`countries` est bien une liste de `CountryEntry` typés."""
-    schema = RecommendSchemaResponse(**_valid_schema_payload())
+    schema = RecommendContextResponse(**_valid_context_payload())
     assert all(isinstance(entry, CountryEntry) for entry in schema.countries)
     assert schema.countries[0].iso3 == "FRA"
 
 
-def test_schema_response_crops_less_than_10_raises():
+def test_context_response_crops_less_than_10_raises():
     """Moins de 10 cultures : rejeté."""
-    payload = _valid_schema_payload(crops_count=9)
+    payload = _valid_context_payload(crops_count=9)
     with pytest.raises(ValidationError):
-        RecommendSchemaResponse(**payload)
+        RecommendContextResponse(**payload)
 
 
-def test_schema_response_crops_more_than_10_raises():
+def test_context_response_crops_more_than_10_raises():
     """Plus de 10 cultures : rejeté."""
-    payload = _valid_schema_payload(crops_count=11)
+    payload = _valid_context_payload(crops_count=11)
     with pytest.raises(ValidationError):
-        RecommendSchemaResponse(**payload)
+        RecommendContextResponse(**payload)
 
 
-def test_schema_response_bounds_use_shared_variable_schema():
+def test_context_response_bounds_use_shared_variable_schema():
     """`physical_bounds` et `training_domain` sont bien des `VariableSchema`."""
-    schema = RecommendSchemaResponse(**_valid_schema_payload())
+    schema = RecommendContextResponse(**_valid_context_payload())
     for value in schema.physical_bounds.values():
         assert isinstance(value, VariableSchema)
     for value in schema.training_domain.values():

@@ -146,7 +146,7 @@ def public_training_domain(
 ) -> dict[str, dict[str, float | str]]:
     """Reformate `bundle.metadata["training_domain"]` avec les noms publics snake_case.
 
-    Utilisé par `GET /predict/schema` pour exposer le domaine d'apprentissage sous des
+    Utilisé par `GET /predict/context` pour exposer le domaine d'apprentissage sous des
     noms cohérents avec le reste du contrat API. Une feature du `training_domain` sans
     correspondance dans `public_to_model` révèle une incohérence entre les metadata et
     le contrat API : on lève `ValueError` plutôt que d'exposer silencieusement le nom
@@ -182,14 +182,14 @@ RECOMMEND_PUBLIC_TO_MODEL: dict[str, tuple[str, Callable[[float], float]]] = {
 }
 
 # Conversion inverse pour publier `training_domain` en unités publiques via
-# `GET /recommend/schema`. `expm1` remet `log_pest_hist` en tonnes.
+# `GET /recommend/context`. `expm1` remet `log_pest_hist` en tonnes.
 RECOMMEND_MODEL_TO_PUBLIC: dict[str, tuple[str, Callable[[float], float]]] = {
     "temp_hist":     ("average_temperature_celsius",    lambda x: x),
     "rain_mm":       ("annual_rainfall_mm",             lambda x: x),
     "log_pest_hist": ("average_annual_pesticides_tons", math.expm1),
 }
 
-# Unités publiques exposées par `/recommend/schema`, indexées par nom public.
+# Unités publiques exposées par `/recommend/context`, indexées par nom public.
 RECOMMEND_PUBLIC_UNITS: dict[str, str] = {
     "average_temperature_celsius":    "°C",
     "annual_rainfall_mm":             "mm",
@@ -208,7 +208,7 @@ class RecommendContext:
       dans l'historique, dérivé de `observed_crops` de chaque pays. Sert au flag
       `observed_in_country` retourné par chaque recommandation.
     - `country_entries` : liste `[(iso3, country_name)]` triée par nom de pays,
-      prête pour `/recommend/schema`.
+      prête pour `/recommend/context`.
     """
 
     countries: dict[str, dict]
@@ -357,7 +357,7 @@ def check_recommend_training_domain(
 def public_training_domain_recommend(bundle: Bundle) -> dict[str, dict[str, float | str]]:
     """Reformate `training_domain` en unités publiques snake_case.
 
-    Utilisé par `GET /recommend/schema`. Une feature du `training_domain` sans
+    Utilisé par `GET /recommend/context`. Une feature du `training_domain` sans
     correspondance publique révèle une incohérence entre metadata et contrat
     API : on lève `ValueError` plutôt que d'exposer silencieusement le nom
     interne du modèle.

@@ -68,8 +68,8 @@ class PredictResponse(BaseModel):
     )
 
 
-class PredictSchemaResponse(BaseModel):
-    """Réponse de `GET /predict/schema` : bornes physiques du contrat + domaine d'apprentissage.
+class PredictContextResponse(BaseModel):
+    """Réponse de `GET /predict/context` : bornes physiques du contrat + domaine d'apprentissage.
 
     Ce document est destiné à un client (par exemple Streamlit) qui souhaite afficher, à
     côté d'un champ de saisie, les valeurs acceptables et les valeurs que le modèle a

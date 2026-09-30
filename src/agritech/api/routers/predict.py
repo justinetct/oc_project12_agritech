@@ -19,9 +19,9 @@ from agritech.api.schemas.common import (
     VariableSchema,
 )
 from agritech.api.schemas.predict import (
+    PredictContextResponse,
     PredictRequest,
     PredictResponse,
-    PredictSchemaResponse,
 )
 from agritech.serving import Bundle, predict as serving_predict, public_training_domain
 
@@ -69,7 +69,7 @@ def post_predict(request: PredictRequest) -> PredictResponse:
 
     Une valeur physiquement valide mais hors du domaine d'apprentissage est acceptée :
     la prédiction est renvoyée avec `out_of_training_domain=true` et une note par
-    variable concernée. Voir `GET /predict/schema` pour connaître à l'avance les
+    variable concernée. Voir `GET /predict/context` pour connaître à l'avance les
     bornes physiques et le domaine d'apprentissage.
     """
     bundle = _get_bundle()
@@ -77,12 +77,12 @@ def post_predict(request: PredictRequest) -> PredictResponse:
 
 
 @router.get(
-    "/predict/schema",
-    response_model=PredictSchemaResponse,
+    "/predict/context",
+    response_model=PredictContextResponse,
     responses=_GET_ERROR_RESPONSES,
     summary="Physical bounds and training domain of the predict model",
 )
-def get_predict_schema() -> PredictSchemaResponse:
+def get_predict_context() -> PredictContextResponse:
     """Retourne les bornes physiques du contrat et le domaine d'apprentissage du modèle."""
     bundle = _get_bundle()
     physical_bounds = {
@@ -94,6 +94,6 @@ def get_predict_schema() -> PredictSchemaResponse:
     training_domain = {
         name: VariableSchema(**bounds) for name, bounds in public_training_domain(bundle).items()
     }
-    return PredictSchemaResponse(
+    return PredictContextResponse(
         physical_bounds=physical_bounds, training_domain=training_domain
     )

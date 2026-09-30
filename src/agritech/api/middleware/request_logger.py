@@ -11,7 +11,7 @@ Le middleware traite deux catégories d'endpoints :
   côté Logfire — mais aucune ligne n'est écrite en SQLite. La table
   `api_requests` reste réservée aux appels métier.
 
-Toutes les autres routes (`/predict/schema`, `/recommend/schema`, `/docs`,
+Toutes les autres routes (`/predict/context`, `/recommend/context`, `/docs`,
 `/openapi.json`, `/redoc`, etc.) passent en direct : ni span, ni ligne.
 
 Choix d'un ASGI middleware pur plutôt que `BaseHTTPMiddleware` : ce dernier

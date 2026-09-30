@@ -98,7 +98,7 @@ class ErrorResponse(BaseModel):
 class VariableSchema(BaseModel):
     """Bornes d'une variable numérique : min inclusif, max inclusif ou null si pas de borne haute.
 
-    Utilisé par `GET /predict/schema` et `GET /recommend/schema` pour exposer
+    Utilisé par `GET /predict/context` et `GET /recommend/context` pour exposer
     `physical_bounds` et `training_domain` sous une forme commune. Les clés
     associées sont les noms publics snake_case du contrat.
     """
