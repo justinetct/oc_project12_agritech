@@ -1,4 +1,5 @@
-.PHONY: test test-durations api health predict recommend
+.PHONY: test test-durations api health predict recommend \
+        docker-build docker-up docker-down docker-logs docker-demo
 
 test:
 	poetry run pytest
@@ -16,4 +17,39 @@ predict:
 	curl -X POST http://127.0.0.1:8000/predict -H "Content-Type: application/json" -d '{"rainfall_mm":500,"temperature_celsius":25,"fertilizer_used":true,"irrigation_used":false}'
 
 recommend:
-	curl -X POST http://127.0.0.1:8000/recommend -H "Content-Type: application/json" -d '{"iso3":"FRA"}'
+	curl -X POST http://127.0.0.1:8000/recommend -H "Content-Type: application/json" -d '{"iso3":"FRA","conditions":{"average_temperature_celsius":25,"annual_rainfall_mm":500,"average_annual_pesticides_tons":60000}}'
+
+# -- Docker ----------------------------------------------------------------
+# LOGFIRE_TOKEN= devant chaque commande compose vide l'éventuel token présent
+# dans le shell : la démo locale reste en mode silencieux, aucun envoi réseau
+# vers Logfire. Retirer le préfixe (ou exporter LOGFIRE_TOKEN) pour activer.
+
+docker-build:
+	LOGFIRE_TOKEN= docker compose build api
+
+docker-up:
+	LOGFIRE_TOKEN= docker compose up -d api
+
+docker-down:
+	LOGFIRE_TOKEN= docker compose down
+
+docker-logs:
+	LOGFIRE_TOKEN= docker compose logs --tail=200 api
+
+docker-demo: docker-build docker-up
+	@echo "Waiting for /health..."
+	@READY=false; \
+	 for i in $$(seq 1 60); do \
+	     if curl -sf http://127.0.0.1:8000/health >/dev/null; then \
+	         READY=true; break; \
+	     fi; \
+	     sleep 0.5; \
+	 done; \
+	 if [ "$$READY" = "false" ]; then \
+	     echo "FAIL: /health did not respond within 30s."; \
+	     echo "See 'make docker-logs' to inspect, then 'make docker-down' to clean up."; \
+	     exit 1; \
+	 fi; \
+	 echo "API ready. Opening Swagger and streaming logs (Ctrl+C to stop)."; \
+	 open http://127.0.0.1:8000/docs; \
+	 LOGFIRE_TOKEN= docker compose logs -f --tail=100 api || true
