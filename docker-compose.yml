@@ -1,0 +1,20 @@
+services:
+  api:
+    build: .
+    image: agritech-answers-api:latest
+    container_name: agritech-answers-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DATABASE_URL: sqlite:////app/data/monitoring/api.sqlite
+      ENVIRONMENT: prod
+      LOGFIRE_ENVIRONMENT: prod
+      LOGFIRE_SERVICE_NAME: agritech-answers-api
+      LOGFIRE_TOKEN: ${LOGFIRE_TOKEN:-}
+    volumes:
+      - agritech_monitoring:/app/data/monitoring
+
+volumes:
+  agritech_monitoring:
+    name: agritech_monitoring
