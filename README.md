@@ -12,7 +12,7 @@ Deux services sont visés :
 - le système retourne une estimation du rendement en t/ha ;
 - si les conditions sont physiquement valides mais sortent du domaine observé pendant l'entraînement, la prédiction est retournée avec un avertissement.
 
-L'API `/predict` est implémentée avec FastAPI. Elle expose également `/predict/schema` pour fournir les bornes physiques, le domaine d'entraînement et les unités utilisés par l'application. Les erreurs de validation, d'indisponibilité du modèle et les erreurs internes ont un format de réponse commun.
+L'API `/predict` est implémentée avec FastAPI. Elle expose également `/predict/context` pour fournir les bornes physiques, le domaine d'entraînement et les unités utilisés par l'application. Les erreurs de validation, d'indisponibilité du modèle et les erreurs internes ont un format de réponse commun.
 
 ### `/recommend` — classement des cultures
 
@@ -22,17 +22,25 @@ L'API `/predict` est implémentée avec FastAPI. Elle expose également `/predic
 - le modèle prédit le rendement des 10 cultures ;
 - l'application retourne un classement par rendement prédit décroissant.
 
-Le pays sert à préremplir les valeurs et à le situer sur le globe : le modèle final utilise sa position géographique et l'année, mais pas le code `iso3` lui-même. Les endpoints `POST /recommend` et `GET /recommend/schema` sont implémentés et testés.
+Le pays sert à préremplir les valeurs et à le situer sur le globe : le modèle final utilise sa position géographique et l'année, mais pas le code `iso3` lui-même. Les endpoints `POST /recommend` et `GET /recommend/context` sont implémentés et testés.
 
 ### API disponible
 
 L'API FastAPI expose cinq endpoints :
 
 - `GET /health` : état du service et version du modèle `/predict` ;
-- `GET /predict/schema` : bornes physiques, domaine d'entraînement et unités de `/predict` ;
+- `GET /predict/context` : bornes physiques, domaine d'entraînement et unités de `/predict` ;
 - `POST /predict` : estimation du rendement à partir des quatre variables du modèle ;
-- `GET /recommend/schema` : cultures modélisées, pays servis, bornes physiques et domaine d'entraînement de `/recommend`, avec l'année cible technique et sa note explicative ;
+- `GET /recommend/context` : cultures modélisées, pays servis, bornes physiques et domaine d'entraînement de `/recommend`, avec l'année cible technique et sa note explicative. Accepte un paramètre de requête optionnel `iso3` (ex. `?iso3=FRA`) qui ajoute un bloc `country` avec les valeurs historiques 2011-2013 du pays pour préremplir le formulaire ;
 - `POST /recommend` : à partir d'un `iso3` et d'un bloc optionnel de conditions (température moyenne, pluie annuelle, pesticides annuels en tonnes), retourne les 10 cultures scorées et triées par rendement prédit décroissant. Les valeurs absentes utilisent les moyennes historiques 2011-2013 du pays.
+
+Flux type pour un front (par exemple Streamlit), sans reconstruire aucune feature ML :
+
+```
+GET  /recommend/context             # pays, cultures, bornes, année technique
+GET  /recommend/context?iso3=FRA    # + valeurs par défaut du pays choisi
+POST /recommend                     # classement des 10 cultures
+```
 
 Elle peut être lancée localement avec :
 
@@ -47,7 +55,7 @@ de la couche d'observabilité ne fait jamais échouer une prédiction valide.
 
 - **SQLite — historique persistant.** Chaque `POST /predict` et `POST /recommend` est archivé
   dans une table `api_requests` : payloads, statut, durée, versions API et modèle, trace ID
-  Logfire. Les endpoints techniques (`/health`, `*/schema`, `/docs`) ne sont pas persistés ;
+  Logfire. Les endpoints techniques (`/health`, `*/context`, `/docs`) ne sont pas persistés ;
   aucun en-tête ni IP n'est capturé. Base par défaut :
   `sqlite:///data/monitoring/api.sqlite`, configurable via `DATABASE_URL`. Schéma détaillé de la
   table : voir [annexe E du rapport technique](docs/rapport_technique.md#e-schéma-du-monitoring-sqlite).
@@ -143,11 +151,11 @@ cp .env.example .env   # facultatif
 | Domaine | Tests |
 |---|---:|
 | API `/predict` (schémas, router) | 23 |
-| API `/recommend` (schémas, router) | 53 |
+| API `/recommend` (schémas, router) | 59 |
 | Middleware, `/health` et handlers d'erreur | 56 |
 | Serving (chargement des modèles, prédiction) | 48 |
 | Monitoring SQLite, Logfire et CLI de rejeu | 55 |
-| **Total** | **235** |
+| **Total** | **241** |
 
 Couverture de branche : **95 %** sur `agritech.api`, `agritech.serving`, `agritech.monitoring` et `agritech.observability`.
 

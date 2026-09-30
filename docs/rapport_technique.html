@@ -1039,7 +1039,7 @@
       <p>Trois endpoints sont disponibles :</p>
       <ul>
       <li><strong><code>GET /health</code></strong> : état du service (version de l'API, présence du modèle, version du modèle) ;</li>
-      <li><strong><code>GET /predict/schema</code></strong> : bornes physiques acceptées par le contrat, domaine d'entraînement
+      <li><strong><code>GET /predict/context</code></strong> : bornes physiques acceptées par le contrat, domaine d'entraînement
         du modèle et unités, à destination d'une future interface qui pourra afficher les plages avant
         la saisie utilisateur ;</li>
       <li><strong><code>POST /predict</code></strong> : reçoit les quatre variables retenues au chapitre 3
@@ -1053,10 +1053,12 @@
       <h3 id="recommend"><code>/recommend</code></h3>
       <p>Deux endpoints exposent le classement des cultures :</p>
       <ul>
-      <li><strong><code>GET /recommend/schema</code></strong> : liste des pays servis, cultures modélisées, bornes physiques
+      <li><strong><code>GET /recommend/context</code></strong> : liste des pays servis, cultures modélisées, bornes physiques
         et domaine d'entraînement en unités publiques, à destination du client pour construire son
         formulaire ; expose également l'année cible technique 2014 et une note qui explique cette
-        convention interne ;</li>
+        convention interne. Accepte un paramètre de requête optionnel <code>iso3</code> (ex. <code>?iso3=FRA</code>) : la
+        réponse contient alors un bloc <code>country</code> avec les valeurs préremplies calculées à partir de
+        l'historique 2011-2013 du pays ;</li>
       <li><strong><code>POST /recommend</code></strong> : reçoit un <code>iso3</code> (obligatoire) et un bloc <code>conditions</code> optionnel, dont
         chaque champ (<code>average_temperature_celsius</code>, <code>annual_rainfall_mm</code>,
         <code>average_annual_pesticides_tons</code>) peut être omis. Retourne les 10 cultures modélisées, triées
@@ -1103,7 +1105,7 @@
       </tr>
       </tbody>
       </table></div>
-      <p><strong>Domaine d'entraînement</strong> — publié par <code>GET /&lt;service&gt;/schema</code> en unités publiques. Une valeur
+      <p><strong>Domaine d'entraînement</strong> — publié par <code>GET /&lt;service&gt;/context</code> en unités publiques. Une valeur
       physiquement valide mais hors du domaine appris n'est pas refusée : la prédiction est renvoyée
       avec <code>out_of_training_domain=true</code> et une note par variable, sous la forme
       <code>&lt;champ&gt; is out of training domain</code>.</p>

@@ -504,7 +504,7 @@ les deux services. FastAPI génère la documentation **OpenAPI/Swagger** de l'AP
 Trois endpoints sont disponibles :
 
 - **`GET /health`** : état du service (version de l'API, présence du modèle, version du modèle) ;
-- **`GET /predict/schema`** : bornes physiques acceptées par le contrat, domaine d'entraînement
+- **`GET /predict/context`** : bornes physiques acceptées par le contrat, domaine d'entraînement
   du modèle et unités, à destination d'une future interface qui pourra afficher les plages avant
   la saisie utilisateur ;
 - **`POST /predict`** : reçoit les quatre variables retenues au chapitre 3
@@ -520,10 +520,12 @@ envoyé au modèle : le chapitre 3 a montré que la culture n'apporte pas de gai
 
 Deux endpoints exposent le classement des cultures :
 
-- **`GET /recommend/schema`** : liste des pays servis, cultures modélisées, bornes physiques
+- **`GET /recommend/context`** : liste des pays servis, cultures modélisées, bornes physiques
   et domaine d'entraînement en unités publiques, à destination du client pour construire son
   formulaire ; expose également l'année cible technique 2014 et une note qui explique cette
-  convention interne ;
+  convention interne. Accepte un paramètre de requête optionnel `iso3` (ex. `?iso3=FRA`) : la
+  réponse contient alors un bloc `country` avec les valeurs préremplies calculées à partir de
+  l'historique 2011-2013 du pays ;
 - **`POST /recommend`** : reçoit un `iso3` (obligatoire) et un bloc `conditions` optionnel, dont
   chaque champ (`average_temperature_celsius`, `annual_rainfall_mm`,
   `average_annual_pesticides_tons`) peut être omis. Retourne les 10 cultures modélisées, triées
@@ -558,7 +560,7 @@ champ inconnu au niveau du corps provoque une réponse **422**.
 | `/predict` | `rainfall_mm >= 0` ; `temperature_celsius ∈ [-50, +60]` °C ; `fertilizer_used`, `irrigation_used` : booléens stricts (refus de `0`, `1`, `"true"`, `"false"`) |
 | `/recommend` | `iso3` au format `^[A-Z]{3}$` ; bloc `conditions` optionnel, chaque champ (optionnel, accepte `null`) : `average_temperature_celsius ∈ [-50, +60]` °C, `annual_rainfall_mm >= 0`, `average_annual_pesticides_tons >= 0` |
 
-**Domaine d'entraînement** — publié par `GET /<service>/schema` en unités publiques. Une valeur
+**Domaine d'entraînement** — publié par `GET /<service>/context` en unités publiques. Une valeur
 physiquement valide mais hors du domaine appris n'est pas refusée : la prédiction est renvoyée
 avec `out_of_training_domain=true` et une note par variable, sous la forme
 `<champ> is out of training domain`.
