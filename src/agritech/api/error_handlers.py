@@ -1,10 +1,12 @@
-"""Handlers d'erreur globaux de l'API : 422, 503, 500.
+"""Handlers d'erreur globaux de l'API : 401, 422, 503, 500.
 
 Ils traduisent en `ErrorResponse` unifiée :
 
-- `RequestValidationError` (Pydantic)  → 422 `validation_error`
-- `ModelUnavailableError`  (applicative) → 503 `model_unavailable`
-- toute autre `Exception` non prévue    → 500 `internal_error`
+- `RequestValidationError` (Pydantic)          → 422 `validation_error`
+- `ModelUnavailableError`  (applicative)       → 503 `model_unavailable`
+- `MonitoringUnauthorizedError` (monitoring)   → 401 `unauthorized`
+- `MonitoringUnavailableError`  (monitoring)   → 503 `monitoring_unavailable`
+- toute autre `Exception` non prévue          → 500 `internal_error`
 
 Aucun handler n'expose de traceback, de chemin local ni le payload d'origine au
 client. Les 500 sont loggés côté serveur via `logger.exception(...)` pour
@@ -20,7 +22,11 @@ from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from agritech.api.exceptions import ModelUnavailableError
+from agritech.api.exceptions import (
+    ModelUnavailableError,
+    MonitoringUnauthorizedError,
+    MonitoringUnavailableError,
+)
 from agritech.api.schemas.common import ErrorResponse, ValidationErrorDetail
 
 
@@ -32,6 +38,8 @@ _MESSAGES: dict[str, str] = {
     "validation_error": "Request payload is invalid.",
     "model_unavailable": "Model is unavailable.",
     "internal_error": "Internal server error.",
+    "unauthorized": "Authentication required.",
+    "monitoring_unavailable": "Monitoring is unavailable.",
 }
 
 
@@ -55,10 +63,15 @@ def format_validation_errors(exc: RequestValidationError) -> list[ValidationErro
     return details
 
 
-def _error_response(error_code: str, status_code: int, details: list[ValidationErrorDetail] | None = None) -> JSONResponse:
+def _error_response(
+    error_code: str,
+    status_code: int,
+    details: list[ValidationErrorDetail] | None = None,
+    headers: dict[str, str] | None = None,
+) -> JSONResponse:
     """Construit une `JSONResponse` conforme à `ErrorResponse` pour un code donné."""
     body = ErrorResponse(error=error_code, message=_MESSAGES[error_code], details=details).model_dump()
-    return JSONResponse(status_code=status_code, content=body)
+    return JSONResponse(status_code=status_code, content=body, headers=headers)
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -69,6 +82,27 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 async def model_unavailable_handler(request: Request, exc: ModelUnavailableError) -> JSONResponse:
     """Handler 503 : le modèle attendu par l'endpoint n'est pas chargé."""
     return _error_response("model_unavailable", 503)
+
+
+async def monitoring_unauthorized_handler(
+    request: Request, exc: MonitoringUnauthorizedError
+) -> JSONResponse:
+    """Handler 401 : appel `/monitoring/*` sans token Bearer valide.
+
+    L'en-tête `WWW-Authenticate: Bearer` indique au client le schéma attendu.
+    """
+    return _error_response("unauthorized", 401, headers={"WWW-Authenticate": "Bearer"})
+
+
+async def monitoring_unavailable_handler(
+    request: Request, exc: MonitoringUnavailableError
+) -> JSONResponse:
+    """Handler 503 : monitoring non configuré ou base de monitoring indisponible.
+
+    La réponse reste générique : elle ne dit pas si c'est le token ou la base
+    qui manque.
+    """
+    return _error_response("monitoring_unavailable", 503)
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:

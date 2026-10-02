@@ -15,3 +15,22 @@ class ModelUnavailableError(Exception):
     `None` alors qu'un endpoint en a besoin. Le handler HTTP la traduit en 503
     avec le code `model_unavailable`.
     """
+
+
+class MonitoringUnauthorizedError(Exception):
+    """L'appelant d'un endpoint `/monitoring/*` n'est pas authentifié.
+
+    Est levée quand l'en-tête `Authorization: Bearer <token>` est absent, mal
+    formé ou porte un token incorrect. Le handler HTTP la traduit en 401
+    `unauthorized`, avec l'en-tête `WWW-Authenticate: Bearer`.
+    """
+
+
+class MonitoringUnavailableError(Exception):
+    """Les endpoints `/monitoring/*` ne peuvent pas être servis.
+
+    Est levée quand le token de monitoring n'est pas configuré côté serveur
+    ou quand la session factory de la base de monitoring n'est pas
+    disponible. Le message de l'exception reste interne : le handler HTTP
+    renvoie un 503 `monitoring_unavailable` générique, sans la cause exacte.
+    """

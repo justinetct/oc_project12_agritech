@@ -24,10 +24,16 @@ from fastapi.exceptions import RequestValidationError
 from agritech.api.core import runtime
 from agritech.api.error_handlers import (
     model_unavailable_handler,
+    monitoring_unauthorized_handler,
+    monitoring_unavailable_handler,
     unhandled_exception_handler,
     validation_exception_handler,
 )
-from agritech.api.exceptions import ModelUnavailableError
+from agritech.api.exceptions import (
+    ModelUnavailableError,
+    MonitoringUnauthorizedError,
+    MonitoringUnavailableError,
+)
 from agritech.api.middleware.request_logger import RequestLoggerMiddleware
 from agritech.api.routers.predict import router as predict_router
 from agritech.api.routers.recommend import router as recommend_router
@@ -119,6 +125,8 @@ app.include_router(recommend_router)
 
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(ModelUnavailableError, model_unavailable_handler)
+app.add_exception_handler(MonitoringUnauthorizedError, monitoring_unauthorized_handler)
+app.add_exception_handler(MonitoringUnavailableError, monitoring_unavailable_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
 
 # Middleware de persistance : voit les 422 Pydantic générées par les handlers
