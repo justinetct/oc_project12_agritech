@@ -1,7 +1,7 @@
 """Tests d'intégration du repository `api_requests` contre une base SQLite jetable.
 
-Couvre l'écriture (`insert_api_request`) et la lecture des requêtes récentes
-(`list_recent_requests`).
+Couvre l'écriture (`insert_api_request`), la lecture des requêtes récentes
+(`list_recent_requests`) et les agrégats du résumé (`summarize_requests`).
 
 Toutes les fixtures viennent de `conftest.py` : la base vit sous `tmp_path`,
 ce qui garantit qu'aucun test ne peut écrire dans la base locale du projet.
@@ -9,15 +9,20 @@ ce qui garantit qu'aucun test ne peut écrire dans la base locale du projet.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import StatementError
 from sqlalchemy.orm import Session
 
+from agritech.monitoring import repository
 from agritech.monitoring.models import ApiRequest
-from agritech.monitoring.repository import insert_api_request, list_recent_requests
+from agritech.monitoring.repository import (
+    insert_api_request,
+    list_recent_requests,
+    summarize_requests,
+)
 
 
 def _full_row(**overrides) -> dict:
@@ -260,3 +265,251 @@ def test_list_recent_requests_does_not_modify_the_database(session: Session):
     assert not session.dirty
     assert not session.deleted
     assert len(session.execute(select(ApiRequest)).scalars().all()) == 2
+
+
+# ===========================================================================
+# summarize_requests — agrégats du résumé
+# ===========================================================================
+
+# Instant de référence des tests : 2 octobre 2026, 15 h UTC. Avec `days=3`,
+# la période couvre le 30/09, le 01/10 et le 02/10 (à partir du 30/09 à 0 h UTC).
+NOW = datetime(2026, 10, 2, 15, 0, tzinfo=timezone.utc)
+
+
+def _utc(
+    month: int,
+    day: int,
+    hour: int = 12,
+    minute: int = 0,
+    second: int = 0,
+    microsecond: int = 0,
+) -> datetime:
+    """Timestamp UTC en 2026, à midi par défaut."""
+    return datetime(2026, month, day, hour, minute, second, microsecond, tzinfo=timezone.utc)
+
+
+def _recommend_row(**overrides) -> dict:
+    """Ligne `_full_row` du service `/recommend`."""
+    return _full_row(service="recommend", endpoint="/recommend", **overrides)
+
+
+def _service(summary: dict, name: str) -> dict:
+    """Entrée du service `name` dans `summary["services"]`."""
+    return next(entry for entry in summary["services"] if entry["service"] == name)
+
+
+def test_summarize_requests_on_empty_database(session: Session):
+    """Base vide : compteurs à 0, taux et latences à `None`, jours complétés de zéros."""
+    summary = summarize_requests(session, days=3, now=NOW)
+
+    assert summary["total_requests"] == 0
+    assert summary["error_count"] == 0
+    assert summary["success_rate"] is None
+    assert summary["last_request_at"] is None
+    assert summary["errors_by_type"] == {}
+    assert summary["services"] == [
+        {
+            "service": name,
+            "total_requests": 0,
+            "error_count": 0,
+            "success_rate": None,
+            "latency_ms": {"mean": None, "median": None, "max": None},
+        }
+        for name in ("predict", "recommend")
+    ]
+    assert summary["requests_per_day"] == [
+        {"date": date(2026, 9, 30), "predict": 0, "recommend": 0},
+        {"date": date(2026, 10, 1), "predict": 0, "recommend": 0},
+        {"date": date(2026, 10, 2), "predict": 0, "recommend": 0},
+    ]
+
+
+def test_summarize_requests_counts_requests_errors_and_success_rate(session: Session):
+    """Totaux globaux et par service, taux de succès entre 0 et 1."""
+    for _ in range(3):
+        insert_api_request(session, _full_row(timestamp=_utc(10, 1)))
+    insert_api_request(session, _error_row(timestamp=_utc(10, 1)))
+    for _ in range(2):
+        insert_api_request(session, _recommend_row(timestamp=_utc(10, 2)))
+
+    summary = summarize_requests(session, days=3, now=NOW)
+
+    assert summary["total_requests"] == 6
+    assert summary["error_count"] == 1
+    assert summary["success_rate"] == pytest.approx(5 / 6)
+
+    predict = _service(summary, "predict")
+    assert predict["total_requests"] == 4
+    assert predict["error_count"] == 1
+    assert predict["success_rate"] == pytest.approx(0.75)
+
+    recommend = _service(summary, "recommend")
+    assert recommend["total_requests"] == 2
+    assert recommend["error_count"] == 0
+    assert recommend["success_rate"] == pytest.approx(1.0)
+
+
+def test_summarize_requests_always_returns_both_services(session: Session):
+    """Même si un seul service a été appelé, `predict` et `recommend` sont présents, dans cet ordre."""
+    insert_api_request(session, _recommend_row(timestamp=_utc(10, 2)))
+
+    summary = summarize_requests(session, days=3, now=NOW)
+
+    assert [entry["service"] for entry in summary["services"]] == ["predict", "recommend"]
+    assert _service(summary, "predict")["total_requests"] == 0
+    assert _service(summary, "predict")["success_rate"] is None
+
+
+def test_summarize_requests_latency_uses_only_successful_requests(session: Session):
+    """Moyenne, médiane et max sur les seuls succès : la 422 à 1 ms est ignorée."""
+    for duration in (10, 20, 60):
+        insert_api_request(session, _full_row(timestamp=_utc(10, 1), duration_ms=duration))
+    insert_api_request(session, _error_row(timestamp=_utc(10, 1), duration_ms=1))
+
+    latency = _service(summarize_requests(session, days=3, now=NOW), "predict")["latency_ms"]
+
+    assert latency == {"mean": 30.0, "median": 20.0, "max": 60}
+
+
+def test_summarize_requests_latency_is_none_without_success(session: Session):
+    """Un service qui n'a que des erreurs n'a pas de latence calculée."""
+    insert_api_request(
+        session,
+        _error_row(timestamp=_utc(10, 1), service="recommend", endpoint="/recommend", duration_ms=1),
+    )
+
+    recommend = _service(summarize_requests(session, days=3, now=NOW), "recommend")
+
+    assert recommend["total_requests"] == 1
+    assert recommend["success_rate"] == 0.0
+    assert recommend["latency_ms"] == {"mean": None, "median": None, "max": None}
+
+
+def test_summarize_requests_counts_errors_by_type(session: Session):
+    """Les erreurs sont regroupées par `error_type` ; les succès n'y figurent pas."""
+    insert_api_request(session, _full_row(timestamp=_utc(10, 1)))
+    insert_api_request(session, _error_row(timestamp=_utc(10, 1)))
+    insert_api_request(session, _error_row(timestamp=_utc(10, 2)))
+    insert_api_request(
+        session,
+        _error_row(
+            timestamp=_utc(10, 2),
+            status_code=500,
+            error_type="internal_error",
+            error_message="Internal server error.",
+        ),
+    )
+
+    summary = summarize_requests(session, days=3, now=NOW)
+
+    assert summary["errors_by_type"] == {"internal_error": 1, "validation_error": 2}
+
+
+def test_summarize_requests_excludes_rows_outside_period(session: Session):
+    """Une ligne antérieure au premier jour ou postérieure au jour courant n'est pas comptée."""
+    insert_api_request(session, _full_row(timestamp=_utc(10, 1)))
+    insert_api_request(session, _full_row(timestamp=_utc(9, 20)))
+    insert_api_request(session, _error_row(timestamp=_utc(9, 29)))
+    insert_api_request(session, _full_row(timestamp=_utc(10, 3, hour=0)))
+
+    summary = summarize_requests(session, days=3, now=NOW)
+
+    assert summary["total_requests"] == 1
+    assert summary["error_count"] == 0
+    assert summary["errors_by_type"] == {}
+    assert summary["last_request_at"] == _utc(10, 1)
+    assert sum(day["predict"] + day["recommend"] for day in summary["requests_per_day"]) == 1
+
+
+def test_summarize_requests_period_starts_exactly_at_midnight_utc(session: Session):
+    """Le 30/09 à 00:00:00 UTC est inclus ; une microseconde avant est exclue."""
+    insert_api_request(session, _full_row(timestamp=_utc(9, 30, hour=0)))
+    insert_api_request(
+        session,
+        _full_row(timestamp=_utc(9, 29, hour=23, minute=59, second=59, microsecond=999999)),
+    )
+
+    summary = summarize_requests(session, days=3, now=NOW)
+
+    assert summary["total_requests"] == 1
+    assert summary["requests_per_day"][0] == {
+        "date": date(2026, 9, 30), "predict": 1, "recommend": 0,
+    }
+
+
+def test_summarize_requests_last_request_at_is_latest_timestamp_in_utc(session: Session):
+    """`last_request_at` est le timestamp le plus récent de la période, en UTC."""
+    insert_api_request(session, _full_row(timestamp=_utc(10, 2, hour=9)))
+    insert_api_request(session, _recommend_row(timestamp=_utc(10, 2, hour=14, minute=30)))
+    insert_api_request(session, _full_row(timestamp=_utc(10, 1)))
+
+    last_request_at = summarize_requests(session, days=3, now=NOW)["last_request_at"]
+
+    assert last_request_at == _utc(10, 2, hour=14, minute=30)
+    assert last_request_at.tzinfo is not None
+    assert last_request_at.utcoffset().total_seconds() == 0
+
+
+def test_summarize_requests_daily_volume_by_service_with_zero_days(session: Session):
+    """Volume par jour et par service, jours vides à 0, ordre chronologique."""
+    insert_api_request(session, _full_row(timestamp=_utc(9, 30, hour=8)))
+    insert_api_request(session, _error_row(timestamp=_utc(9, 30, hour=23, minute=59)))
+    insert_api_request(session, _recommend_row(timestamp=_utc(9, 30, hour=10)))
+    insert_api_request(session, _recommend_row(timestamp=_utc(10, 2, hour=0)))
+
+    summary = summarize_requests(session, days=3, now=NOW)
+
+    assert summary["requests_per_day"] == [
+        {"date": date(2026, 9, 30), "predict": 2, "recommend": 1},
+        {"date": date(2026, 10, 1), "predict": 0, "recommend": 0},
+        {"date": date(2026, 10, 2), "predict": 0, "recommend": 1},
+    ]
+
+
+def test_summarize_requests_days_one_covers_only_today(session: Session):
+    """`days=1` ne couvre que le jour courant, depuis 0 h UTC."""
+    insert_api_request(session, _full_row(timestamp=_utc(10, 2, hour=1)))
+    insert_api_request(session, _full_row(timestamp=_utc(10, 1, hour=23)))
+
+    summary = summarize_requests(session, days=1, now=NOW)
+
+    assert summary["total_requests"] == 1
+    assert summary["requests_per_day"] == [
+        {"date": date(2026, 10, 2), "predict": 1, "recommend": 0},
+    ]
+
+
+def test_summarize_requests_does_not_modify_the_database(session: Session):
+    """Le résumé ne fait que lire : aucune ligne ajoutée, modifiée ou supprimée."""
+    insert_api_request(session, _full_row(timestamp=_utc(10, 1)))
+
+    summarize_requests(session, days=3, now=NOW)
+
+    assert not session.new
+    assert not session.dirty
+    assert not session.deleted
+    assert len(session.execute(select(ApiRequest)).scalars().all()) == 1
+
+
+class _FrozenDatetime(datetime):
+    """`datetime` dont `now()` renvoie toujours `NOW` : horloge figée pour les tests."""
+
+    @classmethod
+    def now(cls, tz=None):
+        return NOW
+
+
+def test_summarize_requests_uses_current_utc_time_by_default(
+    session: Session, monkeypatch: pytest.MonkeyPatch
+):
+    """Sans `now`, la période se termine au jour courant donné par l'horloge UTC."""
+    monkeypatch.setattr(repository, "datetime", _FrozenDatetime)
+    insert_api_request(session, _full_row(timestamp=_utc(10, 2, hour=1)))
+    insert_api_request(session, _full_row(timestamp=_utc(10, 1, hour=23)))
+
+    summary = summarize_requests(session, days=1)
+
+    assert summary["total_requests"] == 1
+    assert summary["requests_per_day"] == [
+        {"date": date(2026, 10, 2), "predict": 1, "recommend": 0},
+    ]
