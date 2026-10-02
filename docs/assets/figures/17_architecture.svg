@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 330" width="768" height="330" role="img" aria-label="Architecture de l'application : l'interface Streamlit appelle l'API FastAPI en HTTP ; l'API charge les bundles Predict et Recommend du dossier models ; chaque appel est archivé dans SQLite, tracé dans Logfire si un token est défini, et peut être rejoué en ligne de commande.">
+  <!-- Schéma écrit directement en SVG, même style que 06_pipelines.svg. -->
+  <title>Architecture de l'application</title>
+  <defs>
+    <marker id="fleche" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#5aa47c"/>
+    </marker>
+    <style>
+      text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+      .titre { font-size: 15px; font-weight: 800; fill: #14452f; }
+      .gran  { font-size: 10.5px; font-weight: 800; letter-spacing: 1.2px; fill: #2c7a53; }
+      .ligne { font-size: 12px; fill: #3a4a43; }
+      .code  { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; fill: #63706a; }
+      .flux  { font-size: 11.5px; font-weight: 600; fill: #2c7a53; }
+      .fl    { stroke: #5aa47c; stroke-width: 2; marker-end: url(#fleche); fill: none; }
+      .fld   { stroke: #5aa47c; stroke-width: 2; stroke-dasharray: 5 4; marker-end: url(#fleche); fill: none; }
+    </style>
+  </defs>
+
+  <rect width="768" height="330" fill="#f7f4ec"/>
+
+  <!-- Interface -->
+  <rect x="20" y="30" width="210" height="150" rx="14" fill="#ffffff" stroke="#e4dccb"/>
+  <text class="gran" x="125" y="56" text-anchor="middle">INTERFACE</text>
+  <text class="titre" x="125" y="80" text-anchor="middle">Streamlit</text>
+  <text class="ligne" x="125" y="108" text-anchor="middle">Pages Predict et Recommend</text>
+  <text class="ligne" x="125" y="127" text-anchor="middle">aucune logique ML</text>
+  <text class="code" x="125" y="160" text-anchor="middle">streamlit_app/</text>
+
+  <!-- API -->
+  <rect x="279" y="30" width="210" height="150" rx="14" fill="#e8f2ea" stroke="#5aa47c" stroke-width="1.5"/>
+  <text class="gran" x="384" y="56" text-anchor="middle">SERVICE</text>
+  <text class="titre" x="384" y="80" text-anchor="middle">API FastAPI</text>
+  <text class="ligne" x="384" y="108" text-anchor="middle">contrats Pydantic, validation,</text>
+  <text class="ligne" x="384" y="127" text-anchor="middle">domaine d'apprentissage</text>
+  <text class="code" x="384" y="160" text-anchor="middle">src/agritech/api/</text>
+
+  <!-- Modèles -->
+  <rect x="538" y="30" width="210" height="150" rx="14" fill="#ffffff" stroke="#e4dccb"/>
+  <text class="gran" x="643" y="56" text-anchor="middle">BUNDLES</text>
+  <text class="titre" x="643" y="80" text-anchor="middle">Predict · Recommend</text>
+  <text class="ligne" x="643" y="108" text-anchor="middle">pipelines, métadonnées,</text>
+  <text class="ligne" x="643" y="127" text-anchor="middle">contexte des pays</text>
+  <text class="code" x="643" y="160" text-anchor="middle">models/</text>
+
+  <!-- Flux -->
+  <line class="fl" x1="232" y1="92" x2="277" y2="92"/>
+  <text class="flux" x="254" y="84" text-anchor="middle">HTTP</text>
+  <line class="fl" x1="491" y1="92" x2="536" y2="92"/>
+  <text class="flux" x="513" y="84" text-anchor="middle">charge</text>
+
+  <!-- Observabilité -->
+  <line class="fld" x1="384" y1="182" x2="384" y2="226"/>
+  <rect x="160" y="228" width="448" height="80" rx="14" fill="#fdfcf7" stroke="#e4dccb"/>
+  <text class="gran" x="384" y="252" text-anchor="middle">OBSERVABILITÉ</text>
+  <text class="ligne" x="384" y="276" text-anchor="middle">SQLite api_requests · Logfire (facultatif) · CLI de rejeu</text>
+  <text class="code" x="384" y="295" text-anchor="middle">src/agritech/monitoring/, src/agritech/observability/</text>
+</svg>

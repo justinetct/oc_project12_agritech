@@ -13,7 +13,7 @@
     <img src="assets/logo_agritech.png" alt="Agritech Answers">
     <span class="title">Rapport</span>
     <span class="spacer"></span>
-    <span class="pill">Modélisation · API à venir</span>
+    <span class="pill">Modélisation · API · Streamlit</span>
   </header>
 
   <div class="shell">
@@ -24,7 +24,7 @@
         <li><a href="#2-exploration-et-stratégie"><span class="num">02</span><span class="lbl">Exploration et stratégie</span></a></li>
         <li><a href="#3-predict--estimation-du-rendement"><span class="num">03</span><span class="lbl">/predict — estimation du rendement</span></a></li>
         <li><a href="#4-recommend--recommandation-de-cultures"><span class="num">04</span><span class="lbl">/recommend — recommandation de cultures</span></a></li>
-        <li><a href="#5-de-lanalyse-à-lapi"><span class="num">05</span><span class="lbl">De l&#x27;analyse à l&#x27;API</span></a></li>
+        <li><a href="#5-de-lanalyse-à-lapplication"><span class="num">05</span><span class="lbl">De l&#x27;analyse à l&#x27;application</span></a></li>
         <li><a href="#annexes"><span class="num">A</span><span class="lbl">Annexes</span></a></li>
       </ul>
     </nav>
@@ -43,10 +43,12 @@
         <p class="lead">Données, modélisation et résultats des deux services : /predict estime le rendement d'une parcelle, /recommend classe les cultures d'un pays par rendement prédit.</p>
         <div class="badges">
           <span>Python 3.12</span>
-          <span>pandas</span>
+          <span>FastAPI</span>
+          <span>Streamlit</span>
           <span>scikit-learn</span>
-          <span>1 M lignes parcellaires</span>
-          <span>115 pays · 1990-2013</span>
+          <span>Docker</span>
+          <span>350 tests</span>
+          <span>couverture 96 %</span>
         </div>
       </section>
 
@@ -114,44 +116,46 @@
       <div class="table-scroll"><table>
       <thead>
       <tr>
-      <th>Information</th>
-      <th>Saisie dans l'application</th>
+      <th>Information du dataset parcellaire</th>
       <th>Utilisée par le modèle <code>/predict</code></th>
+      <th>Demandée dans l'interface</th>
       </tr>
       </thead>
       <tbody>
       <tr>
       <td>Pluie de la saison (<code>Rainfall_mm</code>)</td>
-      <td>oui</td>
       <td><strong>oui</strong></td>
+      <td>oui</td>
       </tr>
       <tr>
       <td>Température moyenne (<code>Temperature_Celsius</code>)</td>
-      <td>oui</td>
       <td><strong>oui</strong></td>
+      <td>oui</td>
       </tr>
       <tr>
       <td>Engrais, oui ou non (<code>Fertilizer_Used</code>)</td>
-      <td>oui</td>
       <td><strong>oui</strong></td>
+      <td>oui</td>
       </tr>
       <tr>
       <td>Irrigation, oui ou non (<code>Irrigation_Used</code>)</td>
-      <td>oui</td>
       <td><strong>oui</strong></td>
+      <td>oui</td>
       </tr>
       <tr>
-      <td>Culture</td>
-      <td>oui</td>
+      <td>Culture (<code>Crop</code>)</td>
+      <td>non : aucun gain mesuré (chapitre 3)</td>
       <td>non</td>
       </tr>
       <tr>
-      <td>Type de sol</td>
-      <td>oui</td>
+      <td>Type de sol (<code>Soil_Type</code>)</td>
+      <td>non : aucun gain mesuré (chapitre 3)</td>
       <td>non</td>
       </tr>
       </tbody>
       </table></div>
+      <p>Culture et type de sol existent dans le dataset, mais l'analyse les a écartés du modèle : l'interface ne demande donc
+      que les quatre variables réellement utilisées.</p>
       <h3 id="préparation-des-données">Préparation des données</h3>
       <ul>
       <li><strong>Agriculture CropYield</strong> : un million de lignes sans valeur manquante ni doublon, aux distributions uniformes et
@@ -496,8 +500,8 @@
       </tbody>
       </table></div>
       <p>Ces relations n'ont pas apporté de gain prédictif mesurable avec nos données et notre protocole. Cela ne veut pas
-      dire qu'elles n'existent pas en agronomie : ce jeu de données ne permet pas de les mettre en évidence. <code>Crop</code> reste
-      une information de l'application, pas une variable du modèle.</p>
+      dire qu'elles n'existent pas en agronomie : ce jeu de données ne permet pas de les mettre en évidence. <code>Crop</code> n'est
+      donc pas une variable du modèle, et l'interface ne la demande pas.</p>
       <h3 id="modèles-non-linéaires">Modèles non linéaires</h3>
       <p>Six modèles sont comparés sur les deux jeux de variables, sans optimisation : l'arbre et la forêt
       avec <code>min_samples_leaf=100</code>, les boostings avec les réglages par défaut de leur librairie (sans arrêt anticipé pour
@@ -672,7 +676,8 @@
       </ul>
       <figure><img width="5113" height="1731" alt="Expérience MLflow /predict : les 11 runs de synthèse (références, modèles non linéaires et meilleurs réglages), triés par RMSE de validation croisée" src="assets/figures/09_mlflow_predict.png" /><figcaption>Expérience MLflow /predict : les 11 runs de synthèse (références, modèles non linéaires et meilleurs réglages), triés par RMSE de validation croisée</figcaption></figure>
       <h2 id="4-recommend--recommandation-de-cultures">4. <code>/recommend</code> — recommandation de cultures</h2>
-      <p>La modélisation suit la même progression que pour <code>/predict</code> (notebooks 12 à 15). Le modèle prédit un rendement par
+      <p>La modélisation suit la même progression que pour <code>/predict</code> (notebooks 12 à 15) ; le notebook 16 réapprend
+      ensuite le modèle retenu pour le servir. Le modèle prédit un rendement par
       culture, puis le service trie les 10 cultures : c'est une régression, pas une classification.</p>
       <h3 id="protocole_1">Protocole</h3>
       <p>Pour un pays et une culture, le rendement change peu d'une année à l'autre (corrélation de 0,985 avec l'année
@@ -948,16 +953,18 @@
       </tr>
       <tr>
       <td>5. Allègement</td>
-      <td><strong>150 arbres, 44,7 Mo compressés</strong> (lzma), même RMSE (1,4349 contre 1,4359) et MAE (0,7114 contre 0,7127)</td>
+      <td><strong>150 arbres</strong>, même RMSE (1,4349 contre 1,4359) et MAE (0,7114 contre 0,7127), puis compression lzma : <strong>44,7 Mo</strong></td>
       </tr>
       </tbody>
       </table></div>
       <ul>
-      <li><strong>Pourquoi alléger ExtraTrees ?</strong> Le modèle doit être enregistré dans le dépôt et chargé par l'API. Avec 300 arbres,
-        il pèse 425 Mo (121,6 Mo compressés) : au-dessus de la recommandation de 50 Mo par fichier de GitHub, et lent à charger.</li>
-      <li>La taille d'une forêt dépend de son nombre de nœuds, donc surtout du nombre d'arbres. Or la RMSE ne baisse plus
-        au-delà de 150 arbres : on garde la même performance pour un fichier deux fois plus petit, plus rapide à charger et
-        à interroger (annexe D.4).</li>
+      <li><strong>Pourquoi alléger ExtraTrees ?</strong> Le modèle doit être enregistré dans le dépôt et chargé par l'API, sous 50 Mo par
+        fichier : au-delà, GitHub affiche un avertissement. Avec 300 arbres, il pèse 425 Mo (121,6 Mo compressés), et il
+        est lent à charger.</li>
+      <li><strong>Moins d'arbres.</strong> La taille d'une forêt dépend de son nombre de nœuds, donc surtout du nombre d'arbres. Or la
+        RMSE ne baisse plus au-delà de 150 arbres : on garde la même performance pour un fichier deux fois plus petit
+        (60,8 Mo compressés), plus rapide à charger et à interroger (annexe D.4).</li>
+      <li><strong>Compression lzma.</strong> Le même modèle, compressé en lzma plutôt qu'en zlib, passe de 60,8 à 44,7 Mo : sous 50 Mo.</li>
       </ul>
       <h3 id="modèle-final_1">Modèle final</h3>
       <p><strong>ExtraTrees à 150 arbres</strong> : <code>max_features=0.9</code>, <code>min_samples_split=3</code>, <code>random_state=42</code>, <code>n_jobs=1</code>.</p>
@@ -967,7 +974,8 @@
       <li>Les conditions historiques utilisent la moyenne des 3 années précédentes : la première année de chaque pays
         (1990) n'a donc pas d'historique et sort de l'apprentissage, ce qui ramène le développement de 15 624 à 14 941
         lignes (1991-2012).</li>
-      <li>Pipeline complet de 44,7 Mo compressés (lzma), dans <code>models/recommend_model.joblib</code>, avec ses métadonnées.</li>
+      <li>Modèle évalué (notebook 15) : pipeline complet de 44,7 Mo compressés (lzma). C'est ce modèle que mesurent
+        l'importance des variables et l'évaluation finale ci-dessous.</li>
       </ul>
       <h3 id="importance-des-variables">Importance des variables</h3>
       <figure><img width="983" height="363" alt="Importance par permutation du modèle final, hors apprentissage : hausse de la RMSE quand une famille de variables est mélangée dans une année de validation, 2008-2012 (notebook 15)" src="assets/figures/14_importance_recommend.png" /><figcaption>Importance par permutation du modèle final, hors apprentissage : hausse de la RMSE quand une famille de variables est mélangée dans une année de validation, 2008-2012 (notebook 15)</figcaption></figure>
@@ -1010,6 +1018,13 @@
       <li>2013 n'a servi à aucun choix : le modèle était figé avant l'évaluation finale.</li>
       <li>Limite : toutes les lignes de 2013 portent sur des couples pays × culture déjà observés.</li>
       </ul>
+      <h3 id="modèle-servi--refit-sur-1991-2013">Modèle servi : refit sur 1991-2013</h3>
+      <p>Une fois l'évaluation finale faite, le notebook 16 réapprend le même pipeline, avec les mêmes variables et les mêmes
+      réglages, sur toutes les données disponibles : <strong>15 636 lignes, de 1991 à 2013</strong> (14 941 + 695). C'est ce modèle que
+      sert l'API (<code>models/recommend_model.joblib</code>, <code>model_version</code> 2.0.0, 46,9 Mo en lzma), pour l'année cible technique
+      2014.</p>
+      <p>Ce refit n'est pas réévalué : aucune donnée indépendante ne reste pour le mesurer. <strong>Les performances de référence
+      restent celles du test 2013 ci-dessus</strong>, mesurées avant le refit.</p>
       <h3 id="ce-que-recommande-le-modèle">Ce que recommande le modèle</h3>
       <figure><img width="1389" height="594" alt="Culture classée n°1 par ExtraTrees dans les conditions de la demande 2012, modèle appris jusqu'en 2011 (notebook 15)" src="assets/figures/12_carte_n1_2012.png" /><figcaption>Culture classée n°1 par ExtraTrees dans les conditions de la demande 2012, modèle appris jusqu'en 2011 (notebook 15)</figcaption></figure>
       <p>La carte montre, pour chacun des 115 pays, la culture classée n°1 pour la campagne 2012 par un ExtraTrees appris
@@ -1025,241 +1040,100 @@
       <code>cv_</code> que pour <code>/predict</code> ; le run final, « ExtraTrees final — test 2013 », ajoute <code>test_rmse</code>, <code>test_mae</code> et
       <code>test_r2</code>. La capture montre 13 runs représentatifs.</p>
       <figure><img width="5116" height="1912" alt="Expérience MLflow /recommend : 13 runs représentatifs, de la référence naïve au modèle final" src="assets/figures/11_mlflow_recommend.png" /><figcaption>Expérience MLflow /recommend : 13 runs représentatifs, de la référence naïve au modèle final</figcaption></figure>
-      <h2 id="5-de-lanalyse-à-lapi">5. De l'analyse à l'API</h2>
-      <p>L'application propose deux services complémentaires :</p>
+      <h2 id="5-de-lanalyse-à-lapplication">5. De l'analyse à l'application</h2>
+      <p>Les deux modèles sont servis par une API, et une interface Streamlit permet de les utiliser.</p>
+      <h3 id="architecture">Architecture</h3>
+      <figure><img width="768" height="330" alt="Architecture de l'application : l'interface Streamlit appelle l'API FastAPI, qui charge les bundles Predict et Recommend ; chaque appel est archivé et tracé par la couche d'observabilité" src="assets/figures/17_architecture.svg" /><figcaption>Architecture de l'application : l'interface Streamlit appelle l'API FastAPI, qui charge les bundles Predict et Recommend ; chaque appel est archivé et tracé par la couche d'observabilité</figcaption></figure>
       <ul>
-      <li><strong><code>/predict</code></strong> : estimation du rendement pour une culture et une parcelle données ;</li>
-      <li><strong><code>/recommend</code></strong> : classement des 10 cultures pour un pays.</li>
+      <li><strong>L'API</strong> est construite avec <strong>FastAPI</strong> ; <strong>Pydantic</strong> définit et valide les contrats d'entrée et de sortie. Les
+        modèles sont chargés au démarrage, et la logique de prédiction reste séparée de la couche HTTP
+        (<code>agritech.serving</code>).</li>
+      <li><strong>L'interface Streamlit ne contient aucune logique ML.</strong> Les bornes, les domaines d'apprentissage, les pays, les
+        cultures et les valeurs par défaut viennent des endpoints <code>/context</code> ; l'interface envoie les valeurs saisies et
+        affiche ce que l'API renvoie : rendement, classement et avertissements.</li>
       </ul>
-      <p>L'API est construite avec <strong>FastAPI</strong> et utilise <strong>Pydantic</strong> pour définir et valider les
-      contrats d'entrée et de sortie. Les modèles sont chargés au démarrage de l'application ; la
-      couche HTTP reste séparée de la logique de prédiction et partage le même fonctionnement entre
-      les deux services. FastAPI génère la documentation <strong>OpenAPI/Swagger</strong> de l'API.</p>
-      <h3 id="predict--implémentation-actuelle"><code>/predict</code> — implémentation actuelle</h3>
-      <p>Trois endpoints sont disponibles :</p>
+      <h3 id="api">API</h3>
+      <figure><img width="3705" height="1524" alt="Documentation Swagger de l'API : les cinq endpoints /health, /predict/context, /predict, /recommend/context et /recommend" src="assets/screenshots/UI_API.png" /><figcaption>Documentation Swagger de l'API : les cinq endpoints /health, /predict/context, /predict, /recommend/context et /recommend</figcaption></figure>
+      <p>L'API expose cinq endpoints, documentés automatiquement par FastAPI dans Swagger (<code>/docs</code>) :</p>
       <ul>
-      <li><strong><code>GET /health</code></strong> : état du service (version de l'API, présence du modèle, version du modèle) ;</li>
-      <li><strong><code>GET /predict/context</code></strong> : bornes physiques acceptées par le contrat, domaine d'entraînement
-        du modèle et unités, à destination d'une future interface qui pourra afficher les plages avant
-        la saisie utilisateur ;</li>
-      <li><strong><code>POST /predict</code></strong> : reçoit les quatre variables retenues au chapitre 3
-        (<code>rainfall_mm</code>, <code>temperature_celsius</code>, <code>fertilizer_used</code>, <code>irrigation_used</code>), renvoie le rendement
-        estimé, la version du modèle, un drapeau <code>out_of_training_domain</code> et une note par variable hors
-        domaine.</li>
+      <li><code>GET /health</code> : état du service ;</li>
+      <li><code>GET /predict/context</code> et <code>GET /recommend/context</code> : ce dont l'interface a besoin pour construire ses formulaires ;</li>
+      <li><code>POST /predict</code> et <code>POST /recommend</code> : les deux services.</li>
       </ul>
-      <p>Le champ <code>crop</code> reste une information affichée par l'application à côté du résultat, mais n'est pas
-      envoyé au modèle : le chapitre 3 a montré que la culture n'apporte pas de gain mesurable au modèle
-      <code>/predict</code>.</p>
-      <h3 id="recommend"><code>/recommend</code></h3>
-      <p>Deux endpoints exposent le classement des cultures :</p>
+      <h3 id="parcours-predict">Parcours Predict</h3>
+      <figure><img width="3713" height="2303" alt="Interface Streamlit Predict : rendement estimé et conditions utilisées" src="assets/screenshots/UI_predict.png" /><figcaption>Interface Streamlit Predict : rendement estimé et conditions utilisées</figcaption></figure>
       <ul>
-      <li><strong><code>GET /recommend/context</code></strong> : liste des pays servis, cultures modélisées, bornes physiques
-        et domaine d'entraînement en unités publiques, à destination du client pour construire son
-        formulaire ; expose également l'année cible technique 2014 et une note qui explique cette
-        convention interne. Accepte un paramètre de requête optionnel <code>iso3</code> (ex. <code>?iso3=FRA</code>) : la
-        réponse contient alors un bloc <code>country</code> avec les valeurs préremplies calculées à partir de
-        l'historique 2011-2013 du pays ;</li>
-      <li><strong><code>POST /recommend</code></strong> : reçoit un <code>iso3</code> (obligatoire) et un bloc <code>conditions</code> optionnel, dont
-        chaque champ (<code>average_temperature_celsius</code>, <code>annual_rainfall_mm</code>,
-        <code>average_annual_pesticides_tons</code>) peut être omis. Retourne les 10 cultures modélisées, triées
-        par rendement prédit décroissant, avec pour chacune un rang, le rendement estimé et un
-        indicateur <code>observed_in_country</code> qui signale si le couple pays × culture existe dans
-        l'historique 1990-2013.</li>
+      <li>L'utilisateur saisit <strong>quatre conditions</strong> : pluie, température, fertilisation et irrigation.</li>
+      <li><code>GET /predict/context</code> fournit les bornes, le domaine d'apprentissage et les unités affichés dans le formulaire.</li>
+      <li><code>POST /predict</code> renvoie le rendement estimé et signale les valeurs hors du domaine d'apprentissage.</li>
+      <li>La culture n'est pas demandée : elle n'apporte pas de gain mesurable au modèle (chapitre 3).</li>
+      </ul>
+      <h3 id="parcours-recommend">Parcours Recommend</h3>
+      <figure><img width="3707" height="2309" alt="Interface Streamlit Recommend : culture recommandée et classement des cultures" src="assets/screenshots/UI_recommend.png" /><figcaption>Interface Streamlit Recommend : culture recommandée et classement des cultures</figcaption></figure>
+      <ul>
+      <li>L'utilisateur <strong>choisit son pays</strong>.</li>
+      <li>Ses conditions historiques (température, pluie, pesticides) sont <strong>proposées automatiquement</strong> par
+        <code>GET /recommend/context</code> et restent modifiables.</li>
+      <li><code>POST /recommend</code> renvoie le <strong>classement des 10 cultures</strong> par rendement estimé, et indique pour chacune si elle
+        a déjà été cultivée dans le pays (<code>observed_in_country</code>).</li>
       </ul>
       <div class="callout callout-important">
         <div class="callout-header"><span aria-hidden="true">▲</span>Important</div>
         <div class="callout-body">
-      <p><strong>Pourquoi 2014 ?</strong> Le dataset historique s'arrête en 2013. 2014 est donc l'année cible
-      <strong>technique</strong> : la première année suivante, choisie pour laisser le service calculer les
-      historiques du pays à partir des données 2011-2013. Ce n'est pas une recommandation actuelle,
-      et l'application en aval ne présente pas cette date à l'agriculteur.</p>
+      <p><strong>Pourquoi 2014 ?</strong> Les données s'arrêtent en 2013 : 2014 est l'année cible <strong>technique</strong> qui permet au service de
+      calculer les historiques du pays à partir de 2011-2013. Ce n'est pas une recommandation actuelle, et l'interface
+      n'affiche pas cette date.</p>
       </div>
       </div>
-      <p>Le service prépare les 9 features attendues par le pipeline à partir du seul <code>iso3</code> : moyennes
-      historiques 2011-2013 pour la température et les pesticides (transformés en <code>log1p</code>), pluie
-      constante du pays, features géographiques finales (<code>lat_abs</code>, <code>geo_x</code>, <code>geo_y</code>, <code>geo_z</code>) et
-      année. Les conditions publiques fournies par l'utilisateur remplacent les valeurs par défaut
-      correspondantes avant la construction des features attendues par le modèle. La réponse expose
-      côte à côte les valeurs préremplies du pays (<code>context.country_defaults</code>) et les valeurs
-      effectivement utilisées (<code>context.effective_conditions</code>), sans logique métier à refaire côté
-      client.</p>
-      <h3 id="validation-et-signalement">Validation et signalement</h3>
-      <p>Deux notions distinctes.</p>
-      <p><strong>Bornes physiques</strong> — portées par Pydantic. Un champ hors bornes, de type incorrect, ou un
-      champ inconnu au niveau du corps provoque une réponse <strong>422</strong>.</p>
-      <div class="table-scroll"><table>
-      <thead>
-      <tr>
-      <th>Service</th>
-      <th>Champs et bornes</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr>
-      <td><code>/predict</code></td>
-      <td><code>rainfall_mm &gt;= 0</code> ; <code>temperature_celsius ∈ [-50, +60]</code> °C ; <code>fertilizer_used</code>, <code>irrigation_used</code> : booléens stricts (refus de <code>0</code>, <code>1</code>, <code>"true"</code>, <code>"false"</code>)</td>
-      </tr>
-      <tr>
-      <td><code>/recommend</code></td>
-      <td><code>iso3</code> au format <code>^[A-Z]{3}$</code> ; bloc <code>conditions</code> optionnel, chaque champ (optionnel, accepte <code>null</code>) : <code>average_temperature_celsius ∈ [-50, +60]</code> °C, <code>annual_rainfall_mm &gt;= 0</code>, <code>average_annual_pesticides_tons &gt;= 0</code></td>
-      </tr>
-      </tbody>
-      </table></div>
-      <p><strong>Domaine d'entraînement</strong> — publié par <code>GET /&lt;service&gt;/context</code> en unités publiques. Une valeur
-      physiquement valide mais hors du domaine appris n'est pas refusée : la prédiction est renvoyée
-      avec <code>out_of_training_domain=true</code> et une note par variable, sous la forme
-      <code>&lt;champ&gt; is out of training domain</code>.</p>
-      <div class="table-scroll"><table>
-      <thead>
-      <tr>
-      <th>Service</th>
-      <th>Champs et bornes</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr>
-      <td><code>/predict</code></td>
-      <td><code>rainfall_mm ∈ [100 ; 1 000]</code> mm ; <code>temperature_celsius ∈ [15 ; 40]</code> °C</td>
-      </tr>
-      <tr>
-      <td><code>/recommend</code></td>
-      <td><code>average_temperature_celsius ∈ [2,57 ; 30,25]</code> °C ; <code>annual_rainfall_mm ∈ [51 ; 3 240]</code> mm ; <code>average_annual_pesticides_tons ∈ [0,04 ; 1 783 667]</code> t</td>
-      </tr>
-      </tbody>
-      </table></div>
-      <p>Les pesticides sont stockés en interne sous forme <code>log1p(tonnes)</code> et exposés en tonnes après
-      conversion <code>expm1</code>.</p>
-      <h3 id="erreurs-unifiées">Erreurs unifiées</h3>
-      <p>Les trois catégories d'erreur partagent le même contrat <code>ErrorResponse</code> (<code>error</code>, <code>message</code>,
-      <code>details</code>) :</p>
+      <h3 id="validation-et-erreurs">Validation et erreurs</h3>
       <ul>
-      <li><strong>422 <code>validation_error</code></strong> : payload invalide, avec une liste <code>details</code> typée (<code>field</code>, <code>type</code>,
-        <code>message</code>) qui ne recopie ni le payload d'origine ni le contexte interne de Pydantic. Pour
-        <code>/recommend</code>, un <code>iso3</code> syntaxiquement valide mais absent du contexte servi renvoie également
-        un 422 avec <code>type="unknown_country"</code> sur le champ <code>body.iso3</code> ;</li>
-      <li><strong>503 <code>model_unavailable</code></strong> : le modèle ou son contexte n'est pas chargé ;</li>
-      <li><strong>500 <code>internal_error</code></strong> : exception non prévue. Le message brut de l'exception, la traceback et
-        les chemins de fichiers ne sont jamais retournés au client ; ils sont loggés côté serveur pour
-        diagnostic.</li>
+      <li>L'API valide toutes les entrées : une valeur <strong>physiquement invalide</strong> est refusée.</li>
+      <li>Une valeur <strong>valide mais hors du domaine d'apprentissage</strong> est acceptée ; l'API la signale
+        (<code>out_of_training_domain</code>) et l'interface affiche un avertissement.</li>
+      <li>Les erreurs de l'API ou du réseau sont traduites en messages courts et compréhensibles dans Streamlit.</li>
       </ul>
-      <h3 id="documentation-openapi-et-test-local">Documentation OpenAPI et test local</h3>
-      <p>FastAPI produit automatiquement la spécification OpenAPI à partir des schémas Pydantic et des
-      signatures des endpoints. La documentation interactive est servie sur <code>/docs</code> (Swagger UI) et la
-      définition brute sur <code>/openapi.json</code> ; chaque endpoint documente ses codes de réponse et le schéma
-      <code>ErrorResponse</code> associé.</p>
-      <p>Les tests sont écrits au fil du développement, pas repoussés en fin de branche. Un test manuel via Swagger sur <code>/docs</code> complète la vérification automatisée.</p>
+      <p>Les bornes exactes sont visibles dans Swagger ; le contrat d'erreur est détaillé en
+      <a href="#f-erreurs-de-lapi">annexe F</a>.</p>
+      <h3 id="lancement-local-et-tests">Lancement local et tests</h3>
+      <pre><code class="language-bash">make api         # API sur http://127.0.0.1:8000, documentation sur /docs
+make streamlit   # interface Streamlit sur http://localhost:8501
+</code></pre>
+      <p>L'interface appelle l'API à l'adresse donnée par <code>AGRITECH_API_URL</code>, par défaut <code>http://localhost:8000</code>. Les tests
+      sont écrits au fil du développement (<code>make test</code>) :</p>
       <div class="table-scroll"><table>
       <thead>
       <tr>
-      <th>Domaine</th>
-      <th style="text-align: right;">Tests</th>
+      <th>Tests</th>
+      <th style="text-align: right;">Nombre</th>
       </tr>
       </thead>
       <tbody>
       <tr>
-      <td>API <code>/predict</code> (schémas, router)</td>
-      <td style="text-align: right;">23</td>
+      <td>Interface Streamlit</td>
+      <td style="text-align: right;">109</td>
       </tr>
       <tr>
-      <td>API <code>/recommend</code> (schémas, router)</td>
-      <td style="text-align: right;">53</td>
-      </tr>
-      <tr>
-      <td>Middleware, <code>/health</code> et handlers d'erreur</td>
-      <td style="text-align: right;">56</td>
-      </tr>
-      <tr>
-      <td>Serving (chargement des modèles, prédiction)</td>
-      <td style="text-align: right;">48</td>
-      </tr>
-      <tr>
-      <td>Monitoring SQLite, Logfire et CLI de rejeu</td>
-      <td style="text-align: right;">55</td>
+      <td>API, modèles, monitoring et observabilité</td>
+      <td style="text-align: right;">241</td>
       </tr>
       <tr>
       <td><strong>Total</strong></td>
-      <td style="text-align: right;"><strong>235</strong></td>
+      <td style="text-align: right;"><strong>350</strong></td>
       </tr>
       </tbody>
       </table></div>
-      <p>Couverture de branche : <strong>95 %</strong> sur <code>agritech.api</code>, <code>agritech.serving</code>, <code>agritech.monitoring</code> et <code>agritech.observability</code>.</p>
-      <p>Le <code>Makefile</code> fournit les commandes courantes pour lancer et tester l'API localement :</p>
-      <pre><code class="language-bash"># Lancer l'API
-make api
-
-# Dans un second terminal
-make health
-make predict
-make recommend
-</code></pre>
-      <p>La documentation interactive est disponible sur <code>/docs</code>.</p>
-      <h3 id="observabilité">Observabilité</h3>
-      <p>Une fois <code>/predict</code> et <code>/recommend</code> en service, on veut savoir quels appels arrivent, s'ils
-      réussissent ou échouent, et pouvoir vérifier plus tard qu'une prédiction faite hier reste
-      cohérente avec le modèle disponible aujourd'hui. Cette couche s'ajoute sans changer le contrat
-      HTTP, et une panne d'observabilité ne fait jamais échouer une prédiction valide.</p>
-      <p><strong>SQLite — l'historique persistant.</strong> Chaque <code>POST /predict</code> et <code>POST /recommend</code> est archivé
-      dans une table <code>api_requests</code> : payloads, statut, durée, versions API et modèle, trace ID
-      Logfire. Les endpoints techniques ne sont pas persistés, aucun en-tête ni IP n'est capturé. Le
-      schéma détaillé de la table est en <a href="#e-schéma-du-monitoring-sqlite">annexe E</a>.</p>
-      <p><strong>Logfire — l'observabilité externe optionnelle.</strong> Configurée uniquement si <code>LOGFIRE_TOKEN</code> est
-      présent ; sinon aucun envoi réseau. Chaque appel observé apparaît comme un span nommé d'après la
-      route, avec requête et réponse en attributs — y compris <code>GET /health</code>, tracé côté Logfire mais
-      jamais persisté en SQLite. Les 4xx ressortent en warning, les 5xx en error. La corrélation avec
-      SQLite passe par un <code>trace_id</code> commun.</p>
-      <figure><img width="4944" height="2310" alt="Capture Logfire de la timeline des appels API et du détail d'un POST /predict" src="assets/figures/16_observability_logfire.png" /><figcaption>Capture Logfire de la timeline des appels API et du détail d'un POST /predict</figcaption></figure>
-      <p><em>La timeline Logfire permet de distinguer immédiatement les appels réussis (200) des erreurs de
-      validation (422). Le panneau de détail donne accès à la requête, à la réponse et au statut de
-      l'appel.</em></p>
-      <p><strong>CLI de rejeu.</strong> Le module <code>agritech.monitoring.replay</code> reprend une ligne archivée et invoque
-      directement <code>agritech.serving</code> avec le modèle actuellement disponible :</p>
-      <pre><code>poetry run python -m agritech.monitoring.replay 42
-poetry run python -m agritech.monitoring.replay --failed --since 2026-09-29
-</code></pre>
-      <p>Il affiche la requête, la réponse archivée, la réponse actuelle et un diff JSON. Le dépôt ne
-      conserve qu'un artefact par service : si <code>model_version</code> a changé depuis l'appel archivé, un
-      WARNING est affiché et le replay ne constitue pas une reproduction stricte.</p>
-      <h3 id="containerisation-docker">Containerisation Docker</h3>
-      <p>L'API est packagée dans une image Docker pour la rendre portable et reproductible. L'image
-      ne contient que le nécessaire au runtime : le code du service et les artefacts modèles. Les
-      données d'observabilité (base SQLite <code>api.sqlite</code>) vivent dans un volume Docker nommé
-      <code>agritech_monitoring</code> qui survit aux recréations du conteneur.</p>
-      <div class="table-scroll"><table>
-      <thead>
-      <tr>
-      <th>Variable</th>
-      <th>Valeur Compose</th>
-      <th>Rôle</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr>
-      <td><code>DATABASE_URL</code></td>
-      <td><code>sqlite:////app/data/monitoring/api.sqlite</code></td>
-      <td>Base SQLite d'observabilité</td>
-      </tr>
-      <tr>
-      <td><code>ENVIRONMENT</code></td>
-      <td><code>prod</code></td>
-      <td>Persistée dans <code>api_requests.environment</code></td>
-      </tr>
-      <tr>
-      <td><code>LOGFIRE_ENVIRONMENT</code></td>
-      <td><code>prod</code></td>
-      <td>Contexte Logfire</td>
-      </tr>
-      <tr>
-      <td><code>LOGFIRE_SERVICE_NAME</code></td>
-      <td><code>agritech-answers-api</code></td>
-      <td>Nom de service Logfire</td>
-      </tr>
-      <tr>
-      <td><code>LOGFIRE_TOKEN</code></td>
-      <td><em>optionnel</em></td>
-      <td>Sans token, mode silencieux, aucun envoi réseau</td>
-      </tr>
-      </tbody>
-      </table></div>
+      <p>Couverture : <strong>96 %</strong> sur <code>agritech.api</code>, <code>agritech.serving</code>, <code>agritech.monitoring</code>,
+      <code>agritech.observability</code> et <code>agritech.ui</code>.</p>
+      <h3 id="observabilité-et-conteneurisation">Observabilité et conteneurisation</h3>
+      <p>Une couche d'observabilité a été ajoutée autour de l'API pour garder l'historique des appels et faciliter leur
+      diagnostic, sans changer les contrats ni bloquer une prédiction en cas de panne. Chaque appel <code>POST /predict</code> ou
+      <code>POST /recommend</code> est archivé dans une base SQLite ; Logfire apporte en plus une observabilité externe facultative ;
+      enfin, un CLI permet de rejouer une requête archivée avec le modèle courant et de comparer les deux réponses. Le
+      fonctionnement de cette observabilité est détaillé en <a href="#g-observabilité">annexe G</a>, et le schéma de la table
+      SQLite en <a href="#e-schéma-du-monitoring-sqlite">annexe E</a>.</p>
+      <p>L'API a aussi été containerisée avec Docker, pour disposer d'un environnement d'exécution reproductible. L'interface
+      Streamlit reste lancée séparément et appelle cette API. La configuration, les commandes et la conservation des
+      données d'observabilité lors des recréations du conteneur sont décrites en <a href="#h-docker">annexe H</a>.</p>
       <h2 id="annexes">Annexes</h2>
       <h3 id="a-limites-et-précautions">A. Limites et précautions</h3>
       <h4 id="a1-predict--limites-des-données">A.1 <code>/predict</code> — limites des données</h4>
@@ -1268,7 +1142,8 @@ poetry run python -m agritech.monitoring.replay --failed --since 2026-09-29
         ne sont pas des preuves agronomiques.</li>
       <li>Il n'a ni pays ni année, et <code>Region</code> ne correspond à aucun lieu : une estimation ne peut pas être rattachée à un
         lieu ou à une saison précise.</li>
-      <li>Les six cultures ont des rendements quasiment identiques : l'estimation ne change pas avec la culture choisie.</li>
+      <li>Les six cultures ont des rendements quasiment identiques : la culture ne changerait pas l'estimation,
+        c'est pourquoi l'interface ne la demande pas.</li>
       </ul>
       <h4 id="a2-recommend--limites-des-données">A.2 <code>/recommend</code> — limites des données</h4>
       <ul>
@@ -1295,8 +1170,8 @@ poetry run python -m agritech.monitoring.replay --failed --since 2026-09-29
       <h4 id="a4-utilisation-extrapolation-et-causalité">A.4 Utilisation, extrapolation et causalité</h4>
       <ul>
       <li>Les scores et les importances décrivent des prédictions, pas des effets de cause à effet.</li>
-      <li>ExtraTrees n'extrapole pas : au-delà des valeurs apprises, il répond comme au bord de la plage connue. L'API devra
-        contrôler ou signaler ces valeurs.</li>
+      <li>ExtraTrees n'extrapole pas : au-delà des valeurs apprises, il répond comme au bord de la plage connue. L'API signale ces
+        valeurs (<code>out_of_training_domain</code>), et l'interface affiche un avertissement.</li>
       <li>Un stress test (notebook 15) a modifié les conditions de quelques pays (température ±3 °C, pluie ±30 %,
         pesticides ±50 %) : le classement d'ExtraTrees reste relativement stable. Ce test décrit le modèle ; il ne
         démontre aucun effet agronomique.</li>
@@ -1600,7 +1475,7 @@ poetry run python -m agritech.monitoring.replay --failed --since 2026-09-29
       <li>aucun des meilleurs compromis ne dépasse 60,8 Mo : <strong>150 arbres, avec la structure du tuning, sont retenus</strong>. Le
         meilleur modèle de la recherche ajoutait <code>max_depth=35</code> pour une RMSE de 1,4347 contre 1,4349 : un gain de 0,0002 t/ha, négligeable.</li>
       </ul>
-      <p>Le modèle retenu (150 arbres) est sauvegardé en lzma (44,7 Mo) au lieu de zlib (60,8 Mo), pour passer sous la recommandation de 50 Mo par fichier de GitHub.</p>
+      <p>Le modèle retenu (150 arbres) est sauvegardé en lzma (44,7 Mo) au lieu de zlib (60,8 Mo), pour passer sous le seuil d'avertissement de GitHub (50 Mo). Le modèle réappris sur 1991-2013 et servi par l'API (notebook 16) pèse 46,9 Mo en lzma.</p>
       <h3 id="e-schéma-du-monitoring-sqlite">E. Schéma du monitoring SQLite</h3>
       <p>Table <code>api_requests</code> : une ligne par appel <code>POST /predict</code> ou <code>/recommend</code>. Elle conserve les
       informations nécessaires au suivi, au diagnostic et au rejeu des requêtes.</p>
@@ -1717,6 +1592,101 @@ poetry run python -m agritech.monitoring.replay --failed --since 2026-09-29
       <li><code>(service, timestamp)</code> — lister les appels d'un service par ordre chronologique ;</li>
       <li><code>(success, timestamp)</code> — retrouver les erreurs récentes, utilisé par le mode replay batch.</li>
       </ul>
+      <h3 id="f-erreurs-de-lapi">F. Erreurs de l'API</h3>
+      <p>Les erreurs partagent le même contrat <code>ErrorResponse</code> (<code>error</code>, <code>message</code>, <code>details</code>) :</p>
+      <ul>
+      <li><strong>422 <code>validation_error</code></strong> : payload invalide (champ hors bornes physiques, de type incorrect ou inconnu), avec une
+        liste <code>details</code> (<code>field</code>, <code>type</code>, <code>message</code>) qui ne recopie ni le payload d'origine ni le contexte interne de
+        Pydantic. Pour <code>/recommend</code>, un <code>iso3</code> bien formé mais absent du contexte servi renvoie aussi un 422, avec
+        <code>type="unknown_country"</code> sur le champ <code>body.iso3</code> ;</li>
+      <li><strong>503 <code>model_unavailable</code></strong> : le modèle ou son contexte n'est pas chargé ;</li>
+      <li><strong>500 <code>internal_error</code></strong> : exception non prévue. Ni le message brut, ni la traceback, ni les chemins de fichiers
+        ne sont renvoyés au client ; ils sont seulement loggés côté serveur.</li>
+      </ul>
+      <p>Une valeur physiquement valide mais hors du domaine d'apprentissage n'est pas une erreur : la réponse est renvoyée
+      avec <code>out_of_training_domain=true</code> et une note par variable concernée. Côté interface, chaque code d'erreur, ainsi
+      que les problèmes réseau (délai dépassé, API injoignable, réponse illisible), est traduit en un message court en
+      français.</p>
+      <h3 id="g-observabilité">G. Observabilité</h3>
+      <p>Une fois <code>/predict</code> et <code>/recommend</code> en service, on veut savoir quels appels arrivent, s'ils
+      réussissent ou échouent, et pouvoir vérifier plus tard qu'une prédiction faite hier reste
+      cohérente avec le modèle disponible aujourd'hui. Cette couche s'ajoute sans changer le contrat
+      HTTP, et une panne d'observabilité ne fait jamais échouer une prédiction valide.</p>
+      <p><strong>SQLite — l'historique persistant.</strong> Chaque <code>POST /predict</code> et <code>POST /recommend</code> est archivé
+      dans une table <code>api_requests</code> : payloads, statut, durée, versions API et modèle, trace ID
+      Logfire. Les endpoints techniques ne sont pas persistés, aucun en-tête ni IP n'est capturé. Le
+      schéma détaillé de la table est en annexe E.</p>
+      <p><strong>Logfire — l'observabilité externe optionnelle.</strong> Configurée uniquement si <code>LOGFIRE_TOKEN</code> est
+      présent ; sinon aucun envoi réseau. Chaque appel observé apparaît comme un span nommé d'après la
+      route, avec requête et réponse en attributs — y compris <code>GET /health</code>, tracé côté Logfire mais
+      jamais persisté en SQLite. Les 4xx ressortent en warning, les 5xx en error. La corrélation avec
+      SQLite passe par un <code>trace_id</code> commun.</p>
+      <figure><img width="4944" height="2310" alt="Capture Logfire de la timeline des appels API et du détail d'un POST /predict" src="assets/figures/16_observability_logfire.png" /><figcaption>Capture Logfire de la timeline des appels API et du détail d'un POST /predict</figcaption></figure>
+      <p><em>La timeline Logfire permet de distinguer immédiatement les appels réussis (200) des erreurs de
+      validation (422). Le panneau de détail donne accès à la requête, à la réponse et au statut de
+      l'appel.</em></p>
+      <p><strong>CLI de rejeu.</strong> Le module <code>agritech.monitoring.replay</code> reprend une ligne archivée et invoque
+      directement <code>agritech.serving</code> avec le modèle actuellement disponible :</p>
+      <pre><code>poetry run python -m agritech.monitoring.replay 42
+poetry run python -m agritech.monitoring.replay --failed --since 2026-09-29
+</code></pre>
+      <p>Il affiche la requête, la réponse archivée, la réponse actuelle et un diff JSON. Le dépôt ne
+      conserve qu'un artefact par service : si <code>model_version</code> a changé depuis l'appel archivé, un
+      WARNING est affiché et le replay ne constitue pas une reproduction stricte.</p>
+      <h3 id="h-docker">H. Docker</h3>
+      <p>L'API est packagée dans une image Docker pour la rendre portable et reproductible. L'image ne contient que le
+      nécessaire au runtime : le code du service et les artefacts modèles. Docker concerne l'API uniquement :
+      l'interface Streamlit se lance à part (<code>make streamlit</code>) et appelle l'API sur le port 8000, qu'elle tourne dans
+      Docker ou non.</p>
+      <pre><code class="language-bash">make docker-demo   # construit l'image, démarre l'API et ouvre Swagger
+make docker-down   # arrête et supprime le conteneur
+</code></pre>
+      <p>Les données d'observabilité (base SQLite <code>api.sqlite</code>) vivent dans un volume Docker nommé <code>agritech_monitoring</code>, qui
+      survit aux recréations du conteneur.</p>
+      <div class="callout callout-warning">
+        <div class="callout-header"><span aria-hidden="true">▲</span>Attention</div>
+        <div class="callout-body">
+      <p>Ne jamais utiliser <code>docker compose down -v</code> : cette commande supprime le volume <code>agritech_monitoring</code>, donc
+      l'historique des appels.</p>
+      </div>
+      </div>
+      <div class="table-scroll"><table>
+      <thead>
+      <tr>
+      <th>Variable</th>
+      <th>Valeur Compose</th>
+      <th>Rôle</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td><code>DATABASE_URL</code></td>
+      <td><code>sqlite:////app/data/monitoring/api.sqlite</code></td>
+      <td>Base SQLite d'observabilité</td>
+      </tr>
+      <tr>
+      <td><code>ENVIRONMENT</code></td>
+      <td><code>prod</code></td>
+      <td>Persistée dans <code>api_requests.environment</code></td>
+      </tr>
+      <tr>
+      <td><code>LOGFIRE_ENVIRONMENT</code></td>
+      <td><code>prod</code></td>
+      <td>Contexte Logfire</td>
+      </tr>
+      <tr>
+      <td><code>LOGFIRE_SERVICE_NAME</code></td>
+      <td><code>agritech-answers-api</code></td>
+      <td>Nom de service Logfire</td>
+      </tr>
+      <tr>
+      <td><code>LOGFIRE_TOKEN</code></td>
+      <td><em>optionnel</em></td>
+      <td>Sans token, mode silencieux, aucun envoi réseau</td>
+      </tr>
+      </tbody>
+      </table></div>
+      <p>Les cibles <code>make docker-*</code> lancent actuellement l'API sans token Logfire.</p>
       <hr />
       <p><em>Les analyses, le code et les notebooks sont disponibles dans le dépôt du projet.</em></p>
     </main>

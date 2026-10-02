@@ -1,288 +1,248 @@
 # Projet 12 : Concevez un système de recommandations pour une agriculture optimisée par les données
 
-📄 **[Rapport HTML](https://justinetct.github.io/oc_project12_agritech/rapport_technique.html)** — source Markdown : [`docs/rapport_technique.md`](docs/rapport_technique.md)
+![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Tests : 350](https://img.shields.io/badge/tests-350-2E7D32) ![Couverture : 96 %](https://img.shields.io/badge/coverage-96%25-2E7D32)
+
+> Agritech Answers propose deux services d'aide à la décision agricole : estimer le rendement d'une parcelle
+(`/predict`) et classer les cultures les plus adaptées à un pays (`/recommend`). Les modèles sont servis par une
+API FastAPI, et une interface Streamlit permet de les utiliser.
+
+[![Voir le rapport technique](https://img.shields.io/badge/📄_Voir_le_rapport_technique-1F5D42?style=for-the-badge)](https://justinetct.github.io/oc_project12_agritech/rapport_technique.html)
+
+Source : [`docs/rapport_technique.md`](docs/rapport_technique.md)
+
+## Sommaire
+
+- [Objectif métier](#objectif-métier)
+- [Démarrage rapide](#démarrage-rapide)
+- [Architecture](#architecture)
+- [Données](#données)
+- [Modèles et résultats](#modèles-et-résultats)
+- [Notebooks](#notebooks)
+- [Tests et qualité](#tests-et-qualité)
+- [Docker](#docker)
+- [Structure du dépôt](#structure-du-dépôt)
+- [Documentation](#documentation)
 
 ## Objectif métier
 
-Deux services sont visés :
+**Predict — estimer un rendement**
 
-### `/predict` — estimation de rendement
+- l'utilisateur décrit sa parcelle : pluie, température, fertilisation et irrigation ;
+- l'application affiche le rendement estimé en t/ha ;
+- si une valeur sort du domaine vu à l'entraînement, l'estimation est affichée avec un avertissement.
 
-- l'utilisateur renseigne les conditions de sa parcelle : pluie, température, utilisation d'engrais et irrigation ;
-- le système retourne une estimation du rendement en t/ha ;
-- si les conditions sont physiquement valides mais sortent du domaine observé pendant l'entraînement, la prédiction est retournée avec un avertissement.
+<p align="center">
+  <img src="docs/assets/screenshots/UI_predict.png"
+       alt="Interface Predict d'Agritech Answers"
+       width="80%">
+</p>
 
-L'API `/predict` est implémentée avec FastAPI. Elle expose également `/predict/context` pour fournir les bornes physiques, le domaine d'entraînement et les unités utilisés par l'application. Les erreurs de validation, d'indisponibilité du modèle et les erreurs internes ont un format de réponse commun.
-
-### `/recommend` — classement des cultures
+**Recommend — classer les cultures**
 
 - l'utilisateur choisit son pays ;
-- l'application préremplit la température, la pluie et les pesticides avec les valeurs historiques connues du pays, affichées comme valeurs du pays ;
-- l'utilisateur peut modifier ces valeurs pour décrire son contexte local ;
-- le modèle prédit le rendement des 10 cultures ;
-- l'application retourne un classement par rendement prédit décroissant.
+- la température, la pluie et les pesticides du pays sont proposés par défaut, et restent modifiables ;
+- le modèle estime le rendement des 10 cultures, classées du rendement le plus élevé au plus faible.
 
-Le pays sert à préremplir les valeurs et à le situer sur le globe : le modèle final utilise sa position géographique et l'année, mais pas le code `iso3` lui-même. Les endpoints `POST /recommend` et `GET /recommend/context` sont implémentés et testés.
+<p align="center">
+  <img src="docs/assets/screenshots/UI_recommend.png"
+       alt="Interface Recommend d'Agritech Answers"
+       width="80%">
+</p>
 
-### API disponible
+## Démarrage rapide
 
-L'API FastAPI expose cinq endpoints :
-
-- `GET /health` : état du service et version du modèle `/predict` ;
-- `GET /predict/context` : bornes physiques, domaine d'entraînement et unités de `/predict` ;
-- `POST /predict` : estimation du rendement à partir des quatre variables du modèle ;
-- `GET /recommend/context` : cultures modélisées, pays servis, bornes physiques et domaine d'entraînement de `/recommend`, avec l'année cible technique et sa note explicative. Accepte un paramètre de requête optionnel `iso3` (ex. `?iso3=FRA`) qui ajoute un bloc `country` avec les valeurs historiques 2011-2013 du pays pour préremplir le formulaire ;
-- `POST /recommend` : à partir d'un `iso3` et d'un bloc optionnel de conditions (température moyenne, pluie annuelle, pesticides annuels en tonnes), retourne les 10 cultures scorées et triées par rendement prédit décroissant. Les valeurs absentes utilisent les moyennes historiques 2011-2013 du pays.
-
-Flux type pour un front (par exemple Streamlit), sans reconstruire aucune feature ML :
-
-```
-GET  /recommend/context             # pays, cultures, bornes, année technique
-GET  /recommend/context?iso3=FRA    # + valeurs par défaut du pays choisi
-POST /recommend                     # classement des 10 cultures
-```
-
-Elle peut être lancée localement avec :
-
-```bash
-poetry run uvicorn agritech.api.main:app --reload
-```
-
-### Observabilité
-
-Chaque appel des endpoints métier est archivé et tracé sans changer le contrat HTTP. Une panne
-de la couche d'observabilité ne fait jamais échouer une prédiction valide.
-
-- **SQLite — historique persistant.** Chaque `POST /predict` et `POST /recommend` est archivé
-  dans une table `api_requests` : payloads, statut, durée, versions API et modèle, trace ID
-  Logfire. Les endpoints techniques (`/health`, `*/context`, `/docs`) ne sont pas persistés ;
-  aucun en-tête ni IP n'est capturé. Base par défaut :
-  `sqlite:///data/monitoring/api.sqlite`, configurable via `DATABASE_URL`. Schéma détaillé de la
-  table : voir [annexe E du rapport technique](docs/rapport_technique.md#e-schéma-du-monitoring-sqlite).
-- **Logfire — observabilité externe optionnelle.** Configurée uniquement si `LOGFIRE_TOKEN` est
-  présent ; sinon aucun envoi réseau. Chaque appel observé apparaît comme un span nommé d'après
-  la route (y compris `GET /health`, tracé mais jamais persisté). Non bloquant : une erreur de
-  Logfire ne fait pas échouer une prédiction.
-- **Replay CLI.** Rejoue un appel archivé avec le modèle actuellement disponible et affiche un
-  diff JSON.
-
-  ```bash
-  poetry run python -m agritech.monitoring.replay <id>
-  poetry run python -m agritech.monitoring.replay --failed --since YYYY-MM-DD
-  ```
-
-  Si `model_version` archivée diffère de la version actuelle, un WARNING explicite est affiché :
-  le dépôt ne conserve qu'un artefact par service, donc le replay n'est pas une reproduction
-  stricte.
-
-## Données
-
-Deux jeux de données sont utilisés :
-
-- **Agriculture CropYield Dataset** — observations au niveau parcelle.
-- **CropYield Prediction Dataset** — données historiques par pays et par année.
-
-Les deux sources ne sont pas fusionnées ligne à ligne : elles répondent à deux usages différents.
-
-- **Agriculture CropYield Dataset** alimente `/predict`.
-- **CropYield Prediction Dataset** alimente `/recommend`.
-
-**Observations :**
-- le premier dataset différencie peu les cultures mais relie fortement le rendement aux conditions de parcelle ;
-- le second différencie davantage les cultures et permet de comparer leurs rendements dans un même contexte national ;
-- pour `/recommend`, les features historiques n'utilisent que les années précédentes du pays ; l'année cible technique 2014 permet au service de construire ces moyennes à partir des données 2011-2013.
-
-## Notebooks
-
-| Notebook | Rôle | Fichier produit |
-|---|---|---|
-| `01_eda_agriculture_crop_yield.ipynb` | Analyse exploratoire du dataset Agriculture CropYield | rapport HTML de profiling, non versionné |
-| `02_pca_agriculture_crop_yield.ipynb` | ACP exploratoire et étude de la structure des variables | — |
-| `03_eda_crop_yield_prediction.ipynb` | Analyse des sources historiques et assemblage exploratoire | rapports HTML de profiling, non versionnés |
-| `04_build_crop_yield_dataset.ipynb` | Construction du dataset historique : jointures (22 679 lignes, 168 pays), puis nettoyage | `data/processed/crop_yield_clean.csv` |
-| `05_dataset_comparison.ipynb` | Comparaison des deux datasets et définition de la stratégie `/predict` / `/recommend` | — |
-| `06_prepare_training_dataset.ipynb` | Construction des datasets utilisés pour la modélisation : sélection des lignes et des variables, sans fuite de données ; `/recommend` garde tout le dataset historique nettoyé, avec ses variables d’origine | `data/processed/predict_training_dataset.csv` et `data/processed/recommend_training_dataset.csv` |
-| `07_predict_training_baseline.ipynb` | Baseline `/predict` : `DummyRegressor` et `LinearRegression` sur toutes les variables puis sur les variables réduites, comparés par validation croisée à 5 folds sur le train ; jeu de test réservé à l'évaluation finale | runs MLflow, expérience `oc_p12_agritech_predict` |
-| `08_predict_feature_engineering.ipynb` | Sélection des variables et feature engineering sur la baseline linéaire : interactions testées et choix des 4 variables sélectionnées de `/predict` | runs MLflow, expérience `oc_p12_agritech_predict` |
-| `09_predict_nonlinear_models.ipynb` | Comparaison `/predict` de six modèles non linéaires à la régression linéaire, sur toutes les variables et sur les variables réduites ; feature engineering du notebook 08 vérifié sur les cinq modèles d'ensemble ; importance des variables | runs MLflow, expérience `oc_p12_agritech_predict` |
-| `10_predict_model_tuning.ipynb` | Tuning des modèles non linéaires sur les variables sélectionnées, comparaison fold par fold avec la régression linéaire et choix du modèle `/predict` | runs MLflow, expérience `oc_p12_agritech_predict` |
-| `11_predict_final_evaluation.ipynb` | Évaluation finale `/predict` sur le jeu de test réservé, analyse des erreurs et sauvegarde du modèle | run MLflow, `models/predict_model.joblib` et `models/predict_model_metadata.json` |
-| `12_recommend_training_baseline.ipynb` | Baseline `/recommend` : découpage temporel (test 2013 réservé, validation par année sur 2008-2012), `DummyRegressor`, puis `LinearRegression` standardisée sur quatre jeux de variables, avec ou sans `year` et `iso3` ; choix de la baseline | runs MLflow, expérience `oc_p12_agritech_recommend` |
-| `13_recommend_feature_engineering.ipynb` | Feature engineering `/recommend` avec la régression linéaire : logarithme des pesticides, interactions culture × conditions, géographie des pays, comparaison avec `iso3`, conditions des 3 années précédentes et rôle de `year` | runs MLflow, expérience `oc_p12_agritech_recommend` |
-| `14_recommend_nonlinear_models.ipynb` | Modèles non linéaires `/recommend` : six familles comparées à la meilleure régression linéaire, apport de la géographie, de `iso3` et des conditions historiques, tuning léger puis approfondi, choix de trois finalistes | runs MLflow, expérience `oc_p12_agritech_recommend` |
-| `15_recommend_final_model.ipynb` | Modèle final `/recommend` : recommandations réelles des finalistes dans cinq pays, carte mondiale des cultures classées n°1, comparaison avec les rendements observés en 2012, limite des cultures jamais observées dans le pays, stress test, compromis performance / taille d’ExtraTrees, choix du modèle, importance des variables du modèle final (permutation par famille sur la validation 2008-2012), évaluation finale sur 2013 et sauvegarde | run MLflow, `models/recommend_model.joblib` et `models/recommend_model_metadata.json` |
-| `16_recommend_final_refit.ipynb` | Préparation au déploiement de `/recommend` : après l’évaluation finale du notebook 15, réentraînement du modèle déjà figé avec toutes les données disponibles jusqu’en 2013 et génération des artefacts nécessaires à l’application. **Ce notebook ne sert ni au choix ni à l’évaluation du modèle.** | `models/recommend_model.joblib`, `models/recommend_model_metadata.json` et `models/recommend_context.json` |
-
-Les fichiers de données générés sont reproductibles depuis les notebooks et ne sont pas versionnés.
-
-## Rapport
-
-Le rapport final du projet est rédigé en Markdown dans [`docs/rapport_technique.md`](docs/rapport_technique.md)
-et publié en HTML sur [GitHub Pages](https://justinetct.github.io/oc_project12_agritech/rapport_technique.html).
-Le HTML est **généré** depuis le Markdown : le contenu n'est écrit qu'une fois.
-
-```bash
-# Page HTML, à partir de docs/rapport_technique.md
-poetry run python scripts/build_report.py
-```
-
-Les figures sont des fichiers de `docs/assets/figures/` : graphiques de l'exploration, schéma des deux pipelines,
-cartes et importance des variables reprises des sorties du notebook 15, captures des expériences MLflow.
-
-## Installation
-
-**Prérequis :**
-- Python 3.12
-- [Poetry](https://python-poetry.org/) 2.x
+Prérequis : Python 3.12 et [Poetry](https://python-poetry.org/) 2.x.
 
 ```bash
 poetry install
+cp .env.example .env   # facultatif : MLflow, Logfire, base SQLite
 ```
 
-Les expériences sont journalisées avec MLflow ; la configuration est gérée par l'environnement. Le projet reste
-exécutable sans configuration distante.
+Les modèles finaux sont versionnés dans `models/` : l'API et l'interface se lancent sans relancer les notebooks.
 
 ```bash
-cp .env.example .env   # facultatif
+make api         # terminal 1 : API sur http://127.0.0.1:8000 (Swagger sur /docs)
+make streamlit   # terminal 2 : interface sur http://localhost:8501 (port par défaut de Streamlit)
 ```
 
-## Tests
+L'interface appelle l'API à l'adresse donnée par `AGRITECH_API_URL`, par défaut `http://localhost:8000`.
+Pour utiliser une autre API, il suffit de la définir dans le shell :
+`AGRITECH_API_URL=http://mon-serveur:8000 make streamlit`.
 
-| Domaine | Tests |
-|---|---:|
-| API `/predict` (schémas, router) | 23 |
-| API `/recommend` (schémas, router) | 59 |
-| Middleware, `/health` et handlers d'erreur | 56 |
-| Serving (chargement des modèles, prédiction) | 48 |
-| Monitoring SQLite, Logfire et CLI de rejeu | 55 |
-| **Total** | **241** |
+Avec l'API lancée, `make health`, `make predict` et `make recommend` envoient des requêtes d'exemple.
 
-Couverture de branche : **95 %** sur `agritech.api`, `agritech.serving`, `agritech.monitoring` et `agritech.observability`.
-
-Durée observée d'environ **5,8 s** sur la machine de développement (mesure locale, pas une garantie CI).
-
-## Makefile
-
-Un `Makefile` fournit des raccourcis pour les commandes courantes :
-
-- `make test` : lance la suite `pytest` complète ;
-- `make api` : démarre l'API locale avec `uvicorn --reload` sur `http://127.0.0.1:8000` ;
-- `make health` : appelle `GET /health` ;
-- `make predict` : envoie un exemple valide à `POST /predict` ;
-- `make recommend` : envoie un exemple valide à `POST /recommend` ;
-- `make docker-down` : arrête et supprime le conteneur (le volume `agritech_monitoring` est conservé) ;
-- `make docker-demo` : construit l'image, démarre l'API, attend `/health`, ouvre Swagger et suit les logs en live.
-
-Les cibles `health`, `predict` et `recommend` supposent que l'API locale tourne, par exemple via `make api`.
-
-## Docker
-
-L'API tourne dans une image Python 3.12 slim orchestrée par Docker Compose. Un volume nommé
-`agritech_monitoring` conserve la base SQLite d'observabilité entre les recréations du conteneur.
-
-### Démarrage rapide
-
-```bash
-make docker-demo
-```
-
-La commande construit l'image, démarre le service, attend que `/health` réponde
-(timeout ~30 s), ouvre Swagger sur `http://127.0.0.1:8000/docs` puis affiche les logs en live.
-`Ctrl+C` interrompt les logs sans arrêter l'API.
-
-### Arrêt
-
-```bash
-make docker-down
-```
-
-Cette commande supprime uniquement le conteneur. **Ne jamais utiliser `docker compose down -v`** :
-cela détruirait le volume `agritech_monitoring` et l'historique SQLite.
-
-### Configuration
-
-| Variable | Valeur Compose | Rôle |
-|---|---|---|
-| `DATABASE_URL` | `sqlite:////app/data/monitoring/api.sqlite` | Base SQLite d'observabilité |
-| `ENVIRONMENT` | `prod` | Persistée dans `api_requests.environment` |
-| `LOGFIRE_ENVIRONMENT` | `prod` | Contexte Logfire (si activé) |
-| `LOGFIRE_SERVICE_NAME` | `agritech-answers-api` | Nom de service Logfire |
-| `LOGFIRE_TOKEN` | *optionnel* | Si vide, aucun envoi réseau (mode local silencieux) |
-
-Les dépendances runtime de l'image sont exportées depuis Poetry vers `requirements.txt` via
-`poetry export --only main,api --without-hashes`.
-
-## Structure du dépôt
+## Architecture
 
 ```
-.
-├── data/
-│   ├── agriculture-crop-yield/      # dataset parcelle
-│   ├── crop-yield-prediction/       # sources historiques
-│   ├── geo/                         # données géographiques
-│   ├── monitoring/                  # base SQLite des appels API (non versionné)
-│   └── processed/                   # datasets générés, non versionnés
-├── docs/                            # rapport (Markdown, HTML publié, figures)
-├── models/                          # modèles finaux versionnés et leurs métadonnées
-├── notebooks/                       # analyses, préparation des données et modélisation
-├── scripts/                         # génération du rapport HTML
-├── src/agritech/                    # code réutilisable
-│   ├── api/                         # FastAPI, routers, schémas, middleware
-│   ├── monitoring/                  # SQLite (config, modèle, session, repository, replay CLI)
-│   └── observability/               # configuration Logfire optionnelle
-├── .dockerignore                    # exclusions du contexte de build Docker
-├── Dockerfile                       # image Python 3.12 slim de l'API
-├── docker-compose.yml               # orchestration locale du service API
-├── pyproject.toml
-├── requirements.txt                 # dépendances runtime exportées depuis Poetry
-└── README.md
+Streamlit (streamlit_app/)  →  API FastAPI (src/agritech/api/)  →  modèles (models/*.joblib)
 ```
 
+L'interface Streamlit ne contient aucune logique ML : elle lit les contrats de l'API (bornes, domaines,
+pays, cultures, valeurs par défaut), envoie les valeurs saisies et affiche les réponses.
 
-## État actuel
+L'API expose cinq endpoints :
 
-L’exploration, l’ACP, le nettoyage des données historiques, la construction des datasets et la modélisation des deux services, `/predict` et `/recommend`, évaluations finales et sauvegarde des modèles comprises, sont terminés. Le socle FastAPI et les deux APIs `/predict` et `/recommend` sont implémentés et testés. L'API est containerisée avec Docker Compose et l'exécution locale est validée (`make docker-demo`).
+- `GET /health` : état du service et version du modèle `/predict` ;
+- `GET /predict/context` : bornes physiques, domaine d'entraînement et unités de `/predict` ;
+- `POST /predict` : rendement estimé à partir des 4 variables du modèle ;
+- `GET /recommend/context` : pays, cultures, bornes et domaine de `/recommend` ; avec `?iso3=FRA`, ajoute les
+  valeurs par défaut du pays ;
+- `POST /recommend` : classement des 10 cultures pour un pays et des conditions facultatives.
 
-Datasets préparés :
+**Observabilité :**
 
-* dataset historique nettoyé (`crop_yield_clean.csv`) : 16 319 lignes, 115 pays, 10 cultures, période 1990-2013, aucune valeur manquante ; le Monténégro et le Soudan en sont exclus, car leur valeur de pluie est recopiée depuis un autre pays dans la source (détail dans [`data/README.md`](data/README.md)) ;
-* /predict : 999 769 lignes, 9 variables candidates ; les 231 lignes au rendement négatif sont exclues de l’entraînement ; le contrôle du notebook 11 montre que le modèle final leur prédit à toutes un rendement positif ;
-* /recommend : tout le dataset historique nettoyé (16 319 lignes), avec les variables d’origine `avg_temp`, `rain_mm` et `pesticides_t` ; les variables historiques et géographiques sont calculées dans les notebooks de modélisation. La première année de chaque pays n’a pas d’historique : elle sert seulement à calculer celui de l’année suivante (1990 pour 1991). Il reste 14 941 lignes pour l’entraînement (1991-2012) et 695 pour le test (2013).
+- chaque `POST /predict` et `POST /recommend` est archivé dans une base SQLite (`data/monitoring/api.sqlite`
+  par défaut, configurable avec `DATABASE_URL`) ; le schéma est décrit dans l'[annexe E du rapport](docs/rapport_technique.md#e-schéma-du-monitoring-sqlite) ;
+- les appels sont tracés dans Logfire seulement si `LOGFIRE_TOKEN` est défini ; sinon, aucun envoi réseau ;
+- une panne de l'observabilité ne fait jamais échouer une prédiction ;
+- un appel archivé peut être rejoué avec le modèle actuel : `poetry run python -m agritech.monitoring.replay <id>`
+  (ou `--failed --since YYYY-MM-DD`).
 
-### `/predict` : modèle final évalué
+## Données
 
-Tous les modèles sont comparés par validation croisée à 5 folds sur le jeu d’entraînement. **Le jeu de test n’a servi à aucun choix de modèle, de variable ou d’hyperparamètre** : il sert uniquement à l’évaluation finale du modèle retenu.
+Deux jeux de données, qui ne sont pas fusionnés car ils répondent à deux usages différents :
 
-* notebook 07 : la régression linéaire réduit la RMSE d’environ 70 % par rapport au `DummyRegressor` ;
-* notebook 08 : les interactions testées n’apportent rien, et le modèle garde les 4 variables sélectionnées : `Rainfall_mm`, `Temperature_Celsius`, `Fertilizer_Used` et `Irrigation_Used`. `Crop` reste une information de l’application, mais pas une variable du modèle actuel ;
-* notebook 09 : arbre de décision, forêt aléatoire, HistGradientBoosting, XGBoost, LightGBM et CatBoost ne font pas mieux que la régression linéaire, sur toutes les variables comme sur les variables réduites ; le feature engineering du notebook 08 ne les améliore pas non plus ;
-* notebook 10 : CatBoost et HistGradientBoosting optimisés s’approchent de la régression linéaire sans la dépasser, ni en moyenne ni sur un seul fold ;
-* notebook 11 : évaluation finale du modèle retenu sur le jeu de test, analyse des erreurs, contrôle des 231 rendements négatifs et sauvegarde du modèle.
+- **Agriculture CropYield Dataset** → `/predict`. Une ligne par parcelle (1 000 000 lignes brutes) : conditions
+  de la parcelle et rendement. Il reste 999 769 lignes pour la modélisation.
+- **CropYield Prediction Dataset** → `/recommend`. Une ligne par pays × culture × année. Après assemblage et
+  nettoyage : 16 319 lignes, 115 pays, 10 cultures, 1990-2013.
 
-| Modèle, variables sélectionnées | RMSE CV (t/ha) | MAE CV (t/ha) | R² CV |
-|---|---:|---:|---:|
-| `LinearRegression` | 0,500332 | 0,399292 | 0,91289 |
-| `CatBoost` optimisé | 0,500411 | 0,399369 | 0,91286 |
-| `HistGradientBoosting` optimisé | 0,500640 | 0,399543 | 0,91278 |
+Les données ne sont pas versionnées. Leur provenance, l'arborescence attendue et les détails du nettoyage sont
+dans [`data/README.md`](data/README.md).
 
-**Modèle final : `LinearRegression` avec les 4 variables sélectionnées.** Sur le jeu de test (20 % des lignes), il obtient une RMSE de 0,499268 t/ha, une MAE de 0,398338 t/ha et un R² de 0,91323, très proches de la validation croisée. Le pipeline complet (preprocessing et régression) est sauvegardé dans `models/predict_model.joblib`, et ses métadonnées dans `models/predict_model_metadata.json`.
+## Modèles et résultats
 
-### `/recommend` : modèle final évalué
+### `/predict`
 
-Les modèles sont comparés par validation temporelle sur 2008-2012 : chaque année est prédite par un modèle appris sur les années précédentes. **2013 est réservée au test final** : elle n’a servi à aucun choix de modèle, de variable ou d’hyperparamètre, et seul le modèle retenu y est évalué.
+Découpage 80 % / 20 % (799 815 / 199 954 lignes). Les modèles sont comparés par validation croisée à 5 folds
+sur l'entraînement ; le jeu de test ne sert qu'à l'évaluation finale.
 
-* notebook 12 : la baseline `LinearRegression` (culture, conditions de l’année et `year`) obtient une RMSE de 5,51 t/ha, contre 8,50 pour le `DummyRegressor` ; `iso3` l’améliore (4,53 t/ha), mais la baseline est choisie sans identifiant du pays ;
-* notebook 13 : le logarithme des pesticides, un effet des conditions propre à chaque culture et la géographie des pays ramènent la régression linéaire à 4,67 t/ha ; les conditions des 3 années précédentes, connues au moment de recommander, font à peu près aussi bien que celles de l’année ;
-* notebook 14 : les modèles à arbres font beaucoup mieux que la régression linéaire (RMSE de 1,5 à 1,9 t/ha avec la géographie et leurs réglages de départ), et les conditions historiques les améliorent encore. Après tuning, trois finalistes très proches : ExtraTrees 1,436, CatBoost 1,450 et LightGBM 1,465 t/ha ;
-* notebook 15 : choix du modèle avant 2013, sur la validation 2008-2012, la taille et le déploiement ; puis évaluation finale sur 2013 et sauvegarde.
+**Modèle final : `LinearRegression`** avec 4 variables : `Rainfall_mm`, `Temperature_Celsius`,
+`Fertilizer_Used` et `Irrigation_Used`. Sur le jeu de test : **RMSE 0,4993 t/ha, MAE 0,3983 t/ha, R² 0,9132**.
 
-**Modèle final : `ExtraTreesRegressor` à 150 arbres** (`max_features=0.9`, `min_samples_split=3`, `random_state=42`, `n_jobs=1`), appris sur les 14 941 lignes 1991-2012. Variables : `crop`, `year`, `temp_hist` et `log_pest_hist` (moyennes des 3 années précédentes du pays, pesticides en logarithme), `rain_mm` (pluie fixe du pays), `lat_abs`, `geo_x`, `geo_y` et `geo_z` (position du pays sur le globe).
+Les modèles non linéaires testés (arbres, forêts, boosting), même optimisés, n'ont pas fait mieux que la
+régression linéaire. Le modèle est sauvegardé dans `models/predict_model.joblib`.
+
+### `/recommend`
+
+Validation temporelle : chaque année de 2008 à 2012 est prédite par un modèle appris sur les années précédentes.
+**2013 est réservée au test final.**
+
+Progression de la RMSE en validation : `DummyRegressor` 8,50 t/ha → `LinearRegression` 5,51 → régression
+linéaire avec feature engineering (log des pesticides, effet propre à chaque culture, géographie) 4,67 →
+`ExtraTreesRegressor` après tuning 1,43.
+
+**Modèle final : `ExtraTreesRegressor` à 150 arbres** (`max_features=0.9`, `min_samples_split=3`). Variables :
+`crop`, `year`, `temp_hist` et `log_pest_hist` (moyennes des 3 années précédentes du pays), `rain_mm` (pluie du
+pays), `lat_abs`, `geo_x`, `geo_y` et `geo_z` (position du pays sur le globe). Le code `iso3` n'est pas utilisé.
+
+**Modèle évalué (notebook 15)** : appris sur 1991-2012 (14 941 lignes), évalué une seule fois sur 2013.
 
 | ExtraTrees, 150 arbres | RMSE (t/ha) | MAE (t/ha) | R² |
 |---|---:|---:|---:|
 | Validation temporelle 2008-2012 | 1,4349 | 0,7114 | 0,9710 |
 | Test final 2013 (695 lignes) | 1,6584 | 0,7615 | 0,9638 |
 
-150 arbres font aussi bien que 300 pour un fichier deux fois plus petit : le pipeline complet (preprocessing et modèle) pèse 44,7 Mo compressés (lzma) dans `models/recommend_model.joblib`, sous la recommandation de 50 Mo par fichier de GitHub. Ses métadonnées sont dans `models/recommend_model_metadata.json`.
+**Modèle servi (notebook 16)** : après l'évaluation, le même modèle, avec les mêmes réglages, est réentraîné
+sur toutes les données 1991-2013 (15 636 lignes). Ce refit n'a pas de nouvelle évaluation : les métriques
+ci-dessus restent celles du modèle évalué. L'artefact `models/recommend_model.joblib` (`model_version` 2.0.0,
+≈ 46,9 Mo) prédit pour l'année cible technique 2014, la première après les données disponibles.
 
-**Limite :** les 695 lignes de 2013 portent toutes sur des couples pays × culture déjà observés, comme 3 469 des 3 472 lignes de la validation. Le test ne mesure donc pas les recommandations de cultures jamais observées dans le pays, alors que, dans les demandes 2012, 25 des 115 cultures classées n°1 n’avaient jamais été observées dans le pays.
+**Limite :** le test 2013 ne contient que des couples pays × culture déjà observés. Il ne mesure donc pas les
+cultures jamais cultivées dans le pays, alors que, dans les demandes 2012, 25 des 115 cultures classées n°1
+n'avaient jamais été observées dans le pays. Les autres limites sont dans l'[annexe A du rapport](docs/rapport_technique.md#a-limites-et-précautions).
+
+## Notebooks
+
+Les expériences sont suivies dans MLflow (`oc_p12_agritech_predict` et `oc_p12_agritech_recommend`). Les
+fichiers de données générés ne sont pas versionnés et se reconstruisent avec les notebooks.
+
+**Exploration et préparation**
+
+- `01_eda_agriculture_crop_yield.ipynb` — exploration du dataset parcelle.
+- `02_pca_agriculture_crop_yield.ipynb` — ACP exploratoire du dataset parcelle.
+- `03_eda_crop_yield_prediction.ipynb` — exploration des sources historiques.
+- `04_build_crop_yield_dataset.ipynb` — assemblage et nettoyage du dataset historique.
+- `05_dataset_comparison.ipynb` — comparaison des deux datasets et choix d'un dataset par service.
+- `06_prepare_training_dataset.ipynb` — datasets d'entraînement de `/predict` et `/recommend`.
+
+**Modèle `/predict`**
+
+- `07_predict_training_baseline.ipynb` — baseline et comparaison avec une régression linéaire.
+- `08_predict_feature_engineering.ipynb` — sélection des variables et feature engineering.
+- `09_predict_nonlinear_models.ipynb` — comparaison avec des modèles non linéaires.
+- `10_predict_model_tuning.ipynb` — tuning des meilleurs modèles et choix final.
+- `11_predict_final_evaluation.ipynb` — évaluation sur le jeu de test et sauvegarde du modèle.
+
+**Modèle `/recommend`**
+
+- `12_recommend_training_baseline.ipynb` — validation temporelle, baseline et régression linéaire.
+- `13_recommend_feature_engineering.ipynb` — feature engineering avec la régression linéaire.
+- `14_recommend_nonlinear_models.ipynb` — modèles non linéaires, tuning et choix de trois finalistes.
+- `15_recommend_final_model.ipynb` — choix du modèle, évaluation finale sur 2013 et sauvegarde.
+- `16_recommend_final_refit.ipynb` — refit sur 1991-2013 et artefacts servis par l'API (sans évaluation).
+
+## Tests et qualité
+
+```bash
+make test
+```
+
+| Tests | Nombre |
+|---|---:|
+| Interface Streamlit | 109 |
+| API, modèles, monitoring et observabilité | 241 |
+| **Total** | **350** |
+
+Couverture : **96 %** sur `agritech.api`, `agritech.serving`, `agritech.monitoring`,
+`agritech.observability` et `agritech.ui`.
+
+## Docker
+
+Docker concerne l'API uniquement. L'interface Streamlit se lance en local avec `make streamlit` et appelle l'API
+sur le port 8000, qu'elle tourne dans Docker ou non.
+
+```bash
+make docker-demo   # construit l'image, démarre l'API, attend /health, ouvre Swagger et suit les logs
+make docker-down   # arrête et supprime le conteneur
+```
+
+- La base SQLite est conservée entre deux conteneurs dans le volume `agritech_monitoring`.
+  **Ne jamais utiliser `docker compose down -v`** : cela supprimerait ce volume et l'historique des appels.
+- Les cibles `make docker-*` lancent l'API sans Logfire. Logfire reste facultatif (`LOGFIRE_TOKEN`).
+- Les autres variables sont dans `docker-compose.yml`.
+- Les dépendances de l'image sont exportées depuis Poetry vers `requirements.txt` avec
+  `poetry export --only main,api --without-hashes`.
+
+## Structure du dépôt
+
+```
+.
+├── .streamlit/config.toml           # thème de l'interface
+├── data/                            # données locales, non versionnées (voir data/README.md)
+├── docs/                            # rapport (Markdown, HTML publié, figures)
+├── models/                          # modèles servis et leurs métadonnées
+├── notebooks/                       # exploration, préparation et modélisation
+├── src/agritech/                    # code partagé : préparation, modélisation, serving
+│   ├── api/                         # FastAPI : routers, schémas, middleware
+│   ├── monitoring/                  # archivage SQLite et rejeu
+│   ├── observability/               # configuration Logfire facultative
+│   └── ui/                          # client HTTP et composants de l'interface
+├── streamlit_app/
+│   ├── app.py                       # point d'entrée Streamlit
+│   └── views/                       # pages Predict et Recommend
+├── tests/                           # tests pytest
+├── Dockerfile
+├── docker-compose.yml
+├── Makefile
+├── pyproject.toml
+└── requirements.txt
+```
+
+## Documentation
+
+- Rapport technique : [`docs/rapport_technique.md`](docs/rapport_technique.md), publié en HTML sur
+  [GitHub Pages](https://justinetct.github.io/oc_project12_agritech/rapport_technique.html). Les figures
+  sont dans `docs/assets/figures/`.
+- Données : [`data/README.md`](data/README.md).
+- API : documentation Swagger sur `http://127.0.0.1:8000/docs` quand l'API tourne.
