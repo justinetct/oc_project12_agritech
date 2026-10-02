@@ -1,7 +1,8 @@
 """Configuration de la couche monitoring.
 
-Lit les variables d'environnement nécessaires à la persistance SQLite et à
-Logfire, avec des défauts adaptés à un développement local. Le module ne
+Lit les variables d'environnement nécessaires à la persistance SQLite, à
+Logfire et à la protection des endpoints de monitoring, avec des défauts
+adaptés à un développement local. Le module ne
 charge PAS `.env` lui-même : ce chargement est fait par la couche qui utilise
 la configuration (`agritech.api.main` au démarrage de l'application, script
 CLI de rejeu). Cela garde `config` pur et facilement testable.
@@ -14,10 +15,11 @@ Sans variable d'environnement fournie :
 - `ENVIRONMENT` = `local` ;
 - `LOGFIRE_TOKEN` = `None` (aucun envoi réseau, mode silencieux) ;
 - `LOGFIRE_ENVIRONMENT` = valeur de `ENVIRONMENT` ;
-- `LOGFIRE_SERVICE_NAME` = `agritech-answers`.
+- `LOGFIRE_SERVICE_NAME` = `agritech-answers` ;
+- `MONITORING_API_TOKEN` = `None` (endpoints `/monitoring/*` indisponibles).
 
-Une chaîne vide (`LOGFIRE_TOKEN=`) est traitée comme absence : elle ne
-produit pas un token vide envoyé à Logfire.
+Une chaîne vide (`LOGFIRE_TOKEN=`, `MONITORING_API_TOKEN=`) est traitée comme
+absence : elle ne produit jamais un token vide.
 """
 
 from __future__ import annotations
@@ -47,6 +49,8 @@ class MonitoringConfig:
         logfire_environment : `environment_name` transmis à Logfire ; reprend
             `environment` s'il n'est pas explicitement renseigné.
         logfire_service_name : nom de service transmis à Logfire.
+        api_token : secret attendu dans l'en-tête `Authorization: Bearer`
+            des endpoints `/monitoring/*` ; `None` les rend indisponibles.
     """
 
     database_url: str
@@ -54,6 +58,7 @@ class MonitoringConfig:
     logfire_token: str | None
     logfire_environment: str
     logfire_service_name: str
+    api_token: str | None
 
 
 def load_config() -> MonitoringConfig:
@@ -73,4 +78,5 @@ def load_config() -> MonitoringConfig:
         logfire_service_name=(
             os.environ.get("LOGFIRE_SERVICE_NAME") or DEFAULT_LOGFIRE_SERVICE_NAME
         ),
+        api_token=os.environ.get("MONITORING_API_TOKEN") or None,
     )

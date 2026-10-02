@@ -32,6 +32,7 @@ def _config_for(database_url: str) -> MonitoringConfig:
         logfire_token=None,
         logfire_environment="test",
         logfire_service_name="agritech-answers",
+        api_token=None,
     )
 
 

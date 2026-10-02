@@ -68,6 +68,9 @@ def _isolate_monitoring_database(
     `.env` local : les tests automatisés ne doivent JAMAIS déclencher un
     envoi réseau réel vers Logfire. Les tests qui veulent vérifier le
     branchement Logfire réactivent explicitement un token simulé.
+
+    Même règle pour `MONITORING_API_TOKEN` : le vrai token d'un `.env` local
+    ne doit jamais être utilisé par les tests, qui posent leur propre valeur.
     """
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / '_monitoring.sqlite'}")
     monkeypatch.setenv("ENVIRONMENT", "test")
@@ -78,3 +81,4 @@ def _isolate_monitoring_database(
     monkeypatch.setenv("LOGFIRE_TOKEN", "")
     monkeypatch.setenv("LOGFIRE_ENVIRONMENT", "")
     monkeypatch.setenv("LOGFIRE_SERVICE_NAME", "")
+    monkeypatch.setenv("MONITORING_API_TOKEN", "")

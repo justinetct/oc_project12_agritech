@@ -31,6 +31,7 @@ def monitoring_config(tmp_path: Path) -> MonitoringConfig:
         logfire_token=None,
         logfire_environment="test",
         logfire_service_name="agritech-answers",
+        api_token=None,
     )
 
 

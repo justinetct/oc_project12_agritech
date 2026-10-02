@@ -24,6 +24,7 @@ def _config(**overrides) -> MonitoringConfig:
         "logfire_token": None,
         "logfire_environment": "test",
         "logfire_service_name": "agritech-answers",
+        "api_token": None,
     }
     base.update(overrides)
     return MonitoringConfig(**base)

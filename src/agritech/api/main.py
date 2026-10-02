@@ -14,6 +14,7 @@ version du modèle est lue depuis `bundle.metadata`.
 
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -43,6 +44,8 @@ from agritech.serving import load_bundle, load_recommend_context
 
 API_VERSION = "1.0.0"
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -53,6 +56,8 @@ async def lifespan(app: FastAPI):
       l'engine SQLite (PRAGMAs WAL appliqués), matérialise la table
       `api_requests` au premier boot, puis publie la session factory et les
       métadonnées runtime pour le middleware de persistance.
+    - Publie le token des endpoints `/monitoring/*` ; s'il est absent, un
+      `warning` signale au démarrage que ces endpoints seront indisponibles.
 
     Si un chargement échoue (`FileNotFoundError`, `ValueError`, ...), l'exception
     remonte et l'application ne démarre pas. La couche HTTP traduira
@@ -74,6 +79,11 @@ async def lifespan(app: FastAPI):
     runtime.monitoring_session_factory = create_session_factory(monitoring_engine)
     runtime.monitoring_api_version = API_VERSION
     runtime.monitoring_environment = monitoring_config.environment
+    runtime.monitoring_api_token = monitoring_config.api_token
+    if monitoring_config.api_token is None:
+        logger.warning(
+            "MONITORING_API_TOKEN is not set; /monitoring endpoints will be unavailable"
+        )
 
     # Logfire est strictement optionnel : sans token dans `MonitoringConfig`,
     # cet appel est un no-op silencieux. Une erreur d'initialisation est
@@ -87,6 +97,7 @@ async def lifespan(app: FastAPI):
         runtime.monitoring_session_factory = None
         runtime.monitoring_api_version = None
         runtime.monitoring_environment = None
+        runtime.monitoring_api_token = None
 
 
 app = FastAPI(

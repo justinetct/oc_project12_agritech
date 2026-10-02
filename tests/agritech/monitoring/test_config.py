@@ -24,6 +24,7 @@ MONITORED_ENV_VARS = (
     "LOGFIRE_TOKEN",
     "LOGFIRE_ENVIRONMENT",
     "LOGFIRE_SERVICE_NAME",
+    "MONITORING_API_TOKEN",
 )
 
 
@@ -47,6 +48,7 @@ def test_load_config_uses_documented_defaults_when_env_is_empty():
     assert config.logfire_token is None
     assert config.logfire_environment == DEFAULT_ENVIRONMENT
     assert config.logfire_service_name == DEFAULT_LOGFIRE_SERVICE_NAME
+    assert config.api_token is None
 
 
 def test_load_config_reads_all_environment_variables(monkeypatch: pytest.MonkeyPatch):
@@ -56,6 +58,7 @@ def test_load_config_reads_all_environment_variables(monkeypatch: pytest.MonkeyP
     monkeypatch.setenv("LOGFIRE_TOKEN", "secret-token")
     monkeypatch.setenv("LOGFIRE_ENVIRONMENT", "production")
     monkeypatch.setenv("LOGFIRE_SERVICE_NAME", "custom-service")
+    monkeypatch.setenv("MONITORING_API_TOKEN", "monitoring-token")
 
     config = load_config()
 
@@ -64,6 +67,7 @@ def test_load_config_reads_all_environment_variables(monkeypatch: pytest.MonkeyP
     assert config.logfire_token == "secret-token"
     assert config.logfire_environment == "production"
     assert config.logfire_service_name == "custom-service"
+    assert config.api_token == "monitoring-token"
 
 
 def test_load_config_logfire_environment_falls_back_to_environment(
@@ -87,6 +91,17 @@ def test_load_config_empty_logfire_token_is_none(monkeypatch: pytest.MonkeyPatch
     assert config.logfire_token is None
 
 
+def test_load_config_empty_monitoring_api_token_is_none(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """`MONITORING_API_TOKEN=""` (chaîne vide) est traité comme absence."""
+    monkeypatch.setenv("MONITORING_API_TOKEN", "")
+
+    config = load_config()
+
+    assert config.api_token is None
+
+
 def test_load_config_empty_string_falls_back_to_defaults(
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -101,6 +116,7 @@ def test_load_config_empty_string_falls_back_to_defaults(
     assert config.logfire_token is None
     assert config.logfire_environment == DEFAULT_ENVIRONMENT
     assert config.logfire_service_name == DEFAULT_LOGFIRE_SERVICE_NAME
+    assert config.api_token is None
 
 
 def test_monitoring_config_is_frozen():

@@ -7,6 +7,10 @@ une fois pour toutes. Les endpoints les lisent sans les modifier.
 par le lifespan à partir de `MonitoringConfig`. Ils restent `None` si la
 persistance échoue à s'initialiser — dans ce cas le middleware n'écrit rien
 mais laisse la requête passer normalement.
+
+`monitoring_api_token` est le secret attendu par les endpoints
+`/monitoring/*`. Il vaut `None` tant que `MONITORING_API_TOKEN` n'est pas
+configuré : ces endpoints restent alors indisponibles.
 """
 
 from __future__ import annotations
@@ -22,3 +26,4 @@ recommend_context: RecommendContext | None = None
 monitoring_session_factory: sessionmaker | None = None
 monitoring_api_version: str | None = None
 monitoring_environment: str | None = None
+monitoring_api_token: str | None = None
