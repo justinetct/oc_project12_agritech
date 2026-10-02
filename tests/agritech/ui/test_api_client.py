@@ -101,6 +101,29 @@ def test_post_predict_sends_json_body(
     assert calls["json"] == payload_in
 
 
+def test_get_recommend_context_for_a_country(
+    base_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = {"country": {"iso3": "FRA", "country": "France", "country_defaults": {}}}
+    calls = _record_call(monkeypatch, _FakeResponse(200, payload))
+    assert api_client.get_recommend_context("FRA") == payload
+    assert calls["method"] == "GET"
+    assert calls["url"] == "http://api.test/recommend/context?iso3=FRA"
+    assert calls["json"] is None
+
+
+def test_post_recommend_sends_json_body(
+    base_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload_in = {"iso3": "FRA", "conditions": {"annual_rainfall_mm": 867.0}}
+    payload_out = {"iso3": "FRA", "recommendations": []}
+    calls = _record_call(monkeypatch, _FakeResponse(200, payload_out))
+    assert api_client.post_recommend(payload_in) == payload_out
+    assert calls["method"] == "POST"
+    assert calls["url"] == "http://api.test/recommend"
+    assert calls["json"] == payload_in
+
+
 def test_base_url_trailing_slash_is_normalised(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
