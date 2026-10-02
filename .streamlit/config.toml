@@ -1,0 +1,13 @@
+# Thème de l'interface Agritech Answers (couleurs de la maquette validée).
+[theme]
+base = "light"
+primaryColor = "#14452f"
+backgroundColor = "#f7f4ec"
+secondaryBackgroundColor = "#f0f4ec"
+textColor = "#1e2a24"
+
+[client]
+toolbarMode = "minimal"
+
+[browser]
+gatherUsageStats = false

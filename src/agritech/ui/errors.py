@@ -11,6 +11,16 @@ from __future__ import annotations
 
 from typing import Any
 
+# Message affiché quand le contexte reçu de l'API n'a pas la structure attendue.
+INVALID_CONTEXT_MESSAGE = "Le service a renvoyé des informations inattendues."
+
+# Message affiché pour chaque code d'erreur de l'API (champ ``error`` de la réponse).
+HTTP_ERROR_MESSAGES = {
+    "model_unavailable": "Le modèle est momentanément indisponible. Réessayez dans un instant.",
+    "internal_error": "Le service a rencontré une erreur. Réessayez dans un instant.",
+    "validation_error": "Les valeurs envoyées n’ont pas été acceptées.",
+}
+
 
 class ApiError(Exception):
     """Base de toutes les erreurs remontées par le client HTTP."""
@@ -52,22 +62,17 @@ class ApiHttpError(ApiError):
 def format_api_error(exc: ApiError) -> str:
     """Retourne un message lisible destiné à l'utilisateur.
 
-    Message court, en français, sans jargon HTTP inutile. Les détails
-    de validation d'une 422 sont listés à la suite.
+    Message court, en français. Les messages et détails techniques renvoyés
+    par l'API ne sont pas réaffichés : seul le code d'erreur choisit le message.
     """
     if isinstance(exc, ApiTimeoutError):
-        return "L'API n'a pas répondu à temps. Réessayez dans un instant."
+        return "Le service de calcul n'a pas répondu à temps. Réessayez dans un instant."
     if isinstance(exc, ApiConnectionError):
-        return "Impossible de joindre l'API. Vérifiez qu'elle est démarrée."
+        return "Impossible de joindre le service de calcul. Réessayez dans un instant."
     if isinstance(exc, ApiInvalidResponseError):
-        return "L'API a renvoyé une réponse inattendue."
+        return "Le service a renvoyé une réponse inattendue."
     if isinstance(exc, ApiHttpError):
-        base = f"L'API a renvoyé une erreur ({exc.status_code}) : {exc.message}"
-        if exc.details:
-            lignes = [
-                f"- {d.get('field', '?')} : {d.get('message', '')}"
-                for d in exc.details
-            ]
-            base += "\n" + "\n".join(lignes)
-        return base
+        return HTTP_ERROR_MESSAGES.get(
+            exc.code, f"Le service a renvoyé une erreur inattendue (code {exc.status_code})."
+        )
     return "Erreur inattendue lors de l'appel API."

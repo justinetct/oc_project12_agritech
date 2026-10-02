@@ -1,11 +1,12 @@
 """Client HTTP minimal pour appeler l'API Agritech Answers.
 
-Deux fonctions publiques pour la sous-étape 21.2 :
+Fonctions publiques, qui retournent chacune le dict JSON décodé :
 
-- ``get_predict_context()`` : appelle ``GET /predict/context`` et
-  retourne le dict décodé.
-- ``post_predict(payload)`` : appelle ``POST /predict`` et retourne
-  le dict décodé.
+- ``get_predict_context()`` : ``GET /predict/context`` ;
+- ``post_predict(payload)`` : ``POST /predict`` ;
+- ``get_recommend_context(iso3=None)`` : ``GET /recommend/context``,
+  avec ``?iso3=`` pour obtenir les valeurs par défaut d'un pays ;
+- ``post_recommend(payload)`` : ``POST /recommend``.
 
 Les fonctions s'appuient sur ``settings.api_base_url()`` et
 ``settings.request_timeout_seconds()`` ; le module ``errors``
@@ -14,12 +15,13 @@ définit les exceptions remontées au front.
 Aucune logique Streamlit ni logique ML n'est faite ici : le module
 se contente de sérialiser/désérialiser du JSON et de traduire les
 erreurs ``requests`` en exceptions dédiées. La primitive interne
-``_request`` sera réutilisée pour ``/recommend`` sans modification.
+``_request`` est commune aux quatre appels.
 """
 
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import quote
 
 import requests
 
@@ -40,6 +42,17 @@ def get_predict_context() -> dict[str, Any]:
 def post_predict(payload: dict[str, Any]) -> dict[str, Any]:
     """Envoie un payload à ``POST /predict`` et retourne la réponse décodée."""
     return _request("POST", "/predict", json=payload)
+
+
+def get_recommend_context(iso3: str | None = None) -> dict[str, Any]:
+    """Contexte de /recommend ; avec ``iso3``, ajoute les valeurs par défaut du pays."""
+    path = "/recommend/context" + (f"?iso3={quote(iso3)}" if iso3 else "")
+    return _request("GET", path)
+
+
+def post_recommend(payload: dict[str, Any]) -> dict[str, Any]:
+    """Envoie un payload à ``POST /recommend`` et retourne la réponse décodée."""
+    return _request("POST", "/recommend", json=payload)
 
 
 def _request(
