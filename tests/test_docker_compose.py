@@ -101,10 +101,36 @@ def test_each_service_builds_its_own_dockerfile_target(services):
 
     for name in ("api", "streamlit", "gradio"):
         assert services[name]["build"]["target"] == name
-    # `api` en dernier : un `docker build .` sans cible construit toujours l'API.
     assert stages == ["base", "gradio", "streamlit", "api"]
     assert "GRADIO_SERVER_NAME=0.0.0.0" in dockerfile
-    assert '"--server.address", "0.0.0.0", "--server.port", "8501"' in dockerfile
+    assert "--server.address 0.0.0.0" in dockerfile
+
+
+def test_without_target_the_service_argument_chooses_the_image():
+    """Render ne choisit pas de cible : la dernière étape reprend celle nommée par SERVICE, l'API par défaut."""
+    dockerfile = (PATHS.root / "Dockerfile").read_text()
+    instructions = [line for line in dockerfile.splitlines() if line and not line.startswith(("#", " "))]
+
+    assert instructions[0] == "ARG SERVICE=api"
+    assert instructions[1].startswith("FROM ")
+    assert instructions[-1] == "FROM ${SERVICE}"
+
+
+@pytest.mark.parametrize(
+    ("name", "port_option"),
+    [
+        ("api", "--port ${PORT:-8000}"),
+        ("streamlit", "--server.port ${PORT:-8501}"),
+        ("gradio", "export GRADIO_SERVER_PORT=${PORT:-7860}"),
+    ],
+)
+def test_each_service_listens_on_port_or_its_local_port(stages, name, port_option):
+    """$PORT fourni par Render, sinon le port local ; `sh -c` lit la variable, `exec` garde les signaux."""
+    command = re.search(r"^CMD (.+)$", stages[name], flags=re.MULTILINE).group(1)
+
+    assert command.startswith('["sh", "-c", ')
+    assert port_option in command
+    assert "exec " in command
 
 
 def test_base_stage_installs_no_dependency(stages):

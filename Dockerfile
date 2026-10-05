@@ -9,19 +9,20 @@
 #   poetry export --only streamlit --without-hashes -f requirements.txt -o requirements-streamlit.txt
 #   poetry export --only gradio --without-hashes -f requirements.txt -o requirements-gradio.txt
 #
-# Un seul Dockerfile, quatre étapes :
-#   - base      : Python et variables communes, sans aucune dépendance installée ;
+# Un target par service, sur une base commune sans dépendance installée :
 #   - gradio    : interface de monitoring (requirements-gradio.txt), qui n'appelle l'API qu'en HTTP ;
 #   - streamlit : interface métier (requirements-streamlit.txt), qui n'appelle l'API qu'en HTTP ;
-#   - api       : service FastAPI avec les modèles (requirements.txt). Dernière étape, donc cible
-#                 par défaut d'un `docker build .` sans `--target`.
+#   - api       : service FastAPI avec les modèles (requirements.txt).
+# SERVICE sélectionne l'image à construire ; api par défaut.
+# PORT permet de surcharger le port d'écoute, avec fallback sur les ports locaux.
 #
 # Dans chaque étape, les dépendances sont installées avant de copier le code :
 # modifier le code ne réinstalle pas les paquets.
 #
-# Variables d'environnement (DATABASE_URL, ENVIRONMENT, LOGFIRE_*,
-# MONITORING_API_TOKEN, AGRITECH_API_URL) fournies au runtime par
-# docker-compose, jamais figées dans l'image.
+# Variables d'environnement (DATABASE_URL, ENVIRONMENT, LOGFIRE_*, MONITORING_API_TOKEN,
+# AGRITECH_API_URL) fournies au runtime, jamais figées dans l'image.
+
+ARG SERVICE=api
 
 FROM python:3.12-slim AS base
 
@@ -54,7 +55,7 @@ ENV GRADIO_SERVER_NAME=0.0.0.0 \
 
 EXPOSE 7860
 
-CMD ["python", "gradio_app/app.py"]
+CMD ["sh", "-c", "export GRADIO_SERVER_PORT=${PORT:-7860} && exec python gradio_app/app.py"]
 
 
 # --- Interface métier (Streamlit) --------------------------------------------
@@ -71,8 +72,7 @@ COPY streamlit_app ./streamlit_app
 
 EXPOSE 8501
 
-CMD ["streamlit", "run", "streamlit_app/app.py", \
-     "--server.address", "0.0.0.0", "--server.port", "8501", "--server.headless", "true"]
+CMD ["sh", "-c", "exec streamlit run streamlit_app/app.py --server.address 0.0.0.0 --server.port ${PORT:-8501} --server.headless true"]
 
 
 # --- API (FastAPI) -------------------------------------------------------------
@@ -92,6 +92,8 @@ RUN mkdir -p /app/data/monitoring
 
 EXPOSE 8000
 
-CMD ["uvicorn", "agritech.api.main:app", \
-     "--host", "0.0.0.0", "--port", "8000", \
-     "--workers", "1"]
+CMD ["sh", "-c", "exec uvicorn agritech.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
+
+
+# Image finale sélectionnée par SERVICE (api par défaut).
+FROM ${SERVICE}

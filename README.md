@@ -263,6 +263,10 @@ make docker-down   # arrête et supprime les trois conteneurs (le volume est con
 - Un seul `Dockerfile`, avec une cible par service ; chaque image n'installe que ses propres dépendances,
   exportées depuis Poetry : `requirements.txt` pour l'API (`poetry export --only main,api --without-hashes`),
   `requirements-streamlit.txt` (`--only streamlit`) et `requirements-gradio.txt` (`--only gradio`).
+- Sans cible (`docker build .`, ou un hébergeur qui ne propose pas de choisir la cible), l'argument de build
+  `SERVICE` choisit l'image : `api` par défaut, `streamlit` ou `gradio`
+  (`docker build --build-arg SERVICE=streamlit .`).
+- Chaque service écoute sur `$PORT` si la variable est définie, sinon sur son port local (8000, 8501, 7860).
 
 ## Structure du dépôt
 
