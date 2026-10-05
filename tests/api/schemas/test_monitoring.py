@@ -58,7 +58,7 @@ PRIVATE_FIELDS = (
 
 
 def _empty_latency() -> dict:
-    return {"mean": None, "median": None, "max": None}
+    return {"mean": None, "median": None, "p95": None, "max": None}
 
 
 def _full_summary() -> dict:
@@ -74,14 +74,14 @@ def _full_summary() -> dict:
                 "total_requests": 4,
                 "error_count": 1,
                 "success_rate": 0.75,
-                "latency_ms": {"mean": 30.0, "median": 20.0, "max": 60},
+                "latency_ms": {"mean": 30.0, "median": 20.0, "p95": 56.0, "max": 60},
             },
             {
                 "service": "recommend",
                 "total_requests": 3,
                 "error_count": 0,
                 "success_rate": 1.0,
-                "latency_ms": {"mean": 23.0, "median": 15.0, "max": 40},
+                "latency_ms": {"mean": 23.0, "median": 15.0, "p95": 37.5, "max": 40},
             },
         ],
         "errors_by_type": {"validation_error": 1},
@@ -167,6 +167,7 @@ def test_full_summary_is_valid():
     assert response.error_count == 1
     assert response.success_rate == pytest.approx(6 / 7)
     assert response.services[0].latency_ms.mean == 30.0
+    assert response.services[0].latency_ms.p95 == 56.0
     assert response.services[1].latency_ms.max == 40
     assert response.errors_by_type == {"validation_error": 1}
     assert response.requests_per_day[1].predict == 0
