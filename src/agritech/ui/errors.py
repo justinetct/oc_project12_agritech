@@ -1,10 +1,14 @@
-"""Exceptions et formatage pour le client HTTP de l'interface Streamlit.
+"""Exceptions et formatage pour le client HTTP des interfaces.
 
-Chaque type d'erreur porte un sens précis pour le front (timeout,
-connexion, réponse HTTP invalide, JSON illisible). Un helper
-``format_api_error(exc)`` fournit un message lisible destiné à
-l'utilisateur ; il centralise la traduction pour que les pages
-Streamlit se contentent de ``st.error(format_api_error(exc))``.
+Chaque type d'erreur porte un sens précis pour le front (configuration
+absente, timeout, connexion, réponse HTTP invalide, JSON illisible). Deux
+helpers fournissent un message lisible destiné à l'utilisateur :
+
+- ``format_api_error(exc)`` pour les pages Streamlit ``/predict`` et
+  ``/recommend`` (``st.error(format_api_error(exc))``) ;
+- ``format_monitoring_error(exc)`` pour l'interface de monitoring.
+
+Aucun message ne reprend un token, une trace d'erreur ou un corps de réponse.
 """
 
 from __future__ import annotations
@@ -24,6 +28,13 @@ HTTP_ERROR_MESSAGES = {
 
 class ApiError(Exception):
     """Base de toutes les erreurs remontées par le client HTTP."""
+
+
+class ApiConfigurationError(ApiError):
+    """Configuration locale incomplète : aucun appel HTTP n'a été tenté.
+
+    Exemple : ``MONITORING_API_TOKEN`` absent pour appeler ``/monitoring/*``.
+    """
 
 
 class ApiTimeoutError(ApiError):
@@ -76,3 +87,34 @@ def format_api_error(exc: ApiError) -> str:
             exc.code, f"Le service a renvoyé une erreur inattendue (code {exc.status_code})."
         )
     return "Erreur inattendue lors de l'appel API."
+
+
+# Message affiché par l'interface de monitoring pour chaque statut HTTP connu.
+# Le statut est utilisé plutôt que le code d'erreur : un 503 renvoyé par un
+# proxy ou un hébergeur n'a pas forcément le corps ``ErrorResponse`` de l'API.
+MONITORING_HTTP_MESSAGES = {
+    401: "Accès refusé : le token de monitoring n'est pas accepté par l'API.",
+    503: "Le monitoring est momentanément indisponible côté API.",
+}
+
+
+def format_monitoring_error(exc: ApiError) -> str:
+    """Retourne un message lisible pour l'interface de monitoring.
+
+    Message court, en français, sans token, trace d'erreur ni détail renvoyé
+    par l'API : seul le type d'erreur (ou le statut HTTP) choisit le message.
+    """
+    if isinstance(exc, ApiConfigurationError):
+        return "Monitoring non configuré : le token d'accès n'est pas défini pour cette interface."
+    if isinstance(exc, ApiTimeoutError):
+        return "L'API de monitoring n'a pas répondu à temps. Réessayez dans un instant."
+    if isinstance(exc, ApiConnectionError):
+        return "Impossible de joindre l'API de monitoring. Vérifiez qu'elle est démarrée."
+    if isinstance(exc, ApiInvalidResponseError):
+        return "L'API de monitoring a renvoyé une réponse inattendue."
+    if isinstance(exc, ApiHttpError):
+        return MONITORING_HTTP_MESSAGES.get(
+            exc.status_code,
+            f"L'API de monitoring a renvoyé une erreur inattendue (code {exc.status_code}).",
+        )
+    return "Erreur inattendue lors de l'appel à l'API de monitoring."
