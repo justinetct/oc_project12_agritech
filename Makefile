@@ -1,4 +1,4 @@
-.PHONY: test test-durations api streamlit gradio health predict recommend \
+.PHONY: test test-durations api streamlit gradio seed-monitoring health predict recommend \
         docker-build docker-up docker-down docker-logs docker-demo
 
 test:
@@ -16,6 +16,11 @@ streamlit:
 # Monitoring : lit AGRITECH_API_URL et MONITORING_API_TOKEN dans l'environnement.
 gradio:
 	poetry run python gradio_app/app.py
+
+# Historique de démonstration du monitoring : aperçu seulement par défaut.
+# Écriture : make seed-monitoring ARGS=--write (ajout seul, refusé si ENVIRONMENT=prod).
+seed-monitoring:
+	poetry run python -m agritech.monitoring.seed_history $(ARGS)
 
 health:
 	curl http://127.0.0.1:8000/health
