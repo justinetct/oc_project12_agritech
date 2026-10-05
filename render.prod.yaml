@@ -1,0 +1,64 @@
+# Production d'Agritech Answers : trois web services Docker construits depuis la branche main.
+# Aucun secret dans ce fichier : le token de monitoring est généré par Render.
+
+envVarGroups:
+  # Token partagé uniquement par l'API et le dashboard de monitoring de la production.
+  - name: agritech-monitoring-prod
+    envVars:
+      - key: MONITORING_API_TOKEN
+        generateValue: true
+
+services:
+  - type: web
+    name: oc-p12-agritech-api-prod
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: "off"
+    healthCheckPath: /health
+    envVars:
+      - key: SERVICE
+        value: api
+      - key: ENVIRONMENT
+        value: prod
+      - key: DATABASE_URL
+        value: sqlite:////app/data/monitoring/api.sqlite
+      - key: MONITORING_DEMO_HISTORY
+        value: "true"
+      - fromGroup: agritech-monitoring-prod
+
+  - type: web
+    name: oc-p12-agritech-streamlit-prod
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: "off"
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: SERVICE
+        value: streamlit
+      - key: AGRITECH_API_URL
+        fromService:
+          name: oc-p12-agritech-api-prod
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+
+  - type: web
+    name: oc-p12-agritech-gradio-prod
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: "off"
+    healthCheckPath: /
+    envVars:
+      - key: SERVICE
+        value: gradio
+      - key: AGRITECH_API_URL
+        fromService:
+          name: oc-p12-agritech-api-prod
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - fromGroup: agritech-monitoring-prod

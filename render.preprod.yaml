@@ -1,0 +1,64 @@
+# Préprod d'Agritech Answers : trois web services Docker construits depuis la branche staging.
+# Aucun secret dans ce fichier : le token de monitoring est généré par Render.
+
+envVarGroups:
+  # Token partagé uniquement par l'API et le dashboard de monitoring de la préprod.
+  - name: agritech-monitoring-preprod
+    envVars:
+      - key: MONITORING_API_TOKEN
+        generateValue: true
+
+services:
+  - type: web
+    name: oc-p12-agritech-api-preprod
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: staging
+    autoDeployTrigger: "off"
+    healthCheckPath: /health
+    envVars:
+      - key: SERVICE
+        value: api
+      - key: ENVIRONMENT
+        value: staging
+      - key: DATABASE_URL
+        value: sqlite:////app/data/monitoring/api.sqlite
+      - key: MONITORING_DEMO_HISTORY
+        value: "true"
+      - fromGroup: agritech-monitoring-preprod
+
+  - type: web
+    name: oc-p12-agritech-streamlit-preprod
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: staging
+    autoDeployTrigger: "off"
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: SERVICE
+        value: streamlit
+      - key: AGRITECH_API_URL
+        fromService:
+          name: oc-p12-agritech-api-preprod
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+
+  - type: web
+    name: oc-p12-agritech-gradio-preprod
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: staging
+    autoDeployTrigger: "off"
+    healthCheckPath: /
+    envVars:
+      - key: SERVICE
+        value: gradio
+      - key: AGRITECH_API_URL
+        fromService:
+          name: oc-p12-agritech-api-preprod
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - fromGroup: agritech-monitoring-preprod
