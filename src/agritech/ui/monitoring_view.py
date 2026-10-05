@@ -5,10 +5,12 @@ Fonctions pures : elles reçoivent les réponses déjà validées par
 et renvoient des valeurs prêtes à afficher. Aucun appel HTTP, aucune
 dépendance à l'interface graphique : les widgets sont construits ailleurs.
 
-- ``summary_kpis`` : les quatre indicateurs du bandeau (libellé + valeur) ;
+- ``summary_kpis`` : les quatre indicateurs du bandeau (libellé + valeur),
+  et ``empty_kpis`` pour les remettre à « — » quand le résumé est indisponible ;
 - ``daily_volume_frame`` : volume quotidien au format « long » pour un
   graphique en barres empilées (une ligne par jour et par service) ;
-- ``services_frame`` : une ligne par service, latences comprises ;
+- ``service_kpis`` : cinq indicateurs par service (volumes, réussite,
+  latences médiane et max), et ``empty_service_kpis`` pour les remettre à « — » ;
 - ``errors_frame`` : nombre d'erreurs par type ;
 - ``recent_requests_frame`` : les derniers appels, une ligne par appel.
 
@@ -27,7 +29,6 @@ from typing import Any
 import pandas as pd
 
 from agritech.api.schemas.monitoring import (
-    LatencySummary,
     MonitoringRequestsResponse,
     MonitoringSummaryResponse,
 )
@@ -40,19 +41,22 @@ MISSING = "—"
 # Ordre d'affichage des services, identique à celui de l'API.
 SERVICES = ("predict", "recommend")
 
+# Mois abrégés en français, pour une date lisible (« 05 oct. 2026 »).
+FRENCH_MONTHS = (
+    "janv.", "févr.", "mars", "avr.", "mai", "juin",
+    "juil.", "août", "sept.", "oct.", "nov.", "déc.",
+)
+
+# Libellés des quatre indicateurs du bandeau, dans l'ordre d'affichage.
+KPI_LABELS = ("Requêtes", "Requêtes réussies", "Erreurs", "Dernière requête")
+
 # Colonnes du graphique quotidien : noms techniques, utilisés comme x / y / couleur.
 DAILY_COLUMNS = ["date", "service", "requests"]
 
 # Colonnes des tableaux affichés tels quels.
-SERVICES_COLUMNS = [
-    "Service",
-    "Requêtes",
-    "Erreurs",
-    "Taux de succès",
-    "Latence moyenne",
-    "Latence médiane",
-    "Latence max",
-]
+# Libellés des cinq indicateurs affichés pour chaque service.
+SERVICE_KPI_LABELS = ("Requêtes", "Réussies", "Erreurs", "Latence médiane", "Latence max")
+
 ERRORS_COLUMNS = ["Type d'erreur", "Nombre"]
 REQUESTS_COLUMNS = ["Date (UTC)", "Service", "Statut", "Durée", "Modèle", "Erreur", "Entrées"]
 
@@ -67,12 +71,18 @@ class Kpi:
 
 def summary_kpis(summary: MonitoringSummaryResponse) -> list[Kpi]:
     """Les quatre indicateurs de la période, dans l'ordre du bandeau."""
-    return [
-        Kpi("Requêtes", format_count(summary.total_requests)),
-        Kpi("Taux de succès", format_rate(summary.success_rate)),
-        Kpi("Erreurs", format_count(summary.error_count)),
-        Kpi("Dernière requête", format_utc(summary.last_request_at)),
-    ]
+    values = (
+        format_count(summary.total_requests),
+        format_rate(summary.success_rate),
+        format_count(summary.error_count),
+        format_readable_utc(summary.last_request_at),
+    )
+    return [Kpi(label, value) for label, value in zip(KPI_LABELS, values)]
+
+
+def empty_kpis() -> list[Kpi]:
+    """Les quatre indicateurs sans valeur (« — »), quand aucun résumé n'est disponible."""
+    return [Kpi(label, MISSING) for label in KPI_LABELS]
 
 
 def daily_volume_frame(summary: MonitoringSummaryResponse) -> pd.DataFrame:
@@ -91,19 +101,34 @@ def daily_volume_frame(summary: MonitoringSummaryResponse) -> pd.DataFrame:
     return frame.astype({"requests": "int64"})
 
 
-def services_frame(summary: MonitoringSummaryResponse) -> pd.DataFrame:
-    """Une ligne par service : volumes, taux de succès et latences des appels réussis."""
-    rows = [
-        [
-            entry.service,
+def service_kpis(summary: MonitoringSummaryResponse) -> dict[str, list[Kpi]]:
+    """Cinq indicateurs par service, dans l'ordre de ``SERVICES``.
+
+    Latences calculées sur les requêtes réussies : la médiane donne la durée
+    habituelle, le maximum la pire latence observée sur la période. Un service
+    absent du résumé ou sans aucun appel affiche « — » là où il n'y a pas de
+    mesure.
+    """
+    entries = {entry.service: entry for entry in summary.services}
+    kpis = empty_service_kpis()
+    for service in SERVICES:
+        entry = entries.get(service)
+        if entry is None:
+            continue
+        values = (
             format_count(entry.total_requests),
-            format_count(entry.error_count),
             format_rate(entry.success_rate),
-            *_latency_cells(entry.latency_ms),
-        ]
-        for entry in summary.services
-    ]
-    return pd.DataFrame(rows, columns=SERVICES_COLUMNS)
+            format_count(entry.error_count),
+            format_latency(entry.latency_ms.median),
+            format_latency(entry.latency_ms.max),
+        )
+        kpis[service] = [Kpi(label, value) for label, value in zip(SERVICE_KPI_LABELS, values)]
+    return kpis
+
+
+def empty_service_kpis() -> dict[str, list[Kpi]]:
+    """Indicateurs par service sans valeur (« — »), quand aucun résumé n'est disponible."""
+    return {service: [Kpi(label, MISSING) for label in SERVICE_KPI_LABELS] for service in SERVICES}
 
 
 def errors_frame(summary: MonitoringSummaryResponse) -> pd.DataFrame:
@@ -153,11 +178,19 @@ def format_rate(rate: float | None) -> str:
     return f"{fr_number(rate * 100, 1)} %"
 
 
-def format_ms(value: float | None, decimals: int = 0) -> str:
-    """Durée en millisecondes : ``14`` → ``14 ms`` ; ``None`` → ``—``."""
+def format_ms(value: int) -> str:
+    """Durée d'un appel en millisecondes : ``14`` → ``14 ms``."""
+    return f"{fr_number(value)} ms"
+
+
+def format_latency(value: float | None) -> str:
+    """Latence à une décimale, sans « ,0 » inutile : ``5.5`` → ``5,5 ms``, ``12.0`` → ``12 ms``."""
     if value is None:
         return MISSING
-    return f"{fr_number(value, decimals)} ms"
+    text = fr_number(value, 1)
+    if text.endswith(",0"):
+        text = text[:-2]
+    return f"{text}\u202fms"
 
 
 def format_utc(
@@ -178,6 +211,21 @@ def format_utc(
     return f"{text} UTC" if with_suffix else text
 
 
+def format_readable_utc(moment: datetime | None) -> str:
+    """Date lisible en français, en UTC : ``05 oct. 2026 · 08:51 UTC`` ; ``None`` → ``—``.
+
+    Le mois vient de ``FRENCH_MONTHS`` : le résultat ne dépend pas de la
+    langue configurée sur la machine. Aucune conversion vers un fuseau local.
+    """
+    if moment is None:
+        return MISSING
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    moment = moment.astimezone(timezone.utc)
+    month = FRENCH_MONTHS[moment.month - 1]
+    return f"{moment.day:02d} {month} {moment.year} · {moment:%H:%M} UTC"
+
+
 def compact_json(payload: Any) -> str:
     """Corps JSON sur une seule ligne, sans espaces, accents conservés.
 
@@ -185,12 +233,3 @@ def compact_json(payload: Any) -> str:
     le trie pas, pour garder l'ordre naturel des champs envoyés.
     """
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
-
-
-def _latency_cells(latency: LatencySummary) -> list[str]:
-    """Moyenne, médiane et max, tous à une décimale pour un affichage homogène."""
-    return [
-        format_ms(latency.mean, decimals=1),
-        format_ms(latency.median, decimals=1),
-        format_ms(latency.max, decimals=1),
-    ]

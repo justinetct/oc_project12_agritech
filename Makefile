@@ -1,4 +1,4 @@
-.PHONY: test test-durations api streamlit health predict recommend \
+.PHONY: test test-durations api streamlit gradio health predict recommend \
         docker-build docker-up docker-down docker-logs docker-demo
 
 test:
@@ -12,6 +12,10 @@ api:
 
 streamlit:
 	poetry run streamlit run streamlit_app/app.py
+
+# Monitoring : lit AGRITECH_API_URL et MONITORING_API_TOKEN dans l'environnement.
+gradio:
+	poetry run python gradio_app/app.py
 
 health:
 	curl http://127.0.0.1:8000/health

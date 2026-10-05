@@ -17,6 +17,8 @@ COLORS = {
     "forest": "#14452f",      # panneau, boutons, sélection
     "forest-top": "#113b28",  # bandeau, un ton plus sombre que le panneau
     "leaf": "#2c7a53",        # pictogrammes
+    "teal": "#2a7c81",        # Recommend : bleu-vert (texte blanc lisible, contraste ≥ 4,5)
+    "slate": "#4f6f8f",       # Predict : bleu ardoise désaturé (texte blanc lisible)
     "mint-panel": "#d9e8d7",  # cercle du panneau
     "mint-soft": "#a9cbb8",   # textes secondaires sur fond vert
     "cream": "#f7f4ec",       # fond de page

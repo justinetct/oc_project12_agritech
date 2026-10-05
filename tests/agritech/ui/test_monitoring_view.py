@@ -111,9 +111,9 @@ def test_summary_kpis_values_and_labels():
     """Quatre indicateurs, dans l'ordre du bandeau, valeurs déjà formatées."""
     assert view.summary_kpis(_summary()) == [
         Kpi("Requêtes", f"1{NNBSP}234"),
-        Kpi("Taux de succès", f"97,6{NNBSP}%"),
+        Kpi("Requêtes réussies", f"97,6{NNBSP}%"),
         Kpi("Erreurs", "30"),
-        Kpi("Dernière requête", "2026-10-01 13:45 UTC"),
+        Kpi("Dernière requête", "01 oct. 2026 · 13:45 UTC"),
     ]
 
 
@@ -129,9 +129,22 @@ def test_summary_kpis_without_any_request():
     """Période vide : 0 pour les compteurs, « — » pour le taux et la dernière requête."""
     assert view.summary_kpis(_empty_summary()) == [
         Kpi("Requêtes", "0"),
-        Kpi("Taux de succès", "—"),
+        Kpi("Requêtes réussies", "—"),
         Kpi("Erreurs", "0"),
         Kpi("Dernière requête", "—"),
+    ]
+
+
+def test_empty_kpis_keep_labels_without_values():
+    """Résumé indisponible : mêmes libellés, toutes les valeurs à « — »."""
+    assert view.empty_kpis() == [
+        Kpi("Requêtes", "—"),
+        Kpi("Requêtes réussies", "—"),
+        Kpi("Erreurs", "—"),
+        Kpi("Dernière requête", "—"),
+    ]
+    assert [kpi.label for kpi in view.empty_kpis()] == [
+        kpi.label for kpi in view.summary_kpis(_summary())
     ]
 
 
@@ -143,8 +156,36 @@ def test_format_utc_keeps_utc_without_local_conversion():
     assert view.format_utc(moment, with_seconds=True, with_suffix=False) == "2026-10-01 13:45:06"
 
 
+@pytest.mark.parametrize(
+    ("moment", "expected"),
+    [
+        (datetime(2026, 10, 5, 8, 51, 30, tzinfo=timezone.utc), "05 oct. 2026 · 08:51 UTC"),
+        (datetime(2026, 1, 1, 0, 0, tzinfo=timezone.utc), "01 janv. 2026 · 00:00 UTC"),
+        (datetime(2026, 2, 14, 9, 5, tzinfo=timezone.utc), "14 févr. 2026 · 09:05 UTC"),
+        (datetime(2026, 8, 31, 23, 59, tzinfo=timezone.utc), "31 août 2026 · 23:59 UTC"),
+        (datetime(2026, 12, 25, 12, 0, tzinfo=timezone.utc), "25 déc. 2026 · 12:00 UTC"),
+    ],
+)
+def test_format_readable_utc_in_french(moment: datetime, expected: str):
+    assert view.format_readable_utc(moment) == expected
+
+
+def test_format_readable_utc_stays_in_utc_and_handles_missing_value():
+    """Heure de Paris ramenée en UTC (même au changement de jour) ; `None` → « — »."""
+    paris = timezone(timedelta(hours=2))
+    assert view.format_readable_utc(datetime(2026, 10, 6, 1, 30, tzinfo=paris)) == (
+        "05 oct. 2026 · 23:30 UTC"
+    )
+    assert view.format_readable_utc(datetime(2026, 10, 5, 8, 51)) == "05 oct. 2026 · 08:51 UTC"
+    assert view.format_readable_utc(None) == "—"
+
+
 def test_format_utc_treats_naive_datetime_as_utc():
     assert view.format_utc(datetime(2026, 10, 1, 13, 45)) == "2026-10-01 13:45 UTC"
+
+
+def test_format_utc_missing_value_is_dash():
+    assert view.format_utc(None) == "—"
 
 
 # --- Volume quotidien ----------------------------------------------------------
@@ -188,54 +229,60 @@ def test_daily_volume_without_days_is_an_empty_frame_with_columns():
     assert list(frame.columns) == ["date", "service", "requests"]
 
 
-# --- Tableau par service -------------------------------------------------------
+# --- Indicateurs par service ---------------------------------------------------
 
 
-def test_services_frame_has_one_formatted_row_per_service():
-    frame = view.services_frame(_summary())
+def test_service_kpis_give_five_formatted_values_per_service():
+    """Requêtes, réussies, erreurs, latences médiane et max, pour predict puis recommend."""
+    kpis = view.service_kpis(_summary())
 
-    assert list(frame.columns) == view.SERVICES_COLUMNS
-    assert frame.to_dict("records") == [
-        {
-            "Service": "predict",
-            "Requêtes": "700",
-            "Erreurs": "20",
-            "Taux de succès": f"97,1{NNBSP}%",
-            "Latence moyenne": f"13,3{NNBSP}ms",
-            "Latence médiane": f"11,0{NNBSP}ms",
-            "Latence max": f"48,0{NNBSP}ms",
-        },
-        {
-            "Service": "recommend",
-            "Requêtes": "534",
-            "Erreurs": "10",
-            "Taux de succès": f"98,1{NNBSP}%",
-            "Latence moyenne": f"7,0{NNBSP}ms",
-            "Latence médiane": f"7,5{NNBSP}ms",
-            "Latence max": f"1{NNBSP}250,0{NNBSP}ms",
-        },
+    assert list(kpis) == ["predict", "recommend"]
+    assert kpis["predict"] == [
+        Kpi("Requêtes", "700"),
+        Kpi("Réussies", f"97,1{NNBSP}%"),
+        Kpi("Erreurs", "20"),
+        Kpi("Latence médiane", f"11{NNBSP}ms"),
+        Kpi("Latence max", f"48{NNBSP}ms"),
+    ]
+    assert kpis["recommend"] == [
+        Kpi("Requêtes", "534"),
+        Kpi("Réussies", f"98,1{NNBSP}%"),
+        Kpi("Erreurs", "10"),
+        Kpi("Latence médiane", f"7,5{NNBSP}ms"),
+        Kpi("Latence max", f"1{NNBSP}250{NNBSP}ms"),
     ]
 
 
-def test_services_frame_shows_dash_when_no_measure_exists():
-    """Sans appel réussi, les latences et le taux s'affichent « — », jamais « 0 ms »."""
-    frame = view.services_frame(_empty_summary())
-
-    for row in frame.to_dict("records"):
-        assert row["Requêtes"] == "0"
-        assert row["Taux de succès"] == "—"
-        assert row["Latence moyenne"] == "—"
-        assert row["Latence médiane"] == "—"
-        assert row["Latence max"] == "—"
+def test_service_kpis_without_any_call_show_zero_and_dash():
+    """Service sans appel : 0 pour les compteurs, « — » pour la réussite et les latences."""
+    for kpis in view.service_kpis(_empty_summary()).values():
+        assert [kpi.value for kpi in kpis] == ["0", "—", "0", "—", "—"]
 
 
-def test_services_frame_zero_latency_is_not_confused_with_missing():
-    """Une vraie mesure à 0 reste « 0,0 ms » : seul `None` devient « — »."""
+def test_service_kpis_missing_service_stays_empty():
+    """Un service absent du résumé garde ses libellés, avec « — » partout."""
     summary = _summary()
-    summary.services[0].latency_ms.max = 0
-    row = view.services_frame(summary).iloc[0]
+    summary.services = [entry for entry in summary.services if entry.service == "predict"]
 
-    assert row["Latence max"] == f"0,0{NNBSP}ms"
+    assert view.service_kpis(summary)["recommend"] == view.empty_service_kpis()["recommend"]
+
+
+def test_empty_service_kpis_keep_labels_without_values():
+    empty = view.empty_service_kpis()
+
+    assert list(empty) == ["predict", "recommend"]
+    for kpis in empty.values():
+        assert [kpi.label for kpi in kpis] == list(view.SERVICE_KPI_LABELS)
+        assert all(kpi.value == "—" for kpi in kpis)
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(12.0, f"12{NNBSP}ms"), (5.5, f"5,5{NNBSP}ms"), (40.44, f"40,4{NNBSP}ms"), (0.0, f"0{NNBSP}ms"), (None, "—")],
+)
+def test_format_latency(value, expected: str):
+    """Une décimale sans « ,0 » inutile ; une vraie mesure à 0 n'est pas confondue avec « — »."""
+    assert view.format_latency(value) == expected
 
 
 # --- Erreurs par type ----------------------------------------------------------
@@ -384,7 +431,7 @@ def test_transformations_do_not_modify_received_objects():
 
     view.summary_kpis(summary)
     view.daily_volume_frame(summary)
-    view.services_frame(summary)
+    view.service_kpis(summary)
     view.errors_frame(summary)
     view.recent_requests_frame(requests_response)
 
