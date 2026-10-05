@@ -35,6 +35,7 @@ from agritech.api.exceptions import (
     MonitoringUnavailableError,
 )
 from agritech.api.middleware.request_logger import RequestLoggerMiddleware
+from agritech.api.routers.monitoring import router as monitoring_router
 from agritech.api.routers.predict import router as predict_router
 from agritech.api.routers.recommend import router as recommend_router
 from agritech.config import PATHS
@@ -112,6 +113,8 @@ app = FastAPI(
         "API de prédiction agricole. Deux services :\n\n"
         "- `POST /predict` : estimation de rendement pour une parcelle ;\n"
         "- `POST /recommend` : classement des cultures pour un contexte donné.\n\n"
+        "Les endpoints `GET /monitoring/*`, protégés par un token Bearer, exposent "
+        "en lecture seule le suivi de ces appels.\n\n"
         "Consulter `/docs` pour la liste et le contrat des endpoints disponibles."
     ),
     version=API_VERSION,
@@ -122,6 +125,7 @@ app = FastAPI(
 
 app.include_router(predict_router)
 app.include_router(recommend_router)
+app.include_router(monitoring_router)
 
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(ModelUnavailableError, model_unavailable_handler)
