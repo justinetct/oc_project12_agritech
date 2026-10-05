@@ -9,10 +9,12 @@ dépendance à l'interface graphique : les widgets sont construits ailleurs.
   et ``empty_kpis`` pour les remettre à « — » quand le résumé est indisponible ;
 - ``daily_volume_frame`` : volume quotidien au format « long » pour un
   graphique en barres empilées (une ligne par jour et par service) ;
+- ``daily_errors_frame`` : nombre d'erreurs par jour, pour un graphique en barres ;
+- ``date_axis_labels`` : les jours étiquetés sous ces deux graphiques ;
 - ``service_kpis`` : cinq indicateurs par service (volumes, réussite,
   latences médiane et max), et ``empty_service_kpis`` pour les remettre à « — » ;
-- ``errors_frame`` : nombre d'erreurs par type ;
-- ``recent_requests_frame`` : les derniers appels, une ligne par appel.
+- ``recent_errors_frame`` et ``recent_successes_frame`` : les derniers appels
+  en erreur et réussis, une ligne par appel.
 
 Les tableaux sont des ``pandas.DataFrame`` aux colonnes fixes, même vides.
 Les dates restent en UTC, sans conversion vers un fuseau local. Une mesure
@@ -22,6 +24,7 @@ absente s'affiche « — », jamais « 0 ».
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -57,8 +60,17 @@ DAILY_COLUMNS = ["date", "service", "requests"]
 # Libellés des cinq indicateurs affichés pour chaque service.
 SERVICE_KPI_LABELS = ("Requêtes", "Réussies", "Erreurs", "Latence médiane", "Latence max")
 
-ERRORS_COLUMNS = ["Type d'erreur", "Nombre"]
-REQUESTS_COLUMNS = ["Date (UTC)", "Service", "Statut", "Durée", "Modèle", "Erreur", "Entrées"]
+RECENT_ERRORS_COLUMNS = ["Date (UTC)", "Service", "Statut", "Erreur", "Message", "Durée", "Entrées"]
+RECENT_SUCCESSES_COLUMNS = ["Date (UTC)", "Service", "Durée", "Modèle", "Entrées"]
+
+# Colonnes du graphique des erreurs quotidiennes.
+DAILY_ERRORS_COLUMNS = ["date", "errors"]
+
+# Écart entre deux jours étiquetés sous les graphiques quotidiens, selon la
+# longueur de la période : (nombre de jours maximal, écart). Chaque jour sur
+# 7 jours, tous les 3 jours sur 30, puis chaque semaine au-delà (90 jours).
+DATE_LABEL_STEPS = ((7, 1), (31, 3))
+WEEKLY_LABEL_STEP = 7
 
 
 @dataclass(frozen=True)
@@ -101,6 +113,49 @@ def daily_volume_frame(summary: MonitoringSummaryResponse) -> pd.DataFrame:
     return frame.astype({"requests": "int64"})
 
 
+def daily_errors_frame(summary: MonitoringSummaryResponse) -> pd.DataFrame:
+    """Erreurs par jour : colonnes ``date`` et ``errors``.
+
+    Une ligne par jour de la période, jours sans erreur à 0, dans l'ordre
+    chronologique.
+    """
+    rows = [
+        {"date": day.date.isoformat(), "errors": day.errors} for day in summary.requests_per_day
+    ]
+    frame = pd.DataFrame(rows, columns=DAILY_ERRORS_COLUMNS)
+    return frame.astype({"errors": "int64"})
+
+
+def date_label_step(day_count: int) -> int:
+    """Écart entre deux jours étiquetés pour une période de ``day_count`` jours."""
+    for max_days, step in DATE_LABEL_STEPS:
+        if day_count <= max_days:
+            return step
+    return WEEKLY_LABEL_STEP
+
+
+def date_axis_labels(dates: Sequence[str]) -> list[str]:
+    """Les jours à étiqueter sur l'axe des dates, parmi ``dates`` (ordre chronologique).
+
+    Les dates répétées (une ligne par service et par jour) ne comptent qu'une
+    fois. Un jour sur ``date_label_step`` en partant du premier ; le dernier
+    jour est toujours ajouté. S'il tombe à moins d'un demi-écart de l'étiquette
+    précédente, celle-ci est retirée pour que les deux ne se chevauchent pas.
+    Toutes les barres restent tracées : seules les étiquettes sont espacées.
+    """
+    dates = list(dict.fromkeys(dates))
+    if not dates:
+        return []
+    step = date_label_step(len(dates))
+    indexes = list(range(0, len(dates), step))
+    last = len(dates) - 1
+    if indexes[-1] != last:
+        if len(indexes) > 1 and last - indexes[-1] < step / 2:
+            indexes.pop()
+        indexes.append(last)
+    return [dates[index] for index in indexes]
+
+
 def service_kpis(summary: MonitoringSummaryResponse) -> dict[str, list[Kpi]]:
     """Cinq indicateurs par service, dans l'ordre de ``SERVICES``.
 
@@ -131,36 +186,48 @@ def empty_service_kpis() -> dict[str, list[Kpi]]:
     return {service: [Kpi(label, MISSING) for label in SERVICE_KPI_LABELS] for service in SERVICES}
 
 
-def errors_frame(summary: MonitoringSummaryResponse) -> pd.DataFrame:
-    """Erreurs par type, de la plus fréquente à la moins fréquente.
+def recent_errors_frame(response: MonitoringRequestsResponse) -> pd.DataFrame:
+    """Les derniers appels en erreur, dans l'ordre reçu (du plus récent au plus ancien).
 
-    À nombre égal, les types sont classés par ordre alphabétique. Sans
-    erreur, le tableau est vide (aucune ligne inventée).
-    """
-    ordered = sorted(summary.errors_by_type.items(), key=lambda item: (-item[1], item[0]))
-    return pd.DataFrame([list(item) for item in ordered], columns=ERRORS_COLUMNS)
-
-
-def recent_requests_frame(response: MonitoringRequestsResponse) -> pd.DataFrame:
-    """Les derniers appels, dans l'ordre reçu (du plus récent au plus ancien).
-
-    La date est en UTC (indiqué dans l'en-tête de colonne), à la seconde ;
-    le statut HTTP reste un entier ; l'erreur affichée est le code court
-    (``validation_error``...) ; les entrées sont le corps JSON compact.
+    Date UTC à la seconde (indiqué dans l'en-tête), statut HTTP entier, code
+    d'erreur court, message public de l'API et corps JSON compact envoyé.
     """
     rows = [
         [
-            format_utc(item.timestamp, with_seconds=True, with_suffix=False),
+            _table_date(item.timestamp),
             item.service,
             item.status_code,
+            item.error_type or MISSING,
+            item.error_message or MISSING,
             format_ms(item.duration_ms),
-            item.model_version or MISSING,
-            item.error_type or item.error_message or MISSING,
             compact_json(item.request_payload),
         ]
         for item in response.items
     ]
-    return pd.DataFrame(rows, columns=REQUESTS_COLUMNS)
+    return pd.DataFrame(rows, columns=RECENT_ERRORS_COLUMNS)
+
+
+def recent_successes_frame(response: MonitoringRequestsResponse) -> pd.DataFrame:
+    """Les derniers appels réussis, dans l'ordre reçu (du plus récent au plus ancien).
+
+    Pas de colonne de statut : ces appels ont tous réussi.
+    """
+    rows = [
+        [
+            _table_date(item.timestamp),
+            item.service,
+            format_ms(item.duration_ms),
+            item.model_version or MISSING,
+            compact_json(item.request_payload),
+        ]
+        for item in response.items
+    ]
+    return pd.DataFrame(rows, columns=RECENT_SUCCESSES_COLUMNS)
+
+
+def _table_date(moment: datetime) -> str:
+    """Date d'un tableau : UTC à la seconde, sans suffixe (indiqué dans l'en-tête)."""
+    return format_utc(moment, with_seconds=True, with_suffix=False)
 
 
 # --- Formatage des valeurs ---------------------------------------------------

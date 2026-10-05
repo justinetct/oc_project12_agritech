@@ -20,6 +20,7 @@ from __future__ import annotations
 from html import escape
 from typing import NamedTuple
 
+import altair as alt
 import gradio as gr
 import pandas as pd
 from dotenv import load_dotenv
@@ -28,13 +29,18 @@ from agritech.ui import api_client
 from agritech.ui.errors import ApiError, format_monitoring_error
 from agritech.ui.monitoring_view import (
     DAILY_COLUMNS,
-    ERRORS_COLUMNS,
+    DAILY_ERRORS_COLUMNS,
+    RECENT_ERRORS_COLUMNS,
+    RECENT_SUCCESSES_COLUMNS,
     SERVICES,
     Kpi,
+    daily_errors_frame,
     daily_volume_frame,
+    date_axis_labels,
     empty_kpis,
     empty_service_kpis,
-    errors_frame,
+    recent_errors_frame,
+    recent_successes_frame,
     service_kpis,
     summary_kpis,
 )
@@ -46,12 +52,34 @@ PERIODS = [("7 jours", 7), ("30 jours", 30), ("90 jours", 90)]
 DEFAULT_DAYS = 30
 
 NO_REQUEST_MESSAGE = "Aucune requête sur cette période."
-NO_ERROR_MESSAGE = "Aucune erreur sur cette période."
+NO_RECENT_ERROR_MESSAGE = "Aucune erreur récente."
+NO_RECENT_SUCCESS_MESSAGE = "Aucune requête réussie récente."
+
+# Nombre d'appels affichés dans les tableaux « Dernières erreurs » et
+# « Dernières requêtes réussies ». Ces tableaux ne suivent pas la période :
+# `/monitoring/requests` renvoie les derniers appels, toutes dates confondues.
+RECENT_LIMIT = 10
+RECENT_SCOPE_NOTE = f"{RECENT_LIMIT} derniers appels, toutes périodes confondues."
 
 # Couleur de chaque service, la même dans le graphique et dans ses indicateurs.
 # Deux services de même niveau : bleu ardoise et bleu-vert ; jaune, orange et
 # rouge restent réservés aux erreurs et alertes.
 SERVICE_COLORS = {"predict": COLORS["slate"], "recommend": COLORS["teal"]}
+
+# Couleur des barres d'erreurs quotidiennes : couleur d'alerte de la palette.
+ERRORS_COLOR = COLORS["alert"]
+
+# Police des graphiques : celle du thème Gradio (texte de la page).
+CHART_FONT = '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif'
+
+# Air autour des barres : part de la largeur laissée vide à gauche et à droite,
+# et marge au-dessus de la plus haute barre (part du maximum).
+CHART_SIDE_MARGIN = 0.04
+CHART_TOP_MARGIN = 0.2
+
+# Espace entre le cadre blanc et le graphique (axes, légende), en pixels :
+# `gr.Plot` affiche le graphique bord à bord, sans la marge de `gr.BarPlot`.
+CHART_PADDING = {"top": 18, "right": 22, "bottom": 14, "left": 18}
 
 # Nom affiché de chaque service, en tête de sa rangée d'indicateurs.
 SERVICE_TITLES = {"predict": "Predict", "recommend": "Recommend"}
@@ -62,42 +90,174 @@ class DashboardView(NamedTuple):
 
     status_html: str
     kpis_html: str
-    daily: pd.DataFrame
+    daily: alt.Chart
     daily_note_html: str
+    daily_errors: alt.Chart
     services_html: str
-    errors: pd.DataFrame
-    errors_note_html: str
+    recent_errors: pd.DataFrame
+    recent_errors_note_html: str
+    recent_successes: pd.DataFrame
+    recent_successes_note_html: str
 
 
 def load_dashboard(days: int) -> DashboardView:
-    """Charge le résumé des ``days`` derniers jours et prépare tout l'affichage.
+    """Charge le résumé, les dernières erreurs et les derniers succès.
 
-    En cas d'erreur API, la page est entièrement remise à vide (aucune donnée
-    d'un chargement précédent ne reste affichée) et le message d'erreur
-    s'affiche en tête.
+    Trois appels : ``/monitoring/summary`` pour les ``days`` derniers jours,
+    puis ``/monitoring/requests`` pour les ``RECENT_LIMIT`` derniers appels en
+    erreur et réussis. Si l'un d'eux échoue, la page est entièrement remise à
+    vide (aucune donnée d'un chargement précédent ne reste affichée) et le
+    message d'erreur s'affiche en tête.
     """
     try:
         summary = api_client.get_monitoring_summary(days)
+        last_errors = api_client.get_monitoring_requests(limit=RECENT_LIMIT, success=False)
+        last_successes = api_client.get_monitoring_requests(limit=RECENT_LIMIT, success=True)
     except ApiError as exc:
         return DashboardView(
             status_html=alert_html(format_monitoring_error(exc)),
             kpis_html=kpi_cards_html(empty_kpis()),
-            daily=pd.DataFrame(columns=DAILY_COLUMNS),
+            daily=daily_volume_chart(pd.DataFrame(columns=DAILY_COLUMNS)),
             daily_note_html="",
+            daily_errors=daily_errors_chart(pd.DataFrame(columns=DAILY_ERRORS_COLUMNS)),
             services_html=service_rows_html(empty_service_kpis()),
-            errors=pd.DataFrame(columns=ERRORS_COLUMNS),
-            errors_note_html="",
+            recent_errors=pd.DataFrame(columns=RECENT_ERRORS_COLUMNS),
+            recent_errors_note_html="",
+            recent_successes=pd.DataFrame(columns=RECENT_SUCCESSES_COLUMNS),
+            recent_successes_note_html="",
         )
 
-    errors = errors_frame(summary)
+    recent_errors = recent_errors_frame(last_errors)
+    recent_successes = recent_successes_frame(last_successes)
     return DashboardView(
         status_html="",
         kpis_html=kpi_cards_html(summary_kpis(summary)),
-        daily=daily_volume_frame(summary),
+        daily=daily_volume_chart(daily_volume_frame(summary)),
         daily_note_html=note_html(NO_REQUEST_MESSAGE) if summary.total_requests == 0 else "",
+        daily_errors=daily_errors_chart(daily_errors_frame(summary)),
         services_html=service_rows_html(service_kpis(summary)),
-        errors=errors,
-        errors_note_html=note_html(NO_ERROR_MESSAGE) if errors.empty else "",
+        recent_errors=recent_errors,
+        recent_errors_note_html=note_html(NO_RECENT_ERROR_MESSAGE) if recent_errors.empty else "",
+        recent_successes=recent_successes,
+        recent_successes_note_html=(
+            note_html(NO_RECENT_SUCCESS_MESSAGE) if recent_successes.empty else ""
+        ),
+    )
+
+
+# --- Graphiques quotidiens ---------------------------------------------------------
+
+
+def daily_volume_chart(frame: pd.DataFrame) -> alt.Chart:
+    """Volume quotidien : une barre par jour, empilée par service (couleur du service)."""
+    chart = (
+        alt.Chart(frame)
+        # Fin trait de la couleur du fond : ne se voit qu'à la jonction Predict / Recommend.
+        .mark_bar(stroke=COLORS["field"], strokeWidth=1)
+        .encode(
+            x=_date_axis(frame),
+            y=_count_axis("requests", "Requêtes", frame.groupby("date")["requests"].sum().max()),
+            color=alt.Color(
+                "service:N",
+                title="Service",
+                scale=alt.Scale(
+                    domain=list(SERVICES), range=[SERVICE_COLORS[s] for s in SERVICES]
+                ),
+                legend=alt.Legend(orient="bottom"),
+            ),
+            tooltip=[
+                alt.Tooltip("date:N", title="Jour (UTC)"),
+                alt.Tooltip("service:N", title="Service"),
+                alt.Tooltip("requests:Q", title="Requêtes"),
+            ],
+        )
+    )
+    return _styled(chart, height=300)
+
+
+def daily_errors_chart(frame: pd.DataFrame) -> alt.Chart:
+    """Erreurs par jour : une barre par jour, couleur d'alerte, sans légende (une seule série)."""
+    chart = (
+        alt.Chart(frame)
+        .mark_bar(color=ERRORS_COLOR)
+        .encode(
+            x=_date_axis(frame),
+            y=_count_axis("errors", "Erreurs", frame["errors"].max()),
+            tooltip=[
+                alt.Tooltip("date:N", title="Jour (UTC)"),
+                alt.Tooltip("errors:Q", title="Erreurs"),
+            ],
+        )
+    )
+    return _styled(chart, height=190)
+
+
+def _date_axis(frame: pd.DataFrame) -> alt.X:
+    """Axe des jours, sans titre : toutes les barres, mais seulement les étiquettes de ``date_axis_labels``.
+
+    Marge avant le premier jour et après le dernier, sans jour ajouté aux
+    données : les barres occupent la largeur du graphique moins
+    ``CHART_SIDE_MARGIN`` de chaque côté, quel que soit le nombre de jours.
+    """
+    return alt.X(
+        "date:N",
+        title=None,
+        sort="ascending",
+        scale=alt.Scale(
+            range=[
+                {"expr": f"width * {CHART_SIDE_MARGIN}"},
+                {"expr": f"width * {1 - CHART_SIDE_MARGIN}"},
+            ]
+        ),
+        axis=alt.Axis(values=date_axis_labels(frame["date"]), labelAngle=-45),
+    )
+
+
+def _count_axis(field: str, title: str, max_value: float) -> alt.Y:
+    """Axe d'un nombre d'appels : graduations entières uniquement.
+
+    Vega-Lite choisit des graduations « rondes » (0,5 compris). Avec au plus
+    ``max_value`` graduations demandées, l'écart entre deux graduations reste
+    d'au moins 1 : pas de « 0,5 » arrondi en « 1 » sur un axe de 0 à 1.
+
+    L'axe part de 0 et monte ``CHART_TOP_MARGIN`` au-dessus du maximum : la
+    plus haute barre ne touche pas le haut du graphique.
+    """
+    top = max(1, int(max_value)) if pd.notna(max_value) else 1
+    return alt.Y(
+        f"{field}:Q",
+        title=title,
+        scale=alt.Scale(domain=[0, top * (1 + CHART_TOP_MARGIN)], nice=False),
+        axis=alt.Axis(format="d", tickCount=min(5, top)),
+    )
+
+
+def _styled(chart: alt.Chart, *, height: int) -> alt.Chart:
+    """Apparence commune des graphiques : police, couleurs et grille du thème de la page."""
+    return (
+        chart.properties(
+            width="container",
+            height=height,
+            padding=CHART_PADDING,
+            background="transparent",
+            # Rendu SVG, comme les graphiques Gradio natifs, et sans le menu « … » de
+            # Vega (export, ouverture dans l'éditeur Vega en ligne).
+            usermeta={"embedOptions": {"renderer": "svg", "actions": False}},
+        )
+        .configure(font=CHART_FONT, autosize=alt.AutoSizeParams(type="fit", contains="padding"))
+        .configure_axis(
+            labelColor=COLORS["ink"],
+            titleColor=COLORS["ink"],
+            labelFontSize=12,
+            titleFontSize=12,
+            titleFontWeight="normal",
+            titlePadding=8,
+            gridColor=COLORS["card-line"],
+            tickColor=COLORS["card-line"],
+            domain=False,
+        )
+        .configure_legend(labelColor=COLORS["ink"], titleColor=COLORS["ink"], titleFontWeight="normal")
+        .configure_view(stroke=COLORS["card-line"])
     )
 
 
@@ -119,6 +279,11 @@ def header_html() -> str:
 def section_title_html(title: str) -> str:
     """Titre de section, collé à son contenu."""
     return f'<h3 class="mon-section-title">{escape(title)}</h3>'
+
+
+def subtitle_html(title: str) -> str:
+    """Petit titre à l'intérieur d'une section (graphique secondaire)."""
+    return f'<h4 class="mon-subtitle-chart">{escape(title)}</h4>'
 
 
 def kpi_cards_html(kpis: list[Kpi]) -> str:
@@ -201,27 +366,20 @@ def build_app() -> gr.Blocks:
         with gr.Column(elem_classes="mon-section"):
             gr.HTML(section_title_html("Volume quotidien"), padding=False, elem_classes="mon-flush")
             daily_note = gr.HTML(padding=False, elem_classes="mon-flush mon-slot")
-            daily_plot = gr.BarPlot(
-                x="date",
-                y="requests",
-                color="service",
-                color_map=SERVICE_COLORS,
-                sort="x",
-                x_title="Jour (UTC)",
-                y_title="Requêtes",
-                color_title="Service",
-                x_label_angle=-45,
-                show_label=False,
-                height=300,
-                buttons=[],
-                elem_classes="mon-chart",
-            )
+            # `gr.Plot` + Altair plutôt que `gr.BarPlot` : seul moyen de choisir
+            # les jours étiquetés sur l'axe (voir `date_axis_labels`).
+            daily_plot = gr.Plot(show_label=False, elem_classes="mon-chart")
+            # Erreurs du jour, sous le volume, sur le même axe des dates : un
+            # graphique séparé, car les erreurs font déjà partie des volumes.
+            gr.HTML(subtitle_html("Erreurs par jour"), padding=False, elem_classes="mon-flush")
+            daily_errors_plot = gr.Plot(show_label=False, elem_classes="mon-chart")
 
         with gr.Column(elem_classes="mon-section"):
-            gr.HTML(section_title_html("Erreurs par type"), padding=False, elem_classes="mon-flush")
-            errors_note = gr.HTML(padding=False, elem_classes="mon-flush mon-slot")
-            errors_table = gr.Dataframe(
-                headers=ERRORS_COLUMNS,
+            gr.HTML(section_title_html("Dernières erreurs"), padding=False, elem_classes="mon-flush")
+            gr.HTML(note_html(RECENT_SCOPE_NOTE), padding=False, elem_classes="mon-flush")
+            recent_errors_note = gr.HTML(padding=False, elem_classes="mon-flush mon-slot")
+            recent_errors_table = gr.Dataframe(
+                headers=RECENT_ERRORS_COLUMNS,
                 interactive=False,
                 show_label=False,
                 buttons=[],
@@ -229,14 +387,33 @@ def build_app() -> gr.Blocks:
                 elem_classes="mon-table",
             )
 
+        with gr.Column(elem_classes="mon-section"):
+            gr.HTML(
+                section_title_html("Dernières requêtes réussies"), padding=False, elem_classes="mon-flush"
+            )
+            gr.HTML(note_html(RECENT_SCOPE_NOTE), padding=False, elem_classes="mon-flush")
+            recent_successes_note = gr.HTML(padding=False, elem_classes="mon-flush mon-slot")
+            recent_successes_table = gr.Dataframe(
+                headers=RECENT_SUCCESSES_COLUMNS,
+                interactive=False,
+                show_label=False,
+                buttons=[],
+                wrap=True,
+                elem_classes="mon-table",
+            )
+
+        # Même ordre que les champs de `DashboardView`.
         outputs = [
             status,
             kpis,
             daily_plot,
             daily_note,
+            daily_errors_plot,
             services,
-            errors_table,
-            errors_note,
+            recent_errors_table,
+            recent_errors_note,
+            recent_successes_table,
+            recent_successes_note,
         ]
         demo.load(load_dashboard, inputs=period, outputs=outputs)
         period.change(load_dashboard, inputs=period, outputs=outputs)
@@ -349,9 +526,10 @@ CSS = f"""
 /* Sections : titre collé à son contenu */
 .mon-section{{gap:8px !important;margin-top:6px}}
 .mon-section-title{{margin:0 !important;color:#fff !important;font-size:17px;font-weight:700}}
-/* Graphique : fin trait de la couleur du fond autour des barres (SVG, sans JavaScript).
-   Invisible sur le contour, il ne se voit qu'à la jonction Predict / Recommend. */
-.mon-chart g.mark-rect.role-mark path{{stroke:{COLORS["field"]};stroke-width:1px}}
+.mon-subtitle-chart{{margin:4px 0 0 !important;color:{COLORS["mint-soft"]} !important;font-size:14px;font-weight:600}}
+/* Graphiques Altair : Gradio centre le graphique ; on l'étire sur toute la largeur du bloc
+   (le graphique suit alors la largeur de son conteneur, `width="container"`). */
+.mon-chart .vega-embed{{width:100%}}
 .mon-table table, .mon-table th, .mon-table td{{font-family:inherit !important}}
 /* En-têtes : retour à la ligne entre les mots, jamais au milieu d'un mot */
 .mon-table th, .mon-table th *{{word-break:normal !important;overflow-wrap:normal !important}}

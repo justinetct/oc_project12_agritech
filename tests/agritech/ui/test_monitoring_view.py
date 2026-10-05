@@ -7,7 +7,7 @@ déjà validées et renvoient des valeurs ou des tableaux prêts à afficher.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
 import pytest
@@ -48,9 +48,9 @@ def _summary(**overrides) -> MonitoringSummaryResponse:
         ],
         "errors_by_type": {"validation_error": 28, "internal_error": 2},
         "requests_per_day": [
-            {"date": "2026-09-30", "predict": 3, "recommend": 5},
-            {"date": "2026-10-01", "predict": 0, "recommend": 4},
-            {"date": "2026-10-02", "predict": 2, "recommend": 0},
+            {"date": "2026-09-30", "predict": 3, "recommend": 5, "errors": 1},
+            {"date": "2026-10-01", "predict": 0, "recommend": 4, "errors": 0},
+            {"date": "2026-10-02", "predict": 2, "recommend": 0, "errors": 1},
         ],
     }
     values.update(overrides)
@@ -76,8 +76,8 @@ def _empty_summary() -> MonitoringSummaryResponse:
         ],
         errors_by_type={},
         requests_per_day=[
-            {"date": "2026-10-01", "predict": 0, "recommend": 0},
-            {"date": "2026-10-02", "predict": 0, "recommend": 0},
+            {"date": "2026-10-01", "predict": 0, "recommend": 0, "errors": 0},
+            {"date": "2026-10-02", "predict": 0, "recommend": 0, "errors": 0},
         ],
     )
 
@@ -285,110 +285,183 @@ def test_format_latency(value, expected: str):
     assert view.format_latency(value) == expected
 
 
-# --- Erreurs par type ----------------------------------------------------------
+# --- Erreurs quotidiennes --------------------------------------------------------
 
 
-def test_errors_frame_sorted_by_count_descending():
-    frame = view.errors_frame(_summary())
+def test_daily_errors_has_one_row_per_day_with_zero_days():
+    frame = view.daily_errors_frame(_summary())
 
-    assert list(frame.columns) == ["Type d'erreur", "Nombre"]
+    assert list(frame.columns) == ["date", "errors"]
     assert frame.to_dict("records") == [
-        {"Type d'erreur": "validation_error", "Nombre": 28},
-        {"Type d'erreur": "internal_error", "Nombre": 2},
+        {"date": "2026-09-30", "errors": 1},
+        {"date": "2026-10-01", "errors": 0},
+        {"date": "2026-10-02", "errors": 1},
     ]
+    assert pd.api.types.is_integer_dtype(frame["errors"])
 
 
-def test_errors_frame_ties_are_sorted_by_name():
-    summary = _summary(
-        errors_by_type={"validation_error": 3, "internal_error": 3, "model_unavailable": 5}
-    )
-
-    assert view.errors_frame(summary)["Type d'erreur"].tolist() == [
-        "model_unavailable",
-        "internal_error",
-        "validation_error",
-    ]
+def test_daily_errors_of_empty_period_are_all_zero():
+    assert view.daily_errors_frame(_empty_summary())["errors"].tolist() == [0, 0]
 
 
-def test_errors_frame_without_error_is_empty():
-    frame = view.errors_frame(_empty_summary())
+def test_daily_errors_without_days_is_an_empty_frame_with_columns():
+    frame = view.daily_errors_frame(_summary(requests_per_day=[]))
 
     assert frame.empty
-    assert list(frame.columns) == ["Type d'erreur", "Nombre"]
+    assert list(frame.columns) == ["date", "errors"]
 
 
-# --- Requêtes récentes ---------------------------------------------------------
+# --- Étiquettes de l'axe des dates -----------------------------------------------
 
 
-def test_recent_requests_success_row():
-    frame = view.recent_requests_frame(_requests(_item()))
+def _days(count: int) -> list[str]:
+    """`count` jours consécutifs au format ISO, à partir du 2026-07-08."""
+    first = date(2026, 7, 8)
+    return [(first + timedelta(days=offset)).isoformat() for offset in range(count)]
 
-    assert list(frame.columns) == view.REQUESTS_COLUMNS
+
+def test_date_axis_labels_every_day_over_7_days():
+    days = _days(7)
+    assert view.date_axis_labels(days) == days
+
+
+def test_date_axis_labels_every_3_days_over_30_days_with_first_and_last():
+    days = _days(30)
+    labels = view.date_axis_labels(days)
+
+    assert labels == [days[i] for i in (0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 29)]
+
+
+def test_date_axis_labels_every_week_over_90_days_with_first_and_last():
+    days = _days(90)
+    labels = view.date_axis_labels(days)
+
+    assert labels == [days[i] for i in range(0, 85, 7)] + [days[89]]
+
+
+def test_date_axis_labels_drop_the_label_too_close_to_the_last_day():
+    """Le dernier jour, toujours affiché, remplace l'étiquette trop proche de lui."""
+    days = _days(29)  # écart 3 : 0, 3, ..., 27, puis 28 à 1 jour seulement de 27
+    labels = view.date_axis_labels(days)
+
+    assert labels[-2:] == [days[24], days[28]]
+
+
+def test_date_axis_labels_count_each_day_once():
+    """Le volume quotidien a une ligne par service : chaque jour ne compte qu'une fois."""
+    days = _days(7)
+    repeated = [day for day in days for _ in ("predict", "recommend")]
+
+    assert view.date_axis_labels(repeated) == days
+
+
+@pytest.mark.parametrize("count, expected", [(1, 1), (7, 1), (8, 3), (31, 3), (32, 7), (365, 7)])
+def test_date_label_step_depends_on_period_length(count: int, expected: int):
+    assert view.date_label_step(count) == expected
+
+
+def test_date_axis_labels_without_days_is_empty():
+    assert view.date_axis_labels([]) == []
+
+
+# --- Dernières erreurs et derniers succès ---------------------------------------
+
+
+def _error_item(**overrides) -> dict:
+    values = {
+        "service": "predict",
+        "status_code": 422,
+        "success": False,
+        "duration_ms": 1,
+        "model_version": "1.0.0",
+        "request_payload": {"rainfall_mm": -1, "temperature_celsius": 25.0},
+        "error_type": "validation_error",
+        "error_message": "Request payload is invalid.",
+    }
+    values.update(overrides)
+    return _item(**values)
+
+
+def test_recent_errors_row_shows_status_error_message_and_input():
+    frame = view.recent_errors_frame(_requests(_error_item()))
+
+    assert list(frame.columns) == view.RECENT_ERRORS_COLUMNS
+    assert frame.to_dict("records") == [
+        {
+            "Date (UTC)": "2026-10-01 13:45:06",
+            "Service": "predict",
+            "Statut": 422,
+            "Erreur": "validation_error",
+            "Message": "Request payload is invalid.",
+            "Durée": f"1{NNBSP}ms",
+            "Entrées": '{"rainfall_mm":-1,"temperature_celsius":25.0}',
+        }
+    ]
+
+
+def test_recent_errors_missing_type_or_message_is_dash():
+    row = view.recent_errors_frame(
+        _requests(_error_item(status_code=500, error_type=None, error_message=None))
+    ).iloc[0]
+
+    assert row["Erreur"] == "—"
+    assert row["Message"] == "—"
+
+
+def test_recent_successes_row_shows_duration_model_and_input():
+    frame = view.recent_successes_frame(_requests(_item()))
+
+    assert list(frame.columns) == view.RECENT_SUCCESSES_COLUMNS
     assert frame.to_dict("records") == [
         {
             "Date (UTC)": "2026-10-01 13:45:06",
             "Service": "recommend",
-            "Statut": 200,
             "Durée": f"14{NNBSP}ms",
             "Modèle": "2.0.0",
-            "Erreur": "—",
             "Entrées": '{"iso3":"FRA"}',
         }
     ]
 
 
-def test_recent_requests_422_row_shows_short_error_and_invalid_input():
-    item = _item(
-        service="predict",
-        status_code=422,
-        success=False,
-        duration_ms=1,
-        model_version="1.0.0",
-        request_payload={"rainfall_mm": -1, "temperature_celsius": 25.0},
-        error_type="validation_error",
-        error_message="Request payload is invalid.",
-    )
-    row = view.recent_requests_frame(_requests(item)).iloc[0]
-
-    assert row["Statut"] == 422
-    assert row["Erreur"] == "validation_error"
-    assert row["Entrées"] == '{"rainfall_mm":-1,"temperature_celsius":25.0}'
-
-
-def test_recent_requests_error_falls_back_to_message_then_dash():
-    message_only = _item(status_code=500, success=False, error_message="Internal server error.")
-    nothing = _item(status_code=500, success=False)
-    frame = view.recent_requests_frame(_requests(message_only, nothing))
-
-    assert frame["Erreur"].tolist() == ["Internal server error.", "—"]
-
-
-def test_recent_requests_missing_model_version_is_dash():
-    row = view.recent_requests_frame(_requests(_item(model_version=None))).iloc[0]
+def test_recent_successes_missing_model_version_is_dash():
+    row = view.recent_successes_frame(_requests(_item(model_version=None))).iloc[0]
     assert row["Modèle"] == "—"
 
 
-def test_recent_requests_keep_received_order():
-    frame = view.recent_requests_frame(
+@pytest.mark.parametrize("build", [view.recent_errors_frame, view.recent_successes_frame])
+def test_recent_tables_keep_received_order_and_render_utc(build):
+    frame = build(
         _requests(
-            _item(id=3, timestamp="2026-10-02T09:00:00Z"),
+            _item(id=3, timestamp="2026-10-02T11:00:00+02:00"),
             _item(id=2, timestamp="2026-10-01T09:00:00Z"),
         )
     )
     assert frame["Date (UTC)"].tolist() == ["2026-10-02 09:00:00", "2026-10-01 09:00:00"]
 
 
-def test_recent_requests_without_items_is_an_empty_frame():
-    frame = view.recent_requests_frame(_requests())
+@pytest.mark.parametrize(
+    ("build", "columns"),
+    [
+        (view.recent_errors_frame, view.RECENT_ERRORS_COLUMNS),
+        (view.recent_successes_frame, view.RECENT_SUCCESSES_COLUMNS),
+    ],
+)
+def test_recent_tables_without_items_are_empty_frames(build, columns):
+    frame = build(_requests())
 
     assert frame.empty
-    assert list(frame.columns) == view.REQUESTS_COLUMNS
+    assert list(frame.columns) == columns
 
 
-def test_recent_requests_timestamps_are_rendered_in_utc():
-    """Un timestamp reçu avec un décalage horaire est affiché en UTC."""
-    row = view.recent_requests_frame(_requests(_item(timestamp="2026-10-01T15:45:06+02:00"))).iloc[0]
-    assert row["Date (UTC)"] == "2026-10-01 13:45:06"
+def test_recent_tables_never_show_private_fields():
+    """Seules les colonnes prévues sortent : rien sur la réponse, la trace ou le déploiement."""
+    errors = view.recent_errors_frame(_requests(_error_item()))
+    successes = view.recent_successes_frame(_requests(_item()))
+
+    for frame in (errors, successes):
+        text = frame.to_csv()
+        for private in ("response_payload", "logfire_trace_id", "environment", "Authorization"):
+            assert private not in text
 
 
 # --- JSON compact --------------------------------------------------------------
@@ -432,8 +505,9 @@ def test_transformations_do_not_modify_received_objects():
     view.summary_kpis(summary)
     view.daily_volume_frame(summary)
     view.service_kpis(summary)
-    view.errors_frame(summary)
-    view.recent_requests_frame(requests_response)
+    view.daily_errors_frame(summary)
+    view.recent_errors_frame(requests_response)
+    view.recent_successes_frame(requests_response)
 
     assert summary.model_dump() == summary_before
     assert requests_response.model_dump() == requests_before
