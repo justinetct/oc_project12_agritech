@@ -39,6 +39,9 @@ setuptools = "<82"
 [tool.poetry.group.streamlit.dependencies]
 streamlit = ">=1.40,<2.0"
 
+[tool.poetry.group.gradio.dependencies]
+gradio = ">=6.29.1,<7.0"
+
 [build-system]
 requires = ["poetry-core>=2.0"]
 build-backend = "poetry.core.masonry.api"
