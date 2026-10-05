@@ -20,6 +20,7 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from sqlalchemy.engine import Engine
 
 from agritech.api.core import runtime
 from agritech.api.error_handlers import (
@@ -39,7 +40,7 @@ from agritech.api.routers.monitoring import router as monitoring_router
 from agritech.api.routers.predict import router as predict_router
 from agritech.api.routers.recommend import router as recommend_router
 from agritech.config import PATHS
-from agritech.monitoring.config import load_config
+from agritech.monitoring.config import MonitoringConfig, load_config
 from agritech.monitoring.models import Base as MonitoringBase
 from agritech.monitoring.session import (
     create_monitoring_engine,
@@ -54,21 +55,71 @@ API_VERSION = "1.0.0"
 logger = logging.getLogger(__name__)
 
 
+def _init_monitoring_database(config: MonitoringConfig) -> Engine | None:
+    """Initialise la base SQLite de monitoring sans jamais bloquer le démarrage.
+
+    En cas de succès, publie la session factory dans `runtime` et renvoie
+    l'engine, que le lifespan disposera à l'arrêt.
+
+    En cas d'échec, logge un `warning` (type d'erreur seulement : ni chemin,
+    ni secret), laisse `runtime.monitoring_session_factory` à `None` et
+    renvoie `None`. L'API démarre quand même : `/predict` et `/recommend`
+    fonctionnent sans archivage, et `/monitoring/*` répond 503.
+
+    - Échec à la création de l'engine : rien à nettoyer.
+    - Échec après la création de l'engine (création de la table, session
+      factory) : l'engine est disposée ici, une seule fois, et rien n'est
+      publié.
+    """
+    try:
+        engine = create_monitoring_engine(config)
+    except Exception as exc:  # noqa: BLE001 — monitoring non bloquant
+        _warn_monitoring_unavailable("engine creation", exc)
+        return None
+
+    try:
+        MonitoringBase.metadata.create_all(engine)
+        session_factory = create_session_factory(engine)
+    except Exception as exc:  # noqa: BLE001 — monitoring non bloquant
+        _warn_monitoring_unavailable("database setup", exc)
+        engine.dispose()
+        return None
+
+    runtime.monitoring_session_factory = session_factory
+    return engine
+
+
+def _warn_monitoring_unavailable(step: str, exc: Exception) -> None:
+    """Warning commun aux échecs d'initialisation du monitoring SQLite.
+
+    Seul le type de l'exception est loggé : son message peut contenir le
+    chemin du fichier SQLite ou l'URL de la base.
+    """
+    logger.warning(
+        "monitoring database unavailable (%s failed: %s); API continues without "
+        "request archiving and /monitoring endpoints will return 503",
+        step,
+        type(exc).__name__,
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Prépare l'état applicatif avant de servir la première requête.
 
     - Charge les deux bundles et le contexte `/recommend` (comportement existant).
-    - Charge un éventuel `.env` local, lit la configuration monitoring, crée
-      l'engine SQLite (PRAGMAs WAL appliqués), matérialise la table
-      `api_requests` au premier boot, puis publie la session factory et les
+    - Charge un éventuel `.env` local, lit la configuration monitoring, puis
+      initialise la base SQLite (engine avec PRAGMAs WAL, table `api_requests`,
+      session factory) via `_init_monitoring_database`, et publie les
       métadonnées runtime pour le middleware de persistance.
     - Publie le token des endpoints `/monitoring/*` ; s'il est absent, un
       `warning` signale au démarrage que ces endpoints seront indisponibles.
+    - Configure Logfire, indépendamment de l'état de SQLite.
 
-    Si un chargement échoue (`FileNotFoundError`, `ValueError`, ...), l'exception
-    remonte et l'application ne démarre pas. La couche HTTP traduira
-    séparément une indisponibilité en 503 via `model_unavailable_handler`.
+    Les ressources métier sont obligatoires : si un chargement de bundle ou
+    du contexte échoue (`FileNotFoundError`, `ValueError`, ...), l'exception
+    remonte et l'application ne démarre pas. Le monitoring, lui, n'est jamais
+    bloquant : une base SQLite inaccessible est signalée par un `warning`.
     """
     runtime.bundle_predict = load_bundle("predict")
     runtime.bundle_recommend = load_bundle("recommend")
@@ -81,9 +132,10 @@ async def lifespan(app: FastAPI):
     # variables Docker Compose en prod).
     load_dotenv(override=False)
     monitoring_config = load_config()
-    monitoring_engine = create_monitoring_engine(monitoring_config)
-    MonitoringBase.metadata.create_all(monitoring_engine)
-    runtime.monitoring_session_factory = create_session_factory(monitoring_engine)
+    # Aucune session factory d'un démarrage précédent ne doit survivre : elle
+    # n'est publiée qu'après une initialisation SQLite entièrement réussie.
+    runtime.monitoring_session_factory = None
+    monitoring_engine = _init_monitoring_database(monitoring_config)
     runtime.monitoring_api_version = API_VERSION
     runtime.monitoring_environment = monitoring_config.environment
     runtime.monitoring_api_token = monitoring_config.api_token
@@ -100,7 +152,10 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        monitoring_engine.dispose()
+        # `None` si le monitoring n'a pas pu démarrer : l'engine éventuellement
+        # créée a déjà été disposée par `_init_monitoring_database`.
+        if monitoring_engine is not None:
+            monitoring_engine.dispose()
         runtime.monitoring_session_factory = None
         runtime.monitoring_api_version = None
         runtime.monitoring_environment = None

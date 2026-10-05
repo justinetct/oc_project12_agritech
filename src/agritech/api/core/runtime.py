@@ -4,9 +4,10 @@ Chaque attribut vaut `None` avant le démarrage, puis contient l'objet chargé
 une fois pour toutes. Les endpoints les lisent sans les modifier.
 
 `monitoring_*` alimentent le middleware de persistance : ils sont peuplés
-par le lifespan à partir de `MonitoringConfig`. Ils restent `None` si la
-persistance échoue à s'initialiser — dans ce cas le middleware n'écrit rien
-mais laisse la requête passer normalement.
+par le lifespan à partir de `MonitoringConfig`. `monitoring_session_factory`
+reste `None` si la base SQLite ne peut pas être initialisée — dans ce cas le
+middleware n'écrit rien mais laisse la requête passer normalement, et les
+endpoints `/monitoring/*` répondent 503.
 
 `monitoring_api_token` est le secret attendu par les endpoints
 `/monitoring/*`. Il vaut `None` tant que `MONITORING_API_TOKEN` n'est pas
