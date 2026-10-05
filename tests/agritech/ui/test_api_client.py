@@ -328,8 +328,8 @@ def _summary_json() -> dict[str, Any]:
         ],
         "errors_by_type": {"validation_error": 1},
         "requests_per_day": [
-            {"date": "2026-10-01", "predict": 0, "recommend": 1},
-            {"date": "2026-10-02", "predict": 2, "recommend": 0},
+            {"date": "2026-10-01", "predict": 0, "recommend": 1, "errors": 0},
+            {"date": "2026-10-02", "predict": 2, "recommend": 0, "errors": 1},
         ],
     }
 

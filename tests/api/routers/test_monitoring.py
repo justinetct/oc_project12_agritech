@@ -122,7 +122,7 @@ def test_summary_without_data_returns_valid_empty_summary(client: TestClient):
     assert [entry["service"] for entry in body["services"]] == ["predict", "recommend"]
     assert body["services"][0]["latency_ms"] == {"mean": None, "median": None, "max": None}
     assert len(body["requests_per_day"]) == 30
-    assert body["requests_per_day"][-1] == {"date": "2026-10-02", "predict": 0, "recommend": 0}
+    assert body["requests_per_day"][-1] == {"date": "2026-10-02", "predict": 0, "recommend": 0, "errors": 0}
 
 
 def test_summary_aggregates_real_rows(client: TestClient):
@@ -159,9 +159,9 @@ def test_summary_aggregates_real_rows(client: TestClient):
     ]
     assert body["errors_by_type"] == {"validation_error": 1}
     assert body["requests_per_day"][-3:] == [
-        {"date": "2026-09-30", "predict": 0, "recommend": 1},
-        {"date": "2026-10-01", "predict": 1, "recommend": 0},
-        {"date": "2026-10-02", "predict": 2, "recommend": 0},
+        {"date": "2026-09-30", "predict": 0, "recommend": 1, "errors": 0},
+        {"date": "2026-10-01", "predict": 1, "recommend": 0, "errors": 1},
+        {"date": "2026-10-02", "predict": 2, "recommend": 0, "errors": 0},
     ]
 
 
@@ -173,7 +173,7 @@ def test_summary_days_one_covers_only_today(client: TestClient):
     body = client.get("/monitoring/summary", params={"days": 1}, headers=AUTH).json()
 
     assert body["total_requests"] == 1
-    assert body["requests_per_day"] == [{"date": "2026-10-02", "predict": 1, "recommend": 0}]
+    assert body["requests_per_day"] == [{"date": "2026-10-02", "predict": 1, "recommend": 0, "errors": 0}]
 
 
 def test_summary_days_365_is_accepted(client: TestClient):

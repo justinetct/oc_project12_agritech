@@ -318,9 +318,9 @@ def test_summarize_requests_on_empty_database(session: Session):
         for name in ("predict", "recommend")
     ]
     assert summary["requests_per_day"] == [
-        {"date": date(2026, 9, 30), "predict": 0, "recommend": 0},
-        {"date": date(2026, 10, 1), "predict": 0, "recommend": 0},
-        {"date": date(2026, 10, 2), "predict": 0, "recommend": 0},
+        {"date": date(2026, 9, 30), "predict": 0, "recommend": 0, "errors": 0},
+        {"date": date(2026, 10, 1), "predict": 0, "recommend": 0, "errors": 0},
+        {"date": date(2026, 10, 2), "predict": 0, "recommend": 0, "errors": 0},
     ]
 
 
@@ -433,7 +433,7 @@ def test_summarize_requests_period_starts_exactly_at_midnight_utc(session: Sessi
 
     assert summary["total_requests"] == 1
     assert summary["requests_per_day"][0] == {
-        "date": date(2026, 9, 30), "predict": 1, "recommend": 0,
+        "date": date(2026, 9, 30), "predict": 1, "recommend": 0, "errors": 0,
     }
 
 
@@ -460,9 +460,9 @@ def test_summarize_requests_daily_volume_by_service_with_zero_days(session: Sess
     summary = summarize_requests(session, days=3, now=NOW)
 
     assert summary["requests_per_day"] == [
-        {"date": date(2026, 9, 30), "predict": 2, "recommend": 1},
-        {"date": date(2026, 10, 1), "predict": 0, "recommend": 0},
-        {"date": date(2026, 10, 2), "predict": 0, "recommend": 1},
+        {"date": date(2026, 9, 30), "predict": 2, "recommend": 1, "errors": 1},
+        {"date": date(2026, 10, 1), "predict": 0, "recommend": 0, "errors": 0},
+        {"date": date(2026, 10, 2), "predict": 0, "recommend": 1, "errors": 0},
     ]
 
 
@@ -475,7 +475,7 @@ def test_summarize_requests_days_one_covers_only_today(session: Session):
 
     assert summary["total_requests"] == 1
     assert summary["requests_per_day"] == [
-        {"date": date(2026, 10, 2), "predict": 1, "recommend": 0},
+        {"date": date(2026, 10, 2), "predict": 1, "recommend": 0, "errors": 0},
     ]
 
 
@@ -511,5 +511,28 @@ def test_summarize_requests_uses_current_utc_time_by_default(
 
     assert summary["total_requests"] == 1
     assert summary["requests_per_day"] == [
-        {"date": date(2026, 10, 2), "predict": 1, "recommend": 0},
+        {"date": date(2026, 10, 2), "predict": 1, "recommend": 0, "errors": 0},
     ]
+
+
+def test_summarize_requests_daily_errors_of_both_services_within_period(session: Session):
+    """Erreurs quotidiennes : deux services confondus, jours sans erreur à 0, hors période ignorée."""
+    insert_api_request(session, _error_row(timestamp=_utc(9, 29)))  # hors période
+    insert_api_request(session, _error_row(timestamp=_utc(9, 30)))
+    insert_api_request(
+        session,
+        _error_row(timestamp=_utc(9, 30, hour=15), service="recommend", endpoint="/recommend"),
+    )
+    insert_api_request(session, _full_row(timestamp=_utc(10, 1)))
+    insert_api_request(
+        session,
+        _error_row(timestamp=_utc(10, 2, hour=8), service="recommend", endpoint="/recommend"),
+    )
+
+    summary = summarize_requests(session, days=3, now=NOW)
+
+    assert [day["errors"] for day in summary["requests_per_day"]] == [2, 0, 1]
+    assert sum(day["errors"] for day in summary["requests_per_day"]) == summary["error_count"]
+    # Les erreurs restent comptées dans le volume de leur service.
+    assert summary["requests_per_day"][0]["predict"] == 1
+    assert summary["requests_per_day"][0]["recommend"] == 1

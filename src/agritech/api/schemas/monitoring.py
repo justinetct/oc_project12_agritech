@@ -52,11 +52,18 @@ class ServiceSummary(BaseModel):
 
 
 class DailyVolume(BaseModel):
-    """Volume d'appels d'une journée UTC, par service."""
+    """Volume d'appels d'une journée UTC, par service, et nombre d'erreurs."""
 
     date: dt.date = Field(description="Jour calendaire UTC.", examples=["2026-10-02"])
     predict: int = Field(description="Nombre d'appels `/predict` ce jour-là.", examples=[3])
     recommend: int = Field(description="Nombre d'appels `/recommend` ce jour-là.", examples=[5])
+    errors: int = Field(
+        description=(
+            "Nombre d'appels en erreur ce jour-là, tous services confondus "
+            "(déjà comptés dans `predict` et `recommend`)."
+        ),
+        examples=[1],
+    )
 
 
 class MonitoringSummaryResponse(BaseModel):

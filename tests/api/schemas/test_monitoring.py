@@ -87,9 +87,9 @@ def _full_summary() -> dict:
         ],
         "errors_by_type": {"validation_error": 1},
         "requests_per_day": [
-            {"date": date(2026, 9, 30), "predict": 3, "recommend": 2},
-            {"date": date(2026, 10, 1), "predict": 0, "recommend": 0},
-            {"date": date(2026, 10, 2), "predict": 1, "recommend": 1},
+            {"date": date(2026, 9, 30), "predict": 3, "recommend": 2, "errors": 1},
+            {"date": date(2026, 10, 1), "predict": 0, "recommend": 0, "errors": 0},
+            {"date": date(2026, 10, 2), "predict": 1, "recommend": 1, "errors": 0},
         ],
     }
 
@@ -196,7 +196,7 @@ def test_empty_summary_accepts_none_values():
             for service in ("predict", "recommend")
         ],
         errors_by_type={},
-        requests_per_day=[{"date": date(2026, 10, 2), "predict": 0, "recommend": 0}],
+        requests_per_day=[{"date": date(2026, 10, 2), "predict": 0, "recommend": 0, "errors": 0}],
     )
 
     body = response.model_dump(mode="json")

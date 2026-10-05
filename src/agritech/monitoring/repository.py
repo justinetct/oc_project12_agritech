@@ -102,7 +102,8 @@ def summarize_requests(
             `max`) calculées sur les seules requêtes réussies ;
         errors_by_type : nombre d'erreurs par `error_type` ;
         requests_per_day : une entrée par jour de la période, dans l'ordre
-            chronologique, avec le volume de chaque service (0 si aucun appel).
+            chronologique, avec le volume de chaque service et le nombre
+            d'appels en erreur, tous services confondus (0 si aucun).
     """
     if now is None:
         now = datetime.now(timezone.utc)
@@ -178,12 +179,21 @@ def summarize_requests(
     daily_counts = {
         (day_text, service): count for day_text, service, count in session.execute(daily_query)
     }
+    # Erreurs quotidiennes, tous services confondus, sur la même période.
+    daily_errors_query = (
+        select(day, func.count())
+        .where(*in_period)
+        .where(ApiRequest.success.is_(False))
+        .group_by(day)
+    )
+    daily_errors = {day_text: count for day_text, count in session.execute(daily_errors_query)}
     requests_per_day = []
     for offset in range(days):
         current_date = start_date + timedelta(days=offset)
         entry: dict[str, Any] = {"date": current_date}
         for service in MONITORED_SERVICES:
             entry[service] = daily_counts.get((current_date.isoformat(), service), 0)
+        entry["errors"] = daily_errors.get(current_date.isoformat(), 0)
         requests_per_day.append(entry)
 
     return {
