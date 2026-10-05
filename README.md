@@ -216,26 +216,28 @@ Couverture : **96 %** sur `agritech.api`, `agritech.serving`, `agritech.monitori
 
 ## Docker
 
-Docker Compose lance l'API FastAPI (`http://127.0.0.1:8000`) et le dashboard Gradio
-(`http://127.0.0.1:7860`), publiés uniquement sur la machine locale. L'interface Streamlit se lance en local
-avec `make streamlit` et appelle l'API sur le port 8000, qu'elle tourne dans Docker ou non.
+Docker Compose lance la démo complète, publiée uniquement sur la machine locale : l'API FastAPI
+(`http://127.0.0.1:8000`), l'interface Streamlit (`http://127.0.0.1:8501`) et le dashboard Gradio
+(`http://127.0.0.1:7860`).
 
 ```bash
-make docker-demo   # construit les deux images, démarre l'API puis Gradio, attend /health et le dashboard,
-                   # ouvre Swagger et le dashboard, puis suit les logs des deux services
-make docker-down   # arrête et supprime les deux conteneurs (le volume est conservé)
+make docker-demo   # construit les trois images, démarre les services, attend qu'ils répondent,
+                   # ouvre Swagger, Streamlit et le dashboard, puis suit les logs des trois services
+make docker-down   # arrête et supprime les trois conteneurs (le volume est conservé)
 ```
 
 - Seule l'API monte le volume `agritech_monitoring`, qui conserve la base SQLite entre deux conteneurs.
   **Ne jamais utiliser `docker compose down -v`** : cela supprimerait ce volume et l'historique des appels.
-- Gradio appelle l'API par le réseau Docker, sur `http://api:8000`, et ne démarre qu'une fois l'API prête.
-- `MONITORING_API_TOKEN` est transmis par l'environnement aux deux services (shell, sinon `.env` local) ;
-  aucune valeur n'est écrite dans les fichiers Docker.
-- Les cibles `make docker-*` lancent l'API sans Logfire. Logfire reste facultatif (`LOGFIRE_TOKEN`).
+- Streamlit et Gradio appellent l'API par le réseau Docker, sur `http://api:8000`, et ne démarrent qu'une fois
+  l'API prête.
+- `LOGFIRE_TOKEN` et `MONITORING_API_TOKEN` viennent de l'environnement (shell, sinon `.env` local) ; aucune
+  valeur n'est écrite dans les fichiers Docker. Sans `LOGFIRE_TOKEN`, l'API tourne sans Logfire. Le token de
+  monitoring est transmis à l'API et au dashboard, pas à Streamlit.
+- La démo est étiquetée `ENVIRONMENT=local` et `LOGFIRE_ENVIRONMENT=local`.
 - Les autres variables sont dans `docker-compose.yml`.
-- Un seul `Dockerfile`, avec une cible par service. Les dépendances sont exportées depuis Poetry :
-  `requirements.txt` pour l'API (`poetry export --only main,api --without-hashes`) et
-  `requirements-gradio.txt` pour Gradio (`poetry export --only gradio --without-hashes`, installé en plus).
+- Un seul `Dockerfile`, avec une cible par service ; chaque image n'installe que ses propres dépendances,
+  exportées depuis Poetry : `requirements.txt` pour l'API (`poetry export --only main,api --without-hashes`),
+  `requirements-streamlit.txt` (`--only streamlit`) et `requirements-gradio.txt` (`--only gradio`).
 
 ## Structure du dépôt
 

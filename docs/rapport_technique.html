@@ -1634,12 +1634,11 @@ poetry run python -m agritech.monitoring.replay --failed --since 2026-09-29
       conserve qu'un artefact par service : si <code>model_version</code> a changé depuis l'appel archivé, un
       WARNING est affiché et le replay ne constitue pas une reproduction stricte.</p>
       <h3 id="h-docker">H. Docker</h3>
-      <p>L'API est packagée dans une image Docker pour la rendre portable et reproductible. L'image ne contient que le
-      nécessaire au runtime : le code du service et les artefacts modèles. Docker concerne l'API uniquement :
-      l'interface Streamlit se lance à part (<code>make streamlit</code>) et appelle l'API sur le port 8000, qu'elle tourne dans
-      Docker ou non.</p>
-      <pre><code class="language-bash">make docker-demo   # construit l'image, démarre l'API et ouvre Swagger
-make docker-down   # arrête et supprime le conteneur
+      <p>L'API, l'interface Streamlit et le dashboard Gradio sont packagés dans des images Docker pour les rendre
+      portables et reproductibles. Chaque image ne contient que le nécessaire au runtime ; seule celle de l'API embarque
+      les artefacts modèles. Streamlit et Gradio appellent l'API par le réseau Docker (<code>http://api:8000</code>).</p>
+      <pre><code class="language-bash">make docker-demo   # construit les trois images, démarre les services, attend qu'ils répondent et les ouvre
+make docker-down   # arrête et supprime les conteneurs
 </code></pre>
       <p>Les données d'observabilité (base SQLite <code>api.sqlite</code>) vivent dans un volume Docker nommé <code>agritech_monitoring</code>, qui
       survit aux recréations du conteneur.</p>
@@ -1666,12 +1665,12 @@ make docker-down   # arrête et supprime le conteneur
       </tr>
       <tr>
       <td><code>ENVIRONMENT</code></td>
-      <td><code>prod</code></td>
+      <td><code>local</code></td>
       <td>Persistée dans <code>api_requests.environment</code></td>
       </tr>
       <tr>
       <td><code>LOGFIRE_ENVIRONMENT</code></td>
-      <td><code>prod</code></td>
+      <td><code>local</code></td>
       <td>Contexte Logfire</td>
       </tr>
       <tr>
@@ -1686,7 +1685,7 @@ make docker-down   # arrête et supprime le conteneur
       </tr>
       </tbody>
       </table></div>
-      <p>Les cibles <code>make docker-*</code> lancent actuellement l'API sans token Logfire.</p>
+      <p>Les cibles <code>make docker-*</code> transmettent <code>LOGFIRE_TOKEN</code> s'il est défini (shell ou <code>.env</code>).</p>
       <hr />
       <p><em>Les analyses, le code et les notebooks sont disponibles dans le dépôt du projet.</em></p>
     </main>

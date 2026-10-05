@@ -113,7 +113,7 @@ def test_summary_kpis_values_and_labels():
         Kpi("Requêtes", f"1{NNBSP}234"),
         Kpi("Requêtes réussies", f"97,6{NNBSP}%"),
         Kpi("Erreurs", "30"),
-        Kpi("Dernière requête", "01 oct. 2026 · 13:45 UTC"),
+        Kpi("Dernière requête", "01 oct. 2026 · 15:45"),
     ]
 
 
@@ -148,44 +148,51 @@ def test_empty_kpis_keep_labels_without_values():
     ]
 
 
-def test_format_utc_keeps_utc_without_local_conversion():
-    """Une date dans un autre fuseau est ramenée en UTC, jamais en heure locale."""
-    paris = timezone(timedelta(hours=2))
-    moment = datetime(2026, 10, 1, 15, 45, 6, tzinfo=paris)
-    assert view.format_utc(moment) == "2026-10-01 13:45 UTC"
-    assert view.format_utc(moment, with_seconds=True, with_suffix=False) == "2026-10-01 13:45:06"
+@pytest.mark.parametrize(
+    ("moment", "expected"),
+    [
+        # Heure d'été (UTC+2) et heure d'hiver (UTC+1).
+        (datetime(2026, 7, 14, 13, 45, 6, tzinfo=timezone.utc), "2026-07-14 15:45:06"),
+        (datetime(2026, 12, 25, 13, 45, 6, tzinfo=timezone.utc), "2026-12-25 14:45:06"),
+        # Changements d'heure 2026 : 29 mars et 25 octobre à 01:00 UTC.
+        (datetime(2026, 3, 29, 0, 59, 59, tzinfo=timezone.utc), "2026-03-29 01:59:59"),
+        (datetime(2026, 3, 29, 1, 0, 0, tzinfo=timezone.utc), "2026-03-29 03:00:00"),
+        (datetime(2026, 10, 25, 0, 59, 59, tzinfo=timezone.utc), "2026-10-25 02:59:59"),
+        (datetime(2026, 10, 25, 1, 0, 0, tzinfo=timezone.utc), "2026-10-25 02:00:00"),
+        # Date sans fuseau : lue comme UTC.
+        (datetime(2026, 10, 1, 13, 45, 6), "2026-10-01 15:45:06"),
+    ],
+)
+def test_format_datetime_shows_paris_time_with_daylight_saving(moment: datetime, expected: str):
+    assert view.format_datetime(moment, with_seconds=True) == expected
+
+
+def test_format_datetime_without_seconds_and_missing_value():
+    assert view.format_datetime(datetime(2026, 10, 1, 13, 45, tzinfo=timezone.utc)) == "2026-10-01 15:45"
+    assert view.format_datetime(None) == "—"
 
 
 @pytest.mark.parametrize(
     ("moment", "expected"),
     [
-        (datetime(2026, 10, 5, 8, 51, 30, tzinfo=timezone.utc), "05 oct. 2026 · 08:51 UTC"),
-        (datetime(2026, 1, 1, 0, 0, tzinfo=timezone.utc), "01 janv. 2026 · 00:00 UTC"),
-        (datetime(2026, 2, 14, 9, 5, tzinfo=timezone.utc), "14 févr. 2026 · 09:05 UTC"),
-        (datetime(2026, 8, 31, 23, 59, tzinfo=timezone.utc), "31 août 2026 · 23:59 UTC"),
-        (datetime(2026, 12, 25, 12, 0, tzinfo=timezone.utc), "25 déc. 2026 · 12:00 UTC"),
+        (datetime(2026, 10, 5, 8, 51, 30, tzinfo=timezone.utc), "05 oct. 2026 · 10:51"),
+        (datetime(2026, 1, 1, 0, 0, tzinfo=timezone.utc), "01 janv. 2026 · 01:00"),
+        (datetime(2026, 2, 14, 9, 5, tzinfo=timezone.utc), "14 févr. 2026 · 10:05"),
+        (datetime(2026, 8, 31, 23, 59, tzinfo=timezone.utc), "01 sept. 2026 · 01:59"),
+        (datetime(2026, 12, 25, 12, 0, tzinfo=timezone.utc), "25 déc. 2026 · 13:00"),
     ],
 )
-def test_format_readable_utc_in_french(moment: datetime, expected: str):
-    assert view.format_readable_utc(moment) == expected
+def test_format_readable_datetime_in_french_paris_time(moment: datetime, expected: str):
+    """Mois en français ; le jour suit l'heure de Paris (31 août 23:59 UTC → 1er septembre)."""
+    assert view.format_readable_datetime(moment) == expected
 
 
-def test_format_readable_utc_stays_in_utc_and_handles_missing_value():
-    """Heure de Paris ramenée en UTC (même au changement de jour) ; `None` → « — »."""
-    paris = timezone(timedelta(hours=2))
-    assert view.format_readable_utc(datetime(2026, 10, 6, 1, 30, tzinfo=paris)) == (
-        "05 oct. 2026 · 23:30 UTC"
+def test_format_readable_datetime_handles_other_zones_and_missing_value():
+    new_york = timezone(timedelta(hours=-4))
+    assert view.format_readable_datetime(datetime(2026, 10, 5, 4, 51, tzinfo=new_york)) == (
+        "05 oct. 2026 · 10:51"
     )
-    assert view.format_readable_utc(datetime(2026, 10, 5, 8, 51)) == "05 oct. 2026 · 08:51 UTC"
-    assert view.format_readable_utc(None) == "—"
-
-
-def test_format_utc_treats_naive_datetime_as_utc():
-    assert view.format_utc(datetime(2026, 10, 1, 13, 45)) == "2026-10-01 13:45 UTC"
-
-
-def test_format_utc_missing_value_is_dash():
-    assert view.format_utc(None) == "—"
+    assert view.format_readable_datetime(None) == "—"
 
 
 # --- Volume quotidien ----------------------------------------------------------
@@ -388,7 +395,7 @@ def test_recent_errors_row_shows_status_error_message_and_input():
     assert list(frame.columns) == view.RECENT_ERRORS_COLUMNS
     assert frame.to_dict("records") == [
         {
-            "Date (UTC)": "2026-10-01 13:45:06",
+            "Date": "2026-10-01 15:45:06",
             "Service": "predict",
             "Statut": 422,
             "Erreur": "validation_error",
@@ -414,7 +421,7 @@ def test_recent_successes_row_shows_duration_model_and_input():
     assert list(frame.columns) == view.RECENT_SUCCESSES_COLUMNS
     assert frame.to_dict("records") == [
         {
-            "Date (UTC)": "2026-10-01 13:45:06",
+            "Date": "2026-10-01 15:45:06",
             "Service": "recommend",
             "Durée": f"14{NNBSP}ms",
             "Modèle": "2.0.0",
@@ -429,14 +436,14 @@ def test_recent_successes_missing_model_version_is_dash():
 
 
 @pytest.mark.parametrize("build", [view.recent_errors_frame, view.recent_successes_frame])
-def test_recent_tables_keep_received_order_and_render_utc(build):
+def test_recent_tables_keep_received_order_and_render_paris_time(build):
     frame = build(
         _requests(
             _item(id=3, timestamp="2026-10-02T11:00:00+02:00"),
             _item(id=2, timestamp="2026-10-01T09:00:00Z"),
         )
     )
-    assert frame["Date (UTC)"].tolist() == ["2026-10-02 09:00:00", "2026-10-01 09:00:00"]
+    assert frame["Date"].tolist() == ["2026-10-02 11:00:00", "2026-10-01 11:00:00"]
 
 
 @pytest.mark.parametrize(

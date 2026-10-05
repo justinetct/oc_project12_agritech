@@ -17,8 +17,8 @@ dépendance à l'interface graphique : les widgets sont construits ailleurs.
   en erreur et réussis, une ligne par appel.
 
 Les tableaux sont des ``pandas.DataFrame`` aux colonnes fixes, même vides.
-Les dates restent en UTC, sans conversion vers un fuseau local. Une mesure
-absente s'affiche « — », jamais « 0 ».
+Les dates reçues en UTC sont affichées à l'heure de Paris (heure d'été
+comprise). Une mesure absente s'affiche « — », jamais « 0 ».
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
@@ -43,6 +44,9 @@ MISSING = "—"
 
 # Ordre d'affichage des services, identique à celui de l'API.
 SERVICES = ("predict", "recommend")
+
+# Fuseau d'affichage des dates ; l'API et SQLite restent en UTC.
+DISPLAY_TIMEZONE = ZoneInfo("Europe/Paris")
 
 # Mois abrégés en français, pour une date lisible (« 05 oct. 2026 »).
 FRENCH_MONTHS = (
@@ -60,8 +64,8 @@ DAILY_COLUMNS = ["date", "service", "requests"]
 # Libellés des cinq indicateurs affichés pour chaque service.
 SERVICE_KPI_LABELS = ("Requêtes", "Réussies", "Erreurs", "Latence médiane", "Latence max")
 
-RECENT_ERRORS_COLUMNS = ["Date (UTC)", "Service", "Statut", "Erreur", "Message", "Durée", "Entrées"]
-RECENT_SUCCESSES_COLUMNS = ["Date (UTC)", "Service", "Durée", "Modèle", "Entrées"]
+RECENT_ERRORS_COLUMNS = ["Date", "Service", "Statut", "Erreur", "Message", "Durée", "Entrées"]
+RECENT_SUCCESSES_COLUMNS = ["Date", "Service", "Durée", "Modèle", "Entrées"]
 
 # Colonnes du graphique des erreurs quotidiennes.
 DAILY_ERRORS_COLUMNS = ["date", "errors"]
@@ -87,7 +91,7 @@ def summary_kpis(summary: MonitoringSummaryResponse) -> list[Kpi]:
         format_count(summary.total_requests),
         format_rate(summary.success_rate),
         format_count(summary.error_count),
-        format_readable_utc(summary.last_request_at),
+        format_readable_datetime(summary.last_request_at),
     )
     return [Kpi(label, value) for label, value in zip(KPI_LABELS, values)]
 
@@ -189,7 +193,7 @@ def empty_service_kpis() -> dict[str, list[Kpi]]:
 def recent_errors_frame(response: MonitoringRequestsResponse) -> pd.DataFrame:
     """Les derniers appels en erreur, dans l'ordre reçu (du plus récent au plus ancien).
 
-    Date UTC à la seconde (indiqué dans l'en-tête), statut HTTP entier, code
+    Date à l'heure de Paris, à la seconde, statut HTTP entier, code
     d'erreur court, message public de l'API et corps JSON compact envoyé.
     """
     rows = [
@@ -226,8 +230,8 @@ def recent_successes_frame(response: MonitoringRequestsResponse) -> pd.DataFrame
 
 
 def _table_date(moment: datetime) -> str:
-    """Date d'un tableau : UTC à la seconde, sans suffixe (indiqué dans l'en-tête)."""
-    return format_utc(moment, with_seconds=True, with_suffix=False)
+    """Date d'un tableau : heure de Paris à la seconde."""
+    return format_datetime(moment, with_seconds=True)
 
 
 # --- Formatage des valeurs ---------------------------------------------------
@@ -260,37 +264,32 @@ def format_latency(value: float | None) -> str:
     return f"{text}\u202fms"
 
 
-def format_utc(
-    moment: datetime | None, *, with_seconds: bool = False, with_suffix: bool = True
-) -> str:
-    """Date et heure en UTC : ``2026-10-01 13:45 UTC`` ; ``None`` → ``—``.
-
-    ``with_seconds`` ajoute les secondes ; ``with_suffix=False`` retire le
-    « UTC » final quand l'en-tête de colonne l'indique déjà. Aucune
-    conversion vers un fuseau local : la date est ramenée en UTC.
-    """
-    if moment is None:
-        return MISSING
+def to_display_time(moment: datetime) -> datetime:
+    """Date UTC de l'API ramenée à l'heure de Paris ; une date sans fuseau est lue comme UTC."""
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(DISPLAY_TIMEZONE)
+
+
+def format_datetime(moment: datetime | None, *, with_seconds: bool = False) -> str:
+    """Date et heure de Paris : ``2026-10-01 15:45`` ; ``None`` → ``—``."""
+    if moment is None:
+        return MISSING
     pattern = "%Y-%m-%d %H:%M:%S" if with_seconds else "%Y-%m-%d %H:%M"
-    text = moment.astimezone(timezone.utc).strftime(pattern)
-    return f"{text} UTC" if with_suffix else text
+    return to_display_time(moment).strftime(pattern)
 
 
-def format_readable_utc(moment: datetime | None) -> str:
-    """Date lisible en français, en UTC : ``05 oct. 2026 · 08:51 UTC`` ; ``None`` → ``—``.
+def format_readable_datetime(moment: datetime | None) -> str:
+    """Date lisible en français, heure de Paris : ``05 oct. 2026 · 10:51`` ; ``None`` → ``—``.
 
     Le mois vient de ``FRENCH_MONTHS`` : le résultat ne dépend pas de la
-    langue configurée sur la machine. Aucune conversion vers un fuseau local.
+    langue configurée sur la machine.
     """
     if moment is None:
         return MISSING
-    if moment.tzinfo is None:
-        moment = moment.replace(tzinfo=timezone.utc)
-    moment = moment.astimezone(timezone.utc)
+    moment = to_display_time(moment)
     month = FRENCH_MONTHS[moment.month - 1]
-    return f"{moment.day:02d} {month} {moment.year} · {moment:%H:%M} UTC"
+    return f"{moment.day:02d} {month} {moment.year} · {moment:%H:%M}"
 
 
 def compact_json(payload: Any) -> str:

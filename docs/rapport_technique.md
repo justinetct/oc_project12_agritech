@@ -835,14 +835,13 @@ WARNING est affiché et le replay ne constitue pas une reproduction stricte.
 
 ### H. Docker
 
-L'API est packagée dans une image Docker pour la rendre portable et reproductible. L'image ne contient que le
-nécessaire au runtime : le code du service et les artefacts modèles. Docker concerne l'API uniquement :
-l'interface Streamlit se lance à part (`make streamlit`) et appelle l'API sur le port 8000, qu'elle tourne dans
-Docker ou non.
+L'API, l'interface Streamlit et le dashboard Gradio sont packagés dans des images Docker pour les rendre
+portables et reproductibles. Chaque image ne contient que le nécessaire au runtime ; seule celle de l'API embarque
+les artefacts modèles. Streamlit et Gradio appellent l'API par le réseau Docker (`http://api:8000`).
 
 ```bash
-make docker-demo   # construit l'image, démarre l'API et ouvre Swagger
-make docker-down   # arrête et supprime le conteneur
+make docker-demo   # construit les trois images, démarre les services, attend qu'ils répondent et les ouvre
+make docker-down   # arrête et supprime les conteneurs
 ```
 
 Les données d'observabilité (base SQLite `api.sqlite`) vivent dans un volume Docker nommé `agritech_monitoring`, qui
@@ -855,12 +854,12 @@ survit aux recréations du conteneur.
 | Variable | Valeur Compose | Rôle |
 |---|---|---|
 | `DATABASE_URL` | `sqlite:////app/data/monitoring/api.sqlite` | Base SQLite d'observabilité |
-| `ENVIRONMENT` | `prod` | Persistée dans `api_requests.environment` |
-| `LOGFIRE_ENVIRONMENT` | `prod` | Contexte Logfire |
+| `ENVIRONMENT` | `local` | Persistée dans `api_requests.environment` |
+| `LOGFIRE_ENVIRONMENT` | `local` | Contexte Logfire |
 | `LOGFIRE_SERVICE_NAME` | `agritech-answers-api` | Nom de service Logfire |
 | `LOGFIRE_TOKEN` | *optionnel* | Sans token, mode silencieux, aucun envoi réseau |
 
-Les cibles `make docker-*` lancent actuellement l'API sans token Logfire.
+Les cibles `make docker-*` transmettent `LOGFIRE_TOKEN` s'il est défini (shell ou `.env`).
 
 ---
 

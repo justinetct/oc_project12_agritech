@@ -10,21 +10,38 @@ services:
       - "127.0.0.1:8000:8000"
     environment:
       DATABASE_URL: sqlite:////app/data/monitoring/api.sqlite
-      ENVIRONMENT: prod
-      LOGFIRE_ENVIRONMENT: prod
+      ENVIRONMENT: local
+      LOGFIRE_ENVIRONMENT: local
       LOGFIRE_SERVICE_NAME: agritech-answers-api
       LOGFIRE_TOKEN: ${LOGFIRE_TOKEN:-}
       MONITORING_API_TOKEN: ${MONITORING_API_TOKEN:-}
     # Seul service qui monte la base de monitoring.
     volumes:
       - agritech_monitoring:/app/data/monitoring
-    # Prêt quand /health répond ; l'interface Gradio attend cet état.
+    # Prêt quand /health répond ; Streamlit et Gradio attendent cet état.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 5s
       timeout: 5s
       retries: 12
       start_period: 10s
+
+  # Interface métier : appelle l'API par le réseau Compose, jamais SQLite
+  # (aucun volume, aucun DATABASE_URL, aucun token de monitoring).
+  streamlit:
+    build:
+      context: .
+      target: streamlit
+    image: agritech-answers-streamlit:latest
+    container_name: agritech-answers-streamlit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8501:8501"
+    environment:
+      AGRITECH_API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
 
   # Interface de monitoring : lit l'API par le réseau Compose, jamais SQLite
   # (aucun volume, aucun DATABASE_URL).
