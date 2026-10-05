@@ -1,10 +1,11 @@
 # Projet 12 : Concevez un système de recommandations pour une agriculture optimisée par les données
 
-![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Tests : 350](https://img.shields.io/badge/tests-350-2E7D32) ![Couverture : 96 %](https://img.shields.io/badge/coverage-96%25-2E7D32)
+![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Tests : 633](https://img.shields.io/badge/tests-633-2E7D32) ![Couverture : 96 %](https://img.shields.io/badge/coverage-96%25-2E7D32)
 
 > Agritech Answers propose deux services d'aide à la décision agricole : estimer le rendement d'une parcelle
 (`/predict`) et classer les cultures les plus adaptées à un pays (`/recommend`). Les modèles sont servis par une
-API FastAPI, et une interface Streamlit permet de les utiliser.
+API FastAPI. Une interface Streamlit permet d'utiliser les deux services, et un dashboard Gradio suit l'activité
+de l'API (volumes, erreurs, latences).
 
 [![Voir le rapport technique](https://img.shields.io/badge/📄_Voir_le_rapport_technique-1F5D42?style=for-the-badge)](https://justinetct.github.io/oc_project12_agritech/rapport_technique.html)
 
@@ -63,24 +64,35 @@ Les modèles finaux sont versionnés dans `models/` : l'API et l'interface se la
 ```bash
 make api         # terminal 1 : API sur http://127.0.0.1:8000 (Swagger sur /docs)
 make streamlit   # terminal 2 : interface sur http://localhost:8501 (port par défaut de Streamlit)
+make gradio      # terminal 3 : dashboard de monitoring sur http://127.0.0.1:7860 (port par défaut de Gradio)
 ```
 
-L'interface appelle l'API à l'adresse donnée par `AGRITECH_API_URL`, par défaut `http://localhost:8000`.
-Pour utiliser une autre API, il suffit de la définir dans le shell :
+Les deux interfaces appellent l'API à l'adresse donnée par `AGRITECH_API_URL`, par défaut
+`http://localhost:8000`. Pour utiliser une autre API, il suffit de la définir dans le shell :
 `AGRITECH_API_URL=http://mon-serveur:8000 make streamlit`.
+
+Le dashboard Gradio lit les endpoints de monitoring, protégés par un token : `MONITORING_API_TOKEN` doit avoir
+la même valeur côté API et côté dashboard (par exemple dans `.env`, lu par les deux au lancement). Sans token,
+le dashboard démarre et indique que le monitoring n'est pas configuré.
 
 Avec l'API lancée, `make health`, `make predict` et `make recommend` envoient des requêtes d'exemple.
 
 ## Architecture
 
 ```
-Streamlit (streamlit_app/)  →  API FastAPI (src/agritech/api/)  →  modèles (models/*.joblib)
+Streamlit (streamlit_app/) ── endpoints métier ───┐
+                                                  ├──→ API FastAPI (src/agritech/api/) ──→ modèles (models/*.joblib)
+Gradio (gradio_app/) ── endpoints /monitoring ────┘                 │
+                                                                    └──→ SQLite de monitoring
 ```
 
 L'interface Streamlit ne contient aucune logique ML : elle lit les contrats de l'API (bornes, domaines,
 pays, cultures, valeurs par défaut), envoie les valeurs saisies et affiche les réponses.
 
-L'API expose cinq endpoints :
+Le dashboard Gradio n'utilise que les endpoints `/monitoring/*`, en HTTP. Il ne lit jamais la base SQLite :
+FastAPI en est le seul propriétaire : il archive chaque appel et répond aux lectures du monitoring.
+
+L'API expose cinq endpoints métier :
 
 - `GET /health` : état du service et version du modèle `/predict` ;
 - `GET /predict/context` : bornes physiques, domaine d'entraînement et unités de `/predict` ;
@@ -89,6 +101,13 @@ L'API expose cinq endpoints :
   valeurs par défaut du pays ;
 - `POST /recommend` : classement des 10 cultures pour un pays et des conditions facultatives.
 
+et deux endpoints de monitoring, en lecture seule, protégés par l'en-tête `Authorization: Bearer <token>`
+(401 si le token est absent ou faux, 503 si `MONITORING_API_TOKEN` n'est pas défini côté API) :
+
+- `GET /monitoring/summary?days=30` : indicateurs de la période (volumes, taux de réussite, erreurs par type,
+  latences médiane et max par service, volume quotidien) ;
+- `GET /monitoring/requests?limit=20` : derniers appels archivés, filtrables par `service` et `success`.
+
 **Observabilité :**
 
 - chaque `POST /predict` et `POST /recommend` est archivé dans une base SQLite (`data/monitoring/api.sqlite`
@@ -96,7 +115,9 @@ L'API expose cinq endpoints :
 - les appels sont tracés dans Logfire seulement si `LOGFIRE_TOKEN` est défini ; sinon, aucun envoi réseau ;
 - une panne de l'observabilité ne fait jamais échouer une prédiction ;
 - un appel archivé peut être rejoué avec le modèle actuel : `poetry run python -m agritech.monitoring.replay <id>`
-  (ou `--failed --since YYYY-MM-DD`).
+  (ou `--failed --since YYYY-MM-DD`) ;
+- pour une démonstration, `make seed-monitoring` montre l'historique de 90 jours qu'il ajouterait à la base ;
+  `make seed-monitoring ARGS=--write` l'ajoute, sans rien supprimer (refusé si `ENVIRONMENT=prod`).
 
 ## Données
 
@@ -188,31 +209,33 @@ fichiers de données générés ne sont pas versionnés et se reconstruisent ave
 make test
 ```
 
-| Tests | Nombre |
-|---|---:|
-| Interface Streamlit | 109 |
-| API, modèles, monitoring et observabilité | 241 |
-| **Total** | **350** |
+La suite complète compte **633 tests**.
 
 Couverture : **96 %** sur `agritech.api`, `agritech.serving`, `agritech.monitoring`,
 `agritech.observability` et `agritech.ui`.
 
 ## Docker
 
-Docker concerne l'API uniquement. L'interface Streamlit se lance en local avec `make streamlit` et appelle l'API
-sur le port 8000, qu'elle tourne dans Docker ou non.
+Docker Compose lance l'API FastAPI (`http://127.0.0.1:8000`) et le dashboard Gradio
+(`http://127.0.0.1:7860`), publiés uniquement sur la machine locale. L'interface Streamlit se lance en local
+avec `make streamlit` et appelle l'API sur le port 8000, qu'elle tourne dans Docker ou non.
 
 ```bash
-make docker-demo   # construit l'image, démarre l'API, attend /health, ouvre Swagger et suit les logs
-make docker-down   # arrête et supprime le conteneur
+make docker-demo   # construit les deux images, démarre l'API puis Gradio, attend /health et le dashboard,
+                   # ouvre Swagger et le dashboard, puis suit les logs des deux services
+make docker-down   # arrête et supprime les deux conteneurs (le volume est conservé)
 ```
 
-- La base SQLite est conservée entre deux conteneurs dans le volume `agritech_monitoring`.
+- Seule l'API monte le volume `agritech_monitoring`, qui conserve la base SQLite entre deux conteneurs.
   **Ne jamais utiliser `docker compose down -v`** : cela supprimerait ce volume et l'historique des appels.
+- Gradio appelle l'API par le réseau Docker, sur `http://api:8000`, et ne démarre qu'une fois l'API prête.
+- `MONITORING_API_TOKEN` est transmis par l'environnement aux deux services (shell, sinon `.env` local) ;
+  aucune valeur n'est écrite dans les fichiers Docker.
 - Les cibles `make docker-*` lancent l'API sans Logfire. Logfire reste facultatif (`LOGFIRE_TOKEN`).
 - Les autres variables sont dans `docker-compose.yml`.
-- Les dépendances de l'image sont exportées depuis Poetry vers `requirements.txt` avec
-  `poetry export --only main,api --without-hashes`.
+- Un seul `Dockerfile`, avec une cible par service. Les dépendances sont exportées depuis Poetry :
+  `requirements.txt` pour l'API (`poetry export --only main,api --without-hashes`) et
+  `requirements-gradio.txt` pour Gradio (`poetry export --only gradio --without-hashes`, installé en plus).
 
 ## Structure du dépôt
 
@@ -221,13 +244,14 @@ make docker-down   # arrête et supprime le conteneur
 ├── .streamlit/config.toml           # thème de l'interface
 ├── data/                            # données locales, non versionnées (voir data/README.md)
 ├── docs/                            # rapport (Markdown, HTML publié, figures)
+├── gradio_app/app.py                # dashboard de monitoring (Gradio)
 ├── models/                          # modèles servis et leurs métadonnées
 ├── notebooks/                       # exploration, préparation et modélisation
 ├── src/agritech/                    # code partagé : préparation, modélisation, serving
 │   ├── api/                         # FastAPI : routers, schémas, middleware
-│   ├── monitoring/                  # archivage SQLite et rejeu
+│   ├── monitoring/                  # archivage SQLite, lectures du monitoring, rejeu, historique de démo
 │   ├── observability/               # configuration Logfire facultative
-│   └── ui/                          # client HTTP et composants de l'interface
+│   └── ui/                          # client HTTP et composants des interfaces
 ├── streamlit_app/
 │   ├── app.py                       # point d'entrée Streamlit
 │   └── views/                       # pages Predict et Recommend
@@ -236,7 +260,8 @@ make docker-down   # arrête et supprime le conteneur
 ├── docker-compose.yml
 ├── Makefile
 ├── pyproject.toml
-└── requirements.txt
+├── requirements.txt                 # dépendances de l'image API
+└── requirements-gradio.txt          # dépendances ajoutées pour l'image Gradio
 ```
 
 ## Documentation
