@@ -58,7 +58,7 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy import func, inspect, select
 from sqlalchemy.engine import make_url
 
-from agritech.api.error_handlers import validation_exception_handler
+from agritech.api.error_handlers import validation_exception_handler, validation_summary
 from agritech.api.main import API_VERSION
 from agritech.api.schemas.predict import PredictRequest
 from agritech.api.schemas.recommend import RecommendRequest
@@ -250,7 +250,9 @@ def _row(
         "request_payload": payload,
         "response_payload": response_payload,
         "error_type": None if success else response_payload["error"],
-        "error_message": None if success else response_payload["message"],
+        "error_message": None
+        if success
+        else validation_summary(response_payload["details"]) or response_payload["message"],
         "logfire_trace_id": None,
         "environment": catalog.environment,
     }

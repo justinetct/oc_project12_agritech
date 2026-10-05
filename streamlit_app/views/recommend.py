@@ -8,9 +8,9 @@ Le front n'embarque aucune logique ML : l'ordre du classement, les rendements
 et les notes hors domaine viennent de l'API et sont affichés tels quels. Seuls
 les noms de cultures sont traduits, pour l'affichage (``crop_labels``).
 
-Comme sur Predict, le champ numérique accepte toute valeur physiquement valide
-(bornes physiques de l'API) et porte la valeur envoyée ; son curseur couvre le
-domaine d'apprentissage. Une valeur hors domaine reste saisissable : l'API la
+Comme sur Predict, le champ numérique porte la valeur envoyée, sans bornes :
+l'API décide si elle est physiquement valide. Son curseur couvre le domaine
+d'apprentissage. Une valeur hors domaine reste saisissable : l'API la
 signale et le panneau affiche l'avertissement hors domaine.
 """
 
@@ -182,14 +182,12 @@ with form_col:
                     unsafe_allow_html=True,
                 )
                 # Clé propre au pays : changer de pays recharge ses valeurs par défaut.
-                # Champ : bornes physiques, valeur envoyée telle quelle. Curseur : domaine
+                # Champ : valeur envoyée telle quelle, validée par l'API. Curseur : domaine
                 # d'apprentissage, en butée si le champ en sort (le champ n'est jamais réécrit).
                 values[field] = number_with_slider(
                     RECOMMEND_LABELS[field],
                     f"{field}_{iso3}",
                     defaults[field] if active else None,
-                    number_min=physical[field]["min"],
-                    number_max=physical[field]["max"],
                     slider_range=(
                         0.0 if field in SLIDER_FROM_ZERO else training[field]["min"],
                         training[field]["max"],
@@ -226,7 +224,7 @@ with form_col:
             if not _is_complete_ranking(result):
                 raise ApiInvalidResponseError("classement incomplet")
         except ApiError as exc:
-            st.error(format_api_error(exc))
+            st.error(format_api_error(exc, RECOMMEND_LABELS, physical))  # 422 : champs refusés et valeurs acceptées
         else:
             st.session_state[LAST_KEY] = {"iso3": iso3, "conditions": conditions, "result": result}
 

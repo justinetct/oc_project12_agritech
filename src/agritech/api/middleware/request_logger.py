@@ -56,6 +56,7 @@ from opentelemetry import trace
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from agritech.api.core import runtime
+from agritech.api.error_handlers import validation_summary
 from agritech.monitoring.repository import insert_api_request
 
 
@@ -267,15 +268,11 @@ def _annotate_span(
             response_json = _parse_json_or_none(response_body)
             if response_json is not None:
                 span.set_attribute("response.body", json.dumps(response_json))
-                if isinstance(response_json, dict):
-                    error_type = response_json.get("error")
-                    if isinstance(error_type, str):
-                        span.set_attribute("error_type", error_type)
-                    error_message = response_json.get("message")
-                    if isinstance(error_message, str):
-                        if len(error_message) > _ERROR_MESSAGE_LIMIT:
-                            error_message = error_message[:_ERROR_MESSAGE_LIMIT]
-                        span.set_attribute("error_message", error_message)
+                error_type, error_message = _classify_error(False, response_json)
+                if error_type is not None:
+                    span.set_attribute("error_type", error_type)
+                if error_message is not None:
+                    span.set_attribute("error_message", error_message)
     except Exception:  # noqa: BLE001 — observabilité non bloquante
         logger.warning("logfire span annotation failed", exc_info=True)
 
@@ -400,6 +397,7 @@ def _classify_error(
 
     Réutilise le contrat déjà exposé par les handlers 422 / 503 / 500 :
     `{"error": "<code>", "message": "<phrase>", "details": ...}`. Pour une
+    422, le résumé des champs refusés remplace la phrase constante. Pour une
     réponse à succès, les deux champs restent `None`.
     """
     if success:
@@ -409,6 +407,8 @@ def _classify_error(
 
     error_type = response_payload.get("error")
     error_message = response_payload.get("message")
+    if error_type == "validation_error":
+        error_message = validation_summary(response_payload.get("details")) or error_message
     if isinstance(error_message, str) and len(error_message) > _ERROR_MESSAGE_LIMIT:
         error_message = error_message[:_ERROR_MESSAGE_LIMIT]
     return (

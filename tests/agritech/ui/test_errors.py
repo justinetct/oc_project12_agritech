@@ -60,6 +60,140 @@ def test_format_validation_error_without_technical_details() -> None:
     assert "body.rainfall_mm" not in out and "must be >= 0" not in out
 
 
+# --- 422 : un message par champ refusé, bornes lues dans /context ---
+
+# Libellés et bornes physiques tels que les pages les reçoivent de /predict/context
+# et /recommend/context.
+_PREDICT_LABELS = {"rainfall_mm": "Pluie", "temperature_celsius": "Température"}
+_PREDICT_BOUNDS = {
+    "rainfall_mm": {"min": 0.0, "max": None, "unit": "mm"},
+    "temperature_celsius": {"min": -50.0, "max": 60.0, "unit": "°C"},
+}
+_RECOMMEND_LABELS = {
+    "average_temperature_celsius": "Température",
+    "annual_rainfall_mm": "Pluie",
+    "average_annual_pesticides_tons": "Pesticides",
+}
+_RECOMMEND_BOUNDS = {
+    "average_temperature_celsius": {"min": -50.0, "max": 60.0, "unit": "°C"},
+    "annual_rainfall_mm": {"min": 0.0, "max": None, "unit": "mm"},
+    "average_annual_pesticides_tons": {"min": 0.0, "max": None, "unit": "t"},
+}
+
+_RAIN = "Pluie : la valeur doit être supérieure ou égale à 0\u00a0mm."
+_TEMPERATURE = "Température : la valeur doit être comprise entre −50 et 60\u00a0°C."
+
+
+def _validation_error(*details: tuple[str, str]) -> ApiHttpError:
+    """422 au format de l'API : un détail ``(field, type)`` par champ refusé."""
+    return ApiHttpError(
+        422,
+        "validation_error",
+        "Request payload is invalid.",
+        details=[
+            {"field": field, "type": kind, "message": "Input should be ..."} for field, kind in details
+        ],
+    )
+
+
+def _lines(*lines: str) -> str:
+    return "Certaines valeurs sont invalides :\n" + "\n".join(f"- {line}" for line in lines)
+
+
+@pytest.mark.parametrize(
+    ("detail", "expected"),
+    [
+        (("body.rainfall_mm", "greater_than_equal"), _RAIN),
+        (("body.temperature_celsius", "greater_than_equal"), _TEMPERATURE),
+        (("body.temperature_celsius", "less_than_equal"), _TEMPERATURE),
+    ],
+    ids=["pluie-negative", "temperature-sous-50", "temperature-au-dessus-60"],
+)
+def test_predict_validation_error_names_the_field_and_accepted_values(detail, expected) -> None:
+    out = format_api_error(_validation_error(detail), _PREDICT_LABELS, _PREDICT_BOUNDS)
+    assert out == _lines(expected)
+    assert "body." not in out and "Input should" not in out
+
+
+def test_predict_validation_error_lists_every_refused_field_in_api_order() -> None:
+    exc = _validation_error(
+        ("body.rainfall_mm", "greater_than_equal"),
+        ("body.temperature_celsius", "less_than_equal"),
+    )
+    assert format_api_error(exc, _PREDICT_LABELS, _PREDICT_BOUNDS) == _lines(_RAIN, _TEMPERATURE)
+
+
+@pytest.mark.parametrize(
+    ("detail", "expected"),
+    [
+        (("body.conditions.average_temperature_celsius", "less_than_equal"), _TEMPERATURE),
+        (("body.conditions.annual_rainfall_mm", "greater_than_equal"), _RAIN),
+        (
+            ("body.conditions.average_annual_pesticides_tons", "greater_than_equal"),
+            "Pesticides : la valeur doit être supérieure ou égale à 0\u00a0t.",
+        ),
+    ],
+    ids=["temperature", "pluie-negative", "pesticides-negatifs"],
+)
+def test_recommend_validation_error_names_the_condition_and_accepted_values(detail, expected) -> None:
+    out = format_api_error(_validation_error(detail), _RECOMMEND_LABELS, _RECOMMEND_BOUNDS)
+    assert out == _lines(expected)
+
+
+def test_non_finite_value_shows_the_accepted_values() -> None:
+    exc = _validation_error(("body.rainfall_mm", "finite_number"))
+    assert format_api_error(exc, _PREDICT_LABELS, _PREDICT_BOUNDS) == _lines(_RAIN)
+
+
+@pytest.mark.parametrize(
+    ("kind", "bounds"),
+    [("float_parsing", _PREDICT_BOUNDS), ("greater_than_equal", {})],
+    ids=["autre-type-erreur", "bornes-absentes"],
+)
+def test_known_field_without_usable_rule_stays_generic_for_that_field(kind, bounds) -> None:
+    exc = _validation_error(("body.rainfall_mm", kind))
+    assert format_api_error(exc, _PREDICT_LABELS, bounds) == _lines("Pluie : la valeur n’a pas été acceptée.")
+
+
+@pytest.mark.parametrize(
+    "details",
+    [
+        None,
+        [],
+        [{"field": "body.iso3", "type": "unknown_country", "message": "Country not served: ZZZ"}],
+        ["pas un objet", {"type": "greater_than_equal"}],
+    ],
+    ids=["sans-details", "details-vides", "champ-inconnu", "details-mal-formes"],
+)
+def test_validation_error_without_usable_details_falls_back_to_generic(details) -> None:
+    exc = ApiHttpError(422, "validation_error", "Request payload is invalid.", details=details)
+    assert format_api_error(exc, _PREDICT_LABELS, _PREDICT_BOUNDS) == (
+        "Les valeurs envoyées n’ont pas été acceptées."
+    )
+
+
+@pytest.mark.parametrize(
+    ("exc", "expected"),
+    [
+        (
+            ApiHttpError(503, "model_unavailable", "Model is unavailable."),
+            "Le modèle est momentanément indisponible. Réessayez dans un instant.",
+        ),
+        (
+            ApiHttpError(500, "internal_error", "Internal server error."),
+            "Le service a rencontré une erreur. Réessayez dans un instant.",
+        ),
+        (
+            ApiTimeoutError("x"),
+            "Le service de calcul n'a pas répondu à temps. Réessayez dans un instant.",
+        ),
+    ],
+    ids=["503", "500", "timeout"],
+)
+def test_other_errors_are_unchanged_when_labels_are_given(exc, expected) -> None:
+    assert format_api_error(exc, _PREDICT_LABELS, _PREDICT_BOUNDS) == expected
+
+
 def test_format_unknown_http_error_shows_its_code() -> None:
     exc = ApiHttpError(404, "unknown_error", "Erreur inconnue.")
     assert format_api_error(exc) == "Le service a renvoyé une erreur inattendue (code 404)."

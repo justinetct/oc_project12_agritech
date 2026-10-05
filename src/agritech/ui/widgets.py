@@ -1,10 +1,11 @@
 """Champ numérique et curseur synchronisés : une seule valeur, deux façons de la saisir.
 
 Le champ porte la vraie valeur, celle envoyée à l'API ; le curseur n'en est
-que la représentation. Predict et Recommend bornent le champ par les bornes
-physiques et le curseur par le domaine d'apprentissage : hors de ce domaine,
-le curseur se met en butée sans jamais réécrire le champ. Streamlit interdit
-les callbacks dans un ``st.form`` : ces widgets sont donc placés hors formulaire.
+que la représentation. Le champ n'a pas de bornes : la valeur saisie part
+telle quelle et l'API décide si elle est physiquement valide. Le curseur couvre
+le domaine d'apprentissage : hors de ce domaine, il se met en butée sans jamais
+réécrire le champ. Streamlit interdit les callbacks dans un ``st.form`` : ces
+widgets sont donc placés hors formulaire.
 
 Échelle logarithmique (option ``log_scale``) : le curseur se déplace sur
 ``log10(1 + valeur)``, uniquement pour l'affichage. Cette transformation ne
@@ -21,7 +22,8 @@ LOG_STEP = 0.01  # pas du curseur logarithmique, soit environ 2,3 % de variation
 
 
 def _to_slider(value: float, log_scale: bool) -> float:
-    return math.log10(1 + value) if log_scale else value
+    # Valeur négative (refusée ensuite par l'API) : curseur logarithmique en butée basse.
+    return math.log10(1 + max(value, 0.0)) if log_scale else value
 
 
 def _from_slider(position: float, log_scale: bool) -> float:
@@ -50,8 +52,8 @@ def _number_to_slider(key: str, low: float, high: float, log_scale: bool) -> Non
     st.session_state[f"{key}_slider"] = _clamp(_to_slider(st.session_state[key], log_scale), low, high)
 
 
-def _slider_to_number(key: str, number_min: float, log_scale: bool) -> None:
-    st.session_state[key] = max(_from_slider(st.session_state[f"{key}_slider"], log_scale), number_min)
+def _slider_to_number(key: str, log_scale: bool) -> None:
+    st.session_state[key] = _from_slider(st.session_state[f"{key}_slider"], log_scale)
 
 
 def _zero_mark_css(slider_key: str, low: float, high: float, unit: str) -> str:
@@ -74,8 +76,6 @@ def number_with_slider(
     key: str,
     default: float | None,
     *,
-    number_min: float,
-    number_max: float | None,
     slider_range: tuple[float, float],
     step: float,
     number_format: str,
@@ -101,8 +101,6 @@ def number_with_slider(
         st.session_state[slider_key] = _clamp(_to_slider(default, log_scale), low, high)
     value = st.number_input(
         label,
-        min_value=number_min,
-        max_value=number_max,
         step=step,
         format=number_format,
         key=key,
@@ -117,7 +115,7 @@ def number_with_slider(
         step=slider_step,
         key=slider_key,
         on_change=_slider_to_number,
-        args=(key, number_min, log_scale),
+        args=(key, log_scale),
         label_visibility="collapsed",
     )
     return value

@@ -116,7 +116,7 @@ def test_post_predict_422_pydantic_is_persisted():
     assert row.status_code == 422
     assert row.success is False
     assert row.error_type == "validation_error"
-    assert row.error_message == "Request payload is invalid."
+    assert row.error_message == "rainfall_mm: Input should be greater than or equal to 0"
     assert row.request_payload == payload  # payload conservé (JSON exploitable)
     assert row.response_payload["error"] == "validation_error"
     # Même en 422, on archive la version du bundle déployé.
@@ -136,7 +136,37 @@ def test_post_recommend_422_unknown_country_is_persisted():
     assert row.status_code == 422
     assert row.success is False
     assert row.error_type == "validation_error"
+    assert row.error_message == "iso3: Country not served: ZZZ"
     assert row.model_version == "2.0.0"
+
+
+@pytest.mark.parametrize(
+    ("path", "payload", "expected"),
+    [
+        (
+            "/predict",
+            VALID_PREDICT_PAYLOAD | {"rainfall_mm": -99427, "temperature_celsius": -92370947320927},
+            "rainfall_mm: Input should be greater than or equal to 0 · "
+            "temperature_celsius: Input should be greater than or equal to -50",
+        ),
+        (
+            "/recommend",
+            {"iso3": "FRA", "conditions": {"average_temperature_celsius": -1000.0,
+                                           "average_annual_pesticides_tons": -1.0}},
+            "average_temperature_celsius: Input should be greater than or equal to -50 · "
+            "average_annual_pesticides_tons: Input should be greater than or equal to 0",
+        ),
+    ],
+    ids=["predict-deux-champs", "recommend-deux-conditions"],
+)
+def test_422_error_message_identifies_every_refused_field(path, payload, expected):
+    """Le message archivé nomme chaque champ refusé et sa règle, sans dump Pydantic."""
+    with TestClient(app) as client:
+        assert client.post(path, json=payload).status_code == 422
+        rows = _read_rows()
+
+    assert rows[0].error_type == "validation_error"
+    assert rows[0].error_message == expected
 
 
 def test_error_message_is_truncated_to_2000_chars():
@@ -173,6 +203,7 @@ def test_post_predict_503_when_bundle_missing_is_persisted():
     assert row.status_code == 503
     assert row.success is False
     assert row.error_type == "model_unavailable"
+    assert row.error_message == "Model is unavailable."
     # bundle None au moment de la requête → model_version non déterminable
     assert row.model_version is None
 
@@ -199,6 +230,7 @@ def test_post_predict_500_is_persisted():
     assert row.status_code == 500
     assert row.success is False
     assert row.error_type == "internal_error"
+    assert row.error_message == "Internal server error."
 
 
 # ===========================================================================

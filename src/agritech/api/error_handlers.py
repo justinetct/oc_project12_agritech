@@ -17,6 +17,7 @@ tâche 19, pas ici.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
@@ -61,6 +62,23 @@ def format_validation_errors(exc: RequestValidationError) -> list[ValidationErro
             )
         )
     return details
+
+
+def validation_summary(details: Any) -> str | None:
+    """Résumé court d'une 422 pour le monitoring : « champ: message Pydantic » par détail.
+
+    Lit les `details` publics de `ErrorResponse` (rien d'autre : ni payload, ni
+    contexte interne). Plusieurs champs sont séparés par « · ». `None` si aucun
+    détail exploitable.
+    """
+    if not isinstance(details, list):
+        return None
+    parts = [
+        f"{str(detail['field']).rsplit('.', 1)[-1]}: {detail['message']}"
+        for detail in details
+        if isinstance(detail, dict) and detail.get("field") and detail.get("message")
+    ]
+    return " · ".join(parts) or None
 
 
 def _error_response(

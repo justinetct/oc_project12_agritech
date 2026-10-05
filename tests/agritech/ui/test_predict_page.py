@@ -15,7 +15,7 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 from agritech.ui import api_client
-from agritech.ui.errors import INVALID_CONTEXT_MESSAGE, ApiConnectionError, ApiHttpError
+from agritech.ui.errors import HTTP_ERROR_MESSAGES, INVALID_CONTEXT_MESSAGE, ApiConnectionError, ApiHttpError
 
 
 APP_DIR = Path(__file__).resolve().parents[3] / "streamlit_app"
@@ -113,7 +113,7 @@ def test_context_loads_and_page_shows_header_panel_and_form(
     assert at.button_group(key="irrigation_used").value == "Non"
 
 
-def test_sliders_follow_the_training_domain_and_fields_the_physical_bounds(
+def test_sliders_follow_the_training_domain_and_fields_are_not_bounded(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(api_client, "get_predict_context", _stub_context(_CONTEXT_API))
@@ -125,9 +125,9 @@ def test_sliders_follow_the_training_domain_and_fields_the_physical_bounds(
     # Curseurs : domaine d'apprentissage.
     assert (rain_slider.min, rain_slider.max) == (100.0, 1000.0)
     assert (temp_slider.min, temp_slider.max) == (15.0, 40.0)
-    # Champs : bornes physiques. Sans maximum, Streamlit utilise le plus grand flottant.
-    assert (rain_field.min, rain_field.max) == (0.0, sys.float_info.max)
-    assert (temp_field.min, temp_field.max) == (-50.0, 60.0)
+    # Champs : aucune borne (Streamlit utilise les plus grands flottants), l'API valide.
+    assert (rain_field.min, rain_field.max) == (-sys.float_info.max, sys.float_info.max)
+    assert (temp_field.min, temp_field.max) == (-sys.float_info.max, sys.float_info.max)
 
 
 def test_temperature_outside_training_domain_is_kept_and_sent_as_is(
@@ -212,31 +212,76 @@ def test_moving_the_slider_after_an_out_of_domain_value_resyncs_the_field(
     assert seen["payload"]["temperature_celsius"] == 20.0
 
 
-def test_physically_invalid_values_are_not_retained(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("rainfall_mm", -10.0), ("temperature_celsius", 21972329873.0)],
+    ids=["pluie-negative", "temperature-extreme"],
+)
+def test_physically_invalid_value_is_sent_as_is_and_refused_without_result(
+    monkeypatch: pytest.MonkeyPatch, field: str, value: float
 ) -> None:
     monkeypatch.setattr(api_client, "get_predict_context", _stub_context(_CONTEXT_API))
 
-    seen: dict[str, Any] = {}
+    sent: list[dict[str, Any]] = []
 
     def _predict(body: dict[str, Any]) -> dict[str, Any]:
-        seen["payload"] = body
+        sent.append(body)
+        if body[field] == value:
+            raise ApiHttpError(422, "validation_error", "Request payload is invalid.")
         return _PREDICT_OK
 
     monkeypatch.setattr(api_client, "post_predict", _predict)
 
-    # Le navigateur refuse ces saisies ; côté serveur, Streamlit écarte aussi toute
-    # valeur hors des bornes du champ (règle existante, inchangée).
     at = AppTest.from_file(PAGE).run()
-    at.number_input(key="temperature_celsius").set_value(70.0).run()  # > 60 °C
-    at.number_input(key="rainfall_mm").set_value(-5.0).run()  # < 0 mm
-    assert at.number_input(key="temperature_celsius").value != 70.0
-    assert at.number_input(key="rainfall_mm").value != -5.0
-
     at.button[0].click().run()
+    assert "t/ha" in _markdown_containing(at, "ag-panel")  # estimation valide affichée
+    valid = at.number_input(key=field).value
+
+    at.number_input(key=field).set_value(value).run()
+    assert at.number_input(key=field).value == value
+    at.button[0].click().run()
+
     assert not at.exception
-    assert seen["payload"]["temperature_celsius"] != 70.0
-    assert seen["payload"]["rainfall_mm"] != -5.0
+    assert sent[-1][field] == value  # valeur envoyée telle quelle
+    assert at.error[0].value == HTTP_ERROR_MESSAGES["validation_error"]
+    assert "t/ha" not in _markdown_containing(at, "ag-panel")
+
+    # L'échec efface l'ancienne estimation : elle ne revient pas avec les anciennes valeurs.
+    at.number_input(key=field).set_value(valid).run()
+    assert "t/ha" not in _markdown_containing(at, "ag-panel")
+
+
+def test_validation_error_lists_each_refused_field_with_accepted_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(api_client, "get_predict_context", _stub_context(_CONTEXT_API))
+
+    def _refuse(_body: dict[str, Any]) -> None:
+        raise ApiHttpError(
+            422,
+            "validation_error",
+            "Request payload is invalid.",
+            details=[
+                {"field": "body.rainfall_mm", "type": "greater_than_equal", "message": "Input should be ..."},
+                {"field": "body.temperature_celsius", "type": "less_than_equal", "message": "Input should be ..."},
+            ],
+        )
+
+    monkeypatch.setattr(api_client, "post_predict", _refuse)
+
+    at = AppTest.from_file(PAGE).run()
+    at.number_input(key="rainfall_mm").set_value(-10.0).run()
+    at.number_input(key="temperature_celsius").set_value(21972329873.0).run()
+    at.button[0].click().run()
+
+    assert not at.exception
+    # Bornes lues dans /predict/context, libellés français, aucun nom JSON.
+    assert at.error[0].value == (
+        "Certaines valeurs sont invalides :\n"
+        "- Pluie : la valeur doit être supérieure ou égale à 0\u00a0mm.\n"
+        "- Température : la valeur doit être comprise entre −50 et 60\u00a0°C."
+    )
+    assert "t/ha" not in _markdown_containing(at, "ag-panel")
 
 
 def test_context_load_error_shows_message(

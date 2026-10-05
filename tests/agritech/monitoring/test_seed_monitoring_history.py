@@ -101,7 +101,10 @@ def test_errors_are_only_422_validation_errors(rows):
     assert errors
     assert {row["status_code"] for row in errors} == {422}
     assert {row["error_type"] for row in errors} == {"validation_error"}
-    assert {row["error_message"] for row in errors} == {"Request payload is invalid."}
+    # Même message que les lignes réelles : les champs refusés, pas la phrase générique.
+    for row in errors:
+        refused = [detail["field"].rsplit(".", 1)[-1] for detail in row["response_payload"]["details"]]
+        assert all(f"{field}: " in row["error_message"] for field in refused)
     assert {row["status_code"] for row in rows if row["success"]} == {200}
 
 

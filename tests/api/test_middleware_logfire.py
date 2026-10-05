@@ -463,7 +463,13 @@ def test_422_span_exposes_error_type_and_error_message(
     attrs = [s for s in spans if s.name == "POST /predict"][0].attributes
     assert attrs["response.status_code"] == 422
     assert attrs["error_type"] == "validation_error"
-    assert attrs["error_message"] == "Request payload is invalid."
+    # Corps partiel : la pluie négative et les trois champs manquants sont tous nommés.
+    assert attrs["error_message"] == (
+        "rainfall_mm: Input should be greater than or equal to 0 · "
+        "temperature_celsius: Field required · "
+        "fertilizer_used: Field required · "
+        "irrigation_used: Field required"
+    )
 
 
 def test_span_level_is_error_for_503(monkeypatch: pytest.MonkeyPatch):
@@ -522,7 +528,7 @@ def test_error_message_is_truncated_at_2000_chars_on_span(
     def _inject(raw):
         parsed = original(raw)
         if isinstance(parsed, dict) and parsed.get("error") == "validation_error":
-            parsed["message"] = long_message
+            parsed["details"][0]["message"] = long_message
         return parsed
 
     monkeypatch.setattr(request_logger, "_parse_json_or_none", _inject)

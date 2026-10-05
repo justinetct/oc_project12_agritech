@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from pydantic import BaseModel, Field, ValidationError
 
 from agritech.api.core import runtime
-from agritech.api.error_handlers import format_validation_errors
+from agritech.api.error_handlers import format_validation_errors, validation_summary
 from agritech.api.main import app
 
 
@@ -221,3 +221,29 @@ def test_format_validation_errors_transforms_loc_and_drops_input_and_ctx():
     # Les attributs `input` et `ctx` ne doivent PAS avoir de correspondant public.
     assert not hasattr(d, "input")
     assert not hasattr(d, "ctx")
+
+
+# --- validation_summary : résumé court d'une 422 pour le monitoring ---
+
+
+def test_validation_summary_names_each_refused_field_with_the_pydantic_message():
+    details = [
+        {"field": "body.rainfall_mm", "type": "greater_than_equal",
+         "message": "Input should be greater than or equal to 0"},
+        {"field": "body.conditions.average_temperature_celsius", "type": "less_than_equal",
+         "message": "Input should be less than or equal to 60"},
+    ]
+
+    assert validation_summary(details) == (
+        "rainfall_mm: Input should be greater than or equal to 0 · "
+        "average_temperature_celsius: Input should be less than or equal to 60"
+    )
+
+
+@pytest.mark.parametrize(
+    "details",
+    [None, [], ["pas un objet"], [{"field": "body.rainfall_mm"}], [{"message": "x"}]],
+    ids=["absent", "vide", "mal-forme", "sans-message", "sans-champ"],
+)
+def test_validation_summary_returns_none_without_usable_details(details):
+    assert validation_summary(details) is None

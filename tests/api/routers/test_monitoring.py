@@ -279,6 +279,25 @@ def test_requests_expose_only_public_fields(client: TestClient, seeded_ids: dict
     assert error_item["request_payload"] == {"rainfall_mm": 500.0}
 
 
+def test_requests_expose_which_fields_a_real_422_refused(client: TestClient):
+    """Une vraie 422 relue par `/monitoring/requests` nomme les champs refusés."""
+    payload = {
+        "rainfall_mm": -10.0,
+        "temperature_celsius": 1000.0,
+        "fertilizer_used": True,
+        "irrigation_used": False,
+    }
+    assert client.post("/predict", json=payload).status_code == 422
+
+    item = client.get("/monitoring/requests", params={"success": "false"}, headers=AUTH).json()["items"][0]
+
+    assert item["error_type"] == "validation_error"
+    assert item["error_message"] == (
+        "rainfall_mm: Input should be greater than or equal to 0 · "
+        "temperature_celsius: Input should be less than or equal to 60"
+    )
+
+
 @pytest.mark.parametrize(
     ("params", "field"),
     [

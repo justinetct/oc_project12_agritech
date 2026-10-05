@@ -4,10 +4,10 @@ Charge le contexte de l'API (bornes physiques du contrat et domaine
 d'apprentissage), construit le formulaire des 4 entrées du modèle et affiche
 le rendement renvoyé par ``POST /predict`` dans le panneau vert de gauche.
 
-Le champ numérique accepte toute valeur physiquement valide (bornes physiques
-de l'API) et porte la valeur envoyée ; son curseur couvre le domaine
-d'apprentissage. Une valeur hors domaine reste donc saisissable : l'API la
-signale et le panneau affiche l'avertissement hors domaine.
+Le champ numérique porte la valeur envoyée, sans bornes : l'API décide si elle
+est physiquement valide. Son curseur couvre le domaine d'apprentissage. Une
+valeur hors domaine reste donc saisissable : l'API la signale et le panneau
+affiche l'avertissement hors domaine.
 
 Le front n'embarque aucune logique ML. Toutes les valeurs affichables
 (bornes, unités, notes hors domaine) sont fournies par l'API et
@@ -23,6 +23,7 @@ import streamlit as st
 
 from agritech.ui import api_client
 from agritech.ui.components import (
+    NUMERIC_LABELS,
     cta_note_html,
     domain_help_html,
     field_label_html,
@@ -170,7 +171,7 @@ with form_col:
     # titre et les deux lignes de champs.
     with st.container(key="cond_card", gap="medium"):
         st.markdown(section_head_html("Conditions de votre parcelle"), unsafe_allow_html=True)
-        # Champ : bornes physiques, valeur envoyée telle quelle. Curseur : domaine
+        # Champ : valeur envoyée telle quelle, validée par l'API. Curseur : domaine
         # d'apprentissage, en butée si le champ en sort (le champ n'est jamais réécrit).
         rain_col, temp_col = st.columns(2)
         with rain_col:
@@ -179,8 +180,6 @@ with form_col:
                 f"Pluie ({rainfall_unit})",
                 "rainfall_mm",
                 rainfall_default,
-                number_min=rainfall_min,
-                number_max=rainfall_max,
                 slider_range=(rainfall_train_min, rainfall_train_max),
                 step=1.0,
                 number_format="%.0f",
@@ -192,8 +191,6 @@ with form_col:
                 f"Température ({temperature_unit})",
                 "temperature_celsius",
                 temperature_default,
-                number_min=temperature_min,
-                number_max=temperature_max,
                 slider_range=(temperature_train_min, temperature_train_max),
                 step=0.1,
                 number_format="%.1f",
@@ -251,7 +248,7 @@ with form_col:
             if not isinstance(result.get("yield_tons_per_hectare"), (int, float)):
                 raise ApiInvalidResponseError("rendement absent ou non numérique")
         except ApiError as exc:
-            st.error(format_api_error(exc))
+            st.error(format_api_error(exc, NUMERIC_LABELS, physical))  # 422 : champs refusés et valeurs acceptées
         else:
             st.session_state[LAST_KEY] = {"result": result, "payload": payload}
 

@@ -17,7 +17,13 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 from agritech.ui import api_client
-from agritech.ui.errors import INVALID_CONTEXT_MESSAGE, ApiConnectionError, ApiHttpError, ApiTimeoutError
+from agritech.ui.errors import (
+    HTTP_ERROR_MESSAGES,
+    INVALID_CONTEXT_MESSAGE,
+    ApiConnectionError,
+    ApiHttpError,
+    ApiTimeoutError,
+)
 
 
 PAGE = str(Path(__file__).resolve().parents[3] / "streamlit_app" / "views" / "recommend.py")
@@ -243,7 +249,7 @@ def _page_for_france(monkeypatch: pytest.MonkeyPatch, seen: dict[str, Any], note
     return at.selectbox(key="rec_country").select("FRA").run()
 
 
-def test_sliders_follow_the_training_domain_and_fields_the_physical_bounds(
+def test_sliders_follow_the_training_domain_and_fields_are_not_bounded(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     at = _page_for_france(monkeypatch, {})
@@ -263,10 +269,9 @@ def test_sliders_follow_the_training_domain_and_fields_the_physical_bounds(
     assert (rain_slider.min, rain_slider.max) == (51.0, 3240.0)
     assert (pest_slider.min, pest_slider.max) == (0.0, 6.25)
     assert pest_slider.max <= math.log10(1 + 1783667.33)
-    # Champs : bornes physiques. Sans maximum, Streamlit utilise le plus grand flottant.
-    assert (temp_field.min, temp_field.max) == (-50.0, 60.0)
-    assert (rain_field.min, rain_field.max) == (0.0, sys.float_info.max)
-    assert (pest_field.min, pest_field.max) == (0.0, sys.float_info.max)
+    # Champs : aucune borne (Streamlit utilise les plus grands flottants), l'API valide.
+    for field in (temp_field, rain_field, pest_field):
+        assert (field.min, field.max) == (-sys.float_info.max, sys.float_info.max)
 
 
 def test_values_outside_training_domain_are_kept_and_sent_as_is(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -314,22 +319,84 @@ def test_moving_the_slider_after_an_out_of_domain_value_resyncs_the_field(
     assert seen["payload"]["conditions"]["average_temperature_celsius"] == 20.0
 
 
-def test_physically_invalid_values_are_not_retained(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("average_temperature_celsius", 111111.0),
+        ("annual_rainfall_mm", -2397239.0),
+        ("average_annual_pesticides_tons", -239723.0),
+    ],
+    ids=["temperature-extreme", "pluie-negative", "pesticides-negatifs"],
+)
+def test_physically_invalid_value_is_sent_as_is_and_refused_without_ranking(
+    monkeypatch: pytest.MonkeyPatch, field: str, value: float
+) -> None:
     seen: dict[str, Any] = {}
     at = _page_for_france(monkeypatch, seen)
+    accept = _stub_recommend(seen)
 
-    # Le navigateur refuse ces saisies ; côté serveur, Streamlit écarte aussi toute
-    # valeur hors des bornes du champ (règle existante, inchangée).
-    at.number_input(key="average_temperature_celsius_FRA").set_value(70.0).run()  # > 60 °C
-    at.number_input(key="annual_rainfall_mm_FRA").set_value(-5.0).run()  # < 0 mm
-    assert at.number_input(key="average_temperature_celsius_FRA").value != 70.0
-    assert at.number_input(key="annual_rainfall_mm_FRA").value != -5.0
+    def _recommend(body: dict[str, Any]) -> dict[str, Any]:
+        if body["conditions"][field] == value:
+            seen["payload"] = body
+            raise ApiHttpError(422, "validation_error", "Request payload is invalid.")
+        return accept(body)
+
+    monkeypatch.setattr(api_client, "post_recommend", _recommend)
+    key = f"{field}_FRA"
 
     at.button[0].click().run()
-    assert not at.exception
-    assert seen["payload"]["conditions"]["average_temperature_celsius"] != 70.0
-    assert seen["payload"]["conditions"]["annual_rainfall_mm"] != -5.0
+    assert _has_ranking(at)  # classement valide affiché
 
+    at.number_input(key=key).set_value(value).run()
+    assert at.number_input(key=key).value == value
+    at.button[0].click().run()
+
+    assert not at.exception
+    assert seen["payload"]["conditions"][field] == value  # valeur envoyée telle quelle
+    assert at.error[0].value == HTTP_ERROR_MESSAGES["validation_error"]
+    assert not _has_ranking(at)
+    assert "Votre pays." in _markdown_containing(at, "ag-panel")
+
+    # L'échec efface l'ancien classement : il ne revient pas avec les anciennes valeurs.
+    at.number_input(key=key).set_value(_FRA_DEFAULTS[field]).run()
+    assert not _has_ranking(at)
+
+
+def test_validation_error_lists_each_refused_condition_with_accepted_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    at = _page_for_france(monkeypatch, {})
+
+    def _refuse(_body: dict[str, Any]) -> None:
+        raise ApiHttpError(
+            422,
+            "validation_error",
+            "Request payload is invalid.",
+            details=[
+                {"field": f"body.conditions.{field}", "type": kind, "message": "Input should be ..."}
+                for field, kind in (
+                    ("average_temperature_celsius", "greater_than_equal"),
+                    ("annual_rainfall_mm", "greater_than_equal"),
+                    ("average_annual_pesticides_tons", "greater_than_equal"),
+                )
+            ],
+        )
+
+    monkeypatch.setattr(api_client, "post_recommend", _refuse)
+    at.number_input(key="average_temperature_celsius_FRA").set_value(-1000.0).run()
+    at.number_input(key="annual_rainfall_mm_FRA").set_value(-2397239.0).run()
+    at.number_input(key="average_annual_pesticides_tons_FRA").set_value(-239723.0).run()
+    at.button[0].click().run()
+
+    assert not at.exception
+    # Bornes lues dans /recommend/context, libellés français, aucun nom JSON.
+    assert at.error[0].value == (
+        "Certaines valeurs sont invalides :\n"
+        "- Température : la valeur doit être comprise entre −50 et 60\u00a0°C.\n"
+        "- Pluie : la valeur doit être supérieure ou égale à 0\u00a0mm.\n"
+        "- Pesticides : la valeur doit être supérieure ou égale à 0\u00a0t."
+    )
+    assert not _has_ranking(at)
 
 
 def test_display_precision_does_not_change_the_values_sent(monkeypatch: pytest.MonkeyPatch) -> None:
