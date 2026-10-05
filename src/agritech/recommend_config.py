@@ -6,7 +6,7 @@ dans `training_data.py`. La configuration de `/predict` est dans `predict_config
 
 from __future__ import annotations
 
-from agritech.config import PATHS
+from agritech.config import PATHS, SEED
 
 
 # Dataset produit par le notebook 06 : le dataset historique nettoyé, une ligne par pays, année et culture.
@@ -77,4 +77,26 @@ RECOMMEND_FINALISTS = {
         "params": {"n_estimators": 1500, "learning_rate": 0.1, "num_leaves": 127, "min_child_samples": 10,
                    "subsample": 0.7, "subsample_freq": 1, "reg_lambda": 20.0},
     },
+}
+
+# Modèle servi par l'API, reconstruit par `scripts/rebuild_models.py`. Valeurs figées : elles ne sont
+# pas recalculées à la reconstruction.
+
+# Réglages finaux de l'ExtraTrees retenu par le notebook 15 (150 arbres au lieu des 300 du finaliste),
+# réappris sur 1991-2013 par le notebook 16.
+RECOMMEND_FINAL_PARAMS = {
+    "n_estimators": 150,
+    "max_features": 0.9,
+    "min_samples_split": 3,
+    "random_state": SEED,
+    "n_jobs": 1,
+}
+RECOMMEND_MODEL_VERSION = "2.0.0"
+
+# Évaluation finale sur 2013 (notebook 15), une seule fois, avant le réapprentissage sur 1991-2013 : la
+# mesure de généralisation du modèle servi.
+RECOMMEND_FINAL_TEST_METRICS = {
+    "rmse": 1.6583653778656462,
+    "mae": 0.7614744124700236,
+    "r2": 0.9638329168740789,
 }

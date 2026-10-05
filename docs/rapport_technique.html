@@ -1094,6 +1094,30 @@
       </ul>
       <p>Les bornes exactes sont visibles dans Swagger ; le contrat d'erreur est détaillé en
       <a href="#f-erreurs-de-lapi">annexe F</a>.</p>
+      <h3 id="reconstruction-des-modèles-servis">Reconstruction des modèles servis</h3>
+      <p>Les modèles servis ont été produits par les notebooks 11 et 16. Pour pouvoir les reconstruire sans relancer les
+      notebooks, une seule commande refait les 5 fichiers que charge l'API : les deux modèles, leurs métadonnées et le
+      contexte pays de <code>/recommend</code>.</p>
+      <pre><code class="language-bash">make rebuild-models
+</code></pre>
+      <p>La commande part des datasets préparés (<code>data/processed/</code>) et du GeoJSON, et réutilise le code de préparation du
+      package : lecture et contrôle des datasets, découpages, variables historiques et géographiques, pipelines. Elle ne
+      relance pas les expériences (comparaison de modèles, feature engineering, tuning, validation croisée, MLflow) : les
+      variables et les réglages sont ceux retenus à la fin des sections 3 et 4. Elle garde la différence entre les deux
+      services :</p>
+      <ul>
+      <li><code>/predict</code> : la régression linéaire est entraînée sur le seul jeu d'entraînement (799 815 lignes), comme dans le
+        notebook 11 ;</li>
+      <li><code>/recommend</code> : le modèle évalué une seule fois sur 2013 est réentraîné sur 1991-2013 (15 636 lignes), comme dans
+        le notebook 16.</li>
+      </ul>
+      <p>Les métriques des métadonnées restent celles des évaluations finales (test réservé pour <code>/predict</code>, 2013 pour
+      <code>/recommend</code>). Elles sont recopiées telles quelles : le test n'est pas réévalué pendant la reconstruction. Le
+      script contrôle les fichiers produits (effectifs, variables, réglages, domaine d'apprentissage, contexte des 115
+      pays), les recharge avec le code de l'API et vérifie quelques prédictions de référence. Si des modèles sont déjà
+      présents dans <code>models/</code>, il compare aussi leurs prédictions et s'arrête avant d'écrire en cas d'écart. Avec les
+      modèles actuels, la reconstruction redonne les mêmes prédictions : à moins de 1e-12 t/ha près pour <code>/predict</code>, à
+      l'identique pour <code>/recommend</code>.</p>
       <h3 id="lancement-local-et-tests">Lancement local et tests</h3>
       <pre><code class="language-bash">make api         # API sur http://127.0.0.1:8000, documentation sur /docs
 make streamlit   # interface Streamlit sur http://localhost:8501
@@ -1125,8 +1149,12 @@ make streamlit   # interface Streamlit sur http://localhost:8501
       <td style="text-align: right;">18</td>
       </tr>
       <tr>
+      <td>Reconstruction des modèles (script)</td>
+      <td style="text-align: right;">17</td>
+      </tr>
+      <tr>
       <td><strong>Total</strong></td>
-      <td style="text-align: right;"><strong>736</strong></td>
+      <td style="text-align: right;"><strong>753</strong></td>
       </tr>
       </tbody>
       </table></div>

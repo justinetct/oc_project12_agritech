@@ -1,4 +1,4 @@
-.PHONY: lint test test-durations api streamlit gradio seed-monitoring health predict recommend \
+.PHONY: lint test test-durations api streamlit gradio seed-monitoring rebuild-models health predict recommend \
         docker-build docker-up docker-down docker-logs docker-demo
 
 lint:
@@ -24,6 +24,10 @@ gradio:
 # Écriture : make seed-monitoring ARGS=--write (ajout seul, refusé si ENVIRONMENT=prod).
 seed-monitoring:
 	poetry run python -m agritech.monitoring.seed_history $(ARGS)
+
+# Reconstruit les 5 artefacts servis de models/ à partir des datasets préparés (voir README).
+rebuild-models:
+	poetry run python scripts/rebuild_models.py
 
 health:
 	curl http://127.0.0.1:8000/health

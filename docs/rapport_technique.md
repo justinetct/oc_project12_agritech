@@ -1,6 +1,6 @@
 # Rapport — Agritech Answers
 
-![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Tests : 736](https://img.shields.io/badge/tests-736-2E7D32) ![Couverture : 97 %](https://img.shields.io/badge/coverage-97%25-2E7D32)
+![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Tests : 753](https://img.shields.io/badge/tests-753-2E7D32) ![Couverture : 97 %](https://img.shields.io/badge/coverage-97%25-2E7D32)
 
 *Système de prédiction de rendement et de recommandation de cultures.*
 
@@ -568,6 +568,35 @@ L'API expose cinq endpoints, documentés automatiquement par FastAPI dans Swagge
 Les bornes exactes sont visibles dans Swagger ; le contrat d'erreur est détaillé en
 [annexe F](#f-erreurs-de-lapi).
 
+### Reconstruction des modèles servis
+
+Les modèles servis ont été produits par les notebooks 11 et 16. Pour pouvoir les reconstruire sans relancer les
+notebooks, une seule commande refait les 5 fichiers que charge l'API : les deux modèles, leurs métadonnées et le
+contexte pays de `/recommend`.
+
+```bash
+make rebuild-models
+```
+
+La commande part des datasets préparés (`data/processed/`) et du GeoJSON, et réutilise le code de préparation du
+package : lecture et contrôle des datasets, découpages, variables historiques et géographiques, pipelines. Elle ne
+relance pas les expériences (comparaison de modèles, feature engineering, tuning, validation croisée, MLflow) : les
+variables et les réglages sont ceux retenus à la fin des sections 3 et 4. Elle garde la différence entre les deux
+services :
+
+- `/predict` : la régression linéaire est entraînée sur le seul jeu d'entraînement (799 815 lignes), comme dans le
+  notebook 11 ;
+- `/recommend` : le modèle évalué une seule fois sur 2013 est réentraîné sur 1991-2013 (15 636 lignes), comme dans
+  le notebook 16.
+
+Les métriques des métadonnées restent celles des évaluations finales (test réservé pour `/predict`, 2013 pour
+`/recommend`). Elles sont recopiées telles quelles : le test n'est pas réévalué pendant la reconstruction. Le
+script contrôle les fichiers produits (effectifs, variables, réglages, domaine d'apprentissage, contexte des 115
+pays), les recharge avec le code de l'API et vérifie quelques prédictions de référence. Si des modèles sont déjà
+présents dans `models/`, il compare aussi leurs prédictions et s'arrête avant d'écrire en cas d'écart. Avec les
+modèles actuels, la reconstruction redonne les mêmes prédictions : à moins de 1e-12 t/ha près pour `/predict`, à
+l'identique pour `/recommend`.
+
 ### Lancement local et tests
 
 ```bash
@@ -584,7 +613,8 @@ sont écrits au fil du développement (`make test`) :
 | API, modèles, monitoring et observabilité | 411 |
 | Protocole d'entraînement (historique, découpage temporel) | 13 |
 | Architecture Docker | 18 |
-| **Total** | **736** |
+| Reconstruction des modèles (script) | 17 |
+| **Total** | **753** |
 
 Couverture : **97 %** du code applicatif servi (`agritech.api`, `agritech.serving`, `agritech.monitoring`,
 `agritech.observability` et `agritech.ui`). Les modules d'entraînement, utilisés par les notebooks, sont hors de

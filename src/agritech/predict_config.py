@@ -38,3 +38,22 @@ PREDICT_SELECTED_FEATURES = ["Rainfall_mm", "Temperature_Celsius", "Fertilizer_U
 PREDICT_TEST_SIZE = 0.2
 PREDICT_CV_FOLDS = 5
 PREDICT_CV_SHUFFLE = True
+
+# Modèle servi par l'API, reconstruit par `scripts/rebuild_models.py`. Valeurs figées : elles ne sont
+# pas recalculées à la reconstruction.
+PREDICT_MODEL_VERSION = "1.0.0"
+
+# Évaluation finale sur le test réservé (notebook 11), une seule fois : la mesure de généralisation du
+# modèle servi.
+PREDICT_FINAL_TEST_METRICS = {
+    "rmse": 0.4992678452943281,
+    "mae": 0.39833799309037676,
+    "r2": 0.913234820907552,
+}
+
+# Domaine d'apprentissage des variables numériques, exposé par l'API : bornes du dataset arrondies
+# (pluie de 100,0009 à 999,998 mm, température de 15,00003 à 39,99997 °C).
+PREDICT_TRAINING_DOMAIN = {
+    "Rainfall_mm": {"min": 100, "max": 1000, "unit": "mm"},
+    "Temperature_Celsius": {"min": 15, "max": 40, "unit": "°C"},
+}

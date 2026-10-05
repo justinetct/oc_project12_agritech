@@ -1,6 +1,6 @@
 # Projet 12 : Concevez un système de recommandations pour une agriculture optimisée par les données
 
-![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Tests : 736](https://img.shields.io/badge/tests-736-2E7D32) ![Couverture : 97 %](https://img.shields.io/badge/coverage-97%25-2E7D32)
+![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Tests : 753](https://img.shields.io/badge/tests-753-2E7D32) ![Couverture : 97 %](https://img.shields.io/badge/coverage-97%25-2E7D32)
 
 > Agritech Answers propose deux services d'aide à la décision agricole : estimer le rendement d'une parcelle
 (`/predict`) et classer les cultures les plus adaptées à un pays (`/recommend`). Les modèles sont servis par une
@@ -173,6 +173,24 @@ ci-dessus restent celles du modèle évalué. L'artefact `models/recommend_model
 cultures jamais cultivées dans le pays, alors que, dans les demandes 2012, 25 des 115 cultures classées n°1
 n'avaient jamais été observées dans le pays. Les autres limites sont dans l'[annexe A du rapport](docs/rapport_technique.md#a-limites-et-précautions).
 
+### Reconstruire les modèles servis
+
+```bash
+make rebuild-models
+```
+
+Cette commande reconstruit les 5 fichiers chargés par l'API, dans `models/` : `predict_model.joblib`,
+`predict_model_metadata.json`, `recommend_model.joblib`, `recommend_model_metadata.json` et
+`recommend_context.json`. Elle a besoin des datasets préparés de `data/processed/` (notebooks 04 à 06) et du
+GeoJSON de `data/geo/` (voir [`data/README.md`](data/README.md)).
+
+Elle reproduit les protocoles finaux, sans refaire la sélection de modèle, le tuning, la validation croisée ni le
+suivi MLflow : `/predict` est entraîné sur son jeu d'entraînement, `/recommend` est réentraîné sur 1991-2013. Les
+métriques d'évaluation finale sont recopiées dans les métadonnées, pas recalculées. Le script contrôle les
+fichiers produits et s'arrête avant d'écrire si les modèles déjà présents dans `models/` donnent d'autres
+prédictions ; `poetry run python scripts/rebuild_models.py --output-dir /tmp/agritech-models` reconstruit
+ailleurs pour vérifier.
+
 ## Notebooks
 
 Les expériences sont suivies dans MLflow (`oc_p12_agritech_predict` et `oc_p12_agritech_recommend`). Les
@@ -210,7 +228,7 @@ make lint   # contrôle Ruff (règles par défaut, notebooks exclus)
 make test   # suite complète avec couverture
 ```
 
-La suite complète compte **736 tests**.
+La suite complète compte **753 tests**.
 
 Couverture : **97 %** du code applicatif servi (`agritech.api`, `agritech.serving`, `agritech.monitoring`,
 `agritech.observability` et `agritech.ui`). Les modules d'entraînement, utilisés par les notebooks, sont hors de
@@ -251,6 +269,7 @@ make docker-down   # arrête et supprime les trois conteneurs (le volume est con
 ├── gradio_app/app.py                # dashboard de monitoring (Gradio)
 ├── models/                          # modèles servis et leurs métadonnées
 ├── notebooks/                       # exploration, préparation et modélisation
+├── scripts/rebuild_models.py        # reconstruction des modèles servis
 ├── src/agritech/                    # code partagé : préparation, modélisation, serving
 │   ├── api/                         # FastAPI : routers, schémas, middleware
 │   ├── monitoring/                  # archivage SQLite, lectures du monitoring, rejeu, historique de démo
