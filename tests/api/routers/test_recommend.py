@@ -19,7 +19,7 @@ from fastapi.testclient import TestClient
 
 from agritech.api.core import runtime
 from agritech.api.main import app
-from agritech.serving import recommend as serving_recommend
+from agritech.serving import MODEL_RAINFALL_FLOAT32_CEILING, recommend as serving_recommend
 
 
 VALID_ISO3 = "FRA"
@@ -148,6 +148,31 @@ def test_post_recommend_non_finite_condition_returns_422_finite_number(field, li
     assert [(d["field"], d["type"]) for d in payload["details"]] == [
         (f"body.conditions.{field}", "finite_number")
     ]
+
+
+def test_post_recommend_huge_finite_rainfall_returns_200_and_keeps_user_value():
+    """Pluie finie énorme (1e300) acceptée par le contrat : 200, jamais 500.
+
+    La valeur saisie reste intacte dans `effective_conditions` et reste signalée
+    hors domaine ; le classement est celui d'une pluie au plafond technique float32.
+    """
+    huge = {"iso3": VALID_ISO3, "conditions": {"annual_rainfall_mm": 1e300}}
+    at_ceiling = {
+        "iso3": VALID_ISO3,
+        "conditions": {"annual_rainfall_mm": MODEL_RAINFALL_FLOAT32_CEILING},
+    }
+
+    with TestClient(app) as client:
+        response = client.post("/recommend", json=huge)
+        reference = client.post("/recommend", json=at_ceiling)
+
+    assert response.status_code == 200
+    assert reference.status_code == 200
+    body = response.json()
+    assert body["context"]["effective_conditions"]["annual_rainfall_mm"] == 1e300
+    assert body["out_of_training_domain"] is True
+    assert body["notes"] == ["annual_rainfall_mm is out of training domain"]
+    assert body["recommendations"] == reference.json()["recommendations"]
 
 
 def test_post_recommend_bundle_none_returns_503():

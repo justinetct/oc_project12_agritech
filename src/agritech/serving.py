@@ -189,6 +189,10 @@ RECOMMEND_MODEL_TO_PUBLIC: dict[str, tuple[str, Callable[[float], float]]] = {
     "log_pest_hist": ("average_annual_pesticides_tons", math.expm1),
 }
 
+# ExtraTrees convertit ses entrées en float32. Ce plafond évite qu'une pluie
+# finie extrêmement grande devienne `inf` sans modifier le contrat public.
+MODEL_RAINFALL_FLOAT32_CEILING = float(np.finfo(np.float32).max)
+
 # Unités publiques exposées par `/recommend/context`, indexées par nom public.
 RECOMMEND_PUBLIC_UNITS: dict[str, str] = {
     "average_temperature_celsius":    "°C",
@@ -318,7 +322,7 @@ def _assemble_candidates(
     base_row = {
         "year": RECOMMEND_TARGET_YEAR,
         "temp_hist":     effective["average_temperature_celsius"],
-        "rain_mm":       effective["annual_rainfall_mm"],
+        "rain_mm":       min(effective["annual_rainfall_mm"], MODEL_RAINFALL_FLOAT32_CEILING),
         "log_pest_hist": math.log1p(effective["average_annual_pesticides_tons"]),
         "lat_abs": geo["lat_abs"],
         "geo_x":   geo["geo_x"],

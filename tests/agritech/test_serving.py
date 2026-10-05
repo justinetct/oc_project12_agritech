@@ -19,6 +19,7 @@ import pytest
 from agritech.config import PATHS
 from agritech.recommend_config import RECOMMEND_CROPS
 from agritech.serving import (
+    MODEL_RAINFALL_FLOAT32_CEILING,
     PREDICT_PUBLIC_TO_MODEL,
     RECOMMEND_MODEL_TO_PUBLIC,
     RECOMMEND_PUBLIC_TO_MODEL,
@@ -464,6 +465,73 @@ def test_assemble_candidates_uses_geography_from_context(context_min: RecommendC
     assert (df["geo_x"] == geo["geo_x"]).all()
     assert (df["geo_y"] == geo["geo_y"]).all()
     assert (df["geo_z"] == geo["geo_z"]).all()
+
+
+# --- Plafond technique float32 de la pluie ---
+
+
+def _max_learned_rain_threshold(bundle: Bundle) -> float:
+    """Plus grand seuil sur `rain_mm` parmi tous les arbres du modèle /recommend."""
+    preprocess, forest = bundle.pipeline.steps[0][1], bundle.pipeline.steps[-1][1]
+    rain_index = list(preprocess.get_feature_names_out()).index("numeric__rain_mm")
+    thresholds = np.concatenate(
+        [tree.tree_.threshold[tree.tree_.feature == rain_index] for tree in forest.estimators_]
+    )
+    return float(thresholds.max())
+
+
+def test_rainfall_ceiling_survives_float32_conversion():
+    """Le plafond converti en float32 reste fini et inchangé (jamais `inf`)."""
+    as_float32 = np.float32(MODEL_RAINFALL_FLOAT32_CEILING)
+
+    assert np.isfinite(as_float32)
+    assert as_float32 == np.finfo(np.float32).max
+    assert float(as_float32) == MODEL_RAINFALL_FLOAT32_CEILING
+
+
+def test_assemble_candidates_caps_only_the_rainfall_sent_to_the_model(
+    context_min: RecommendContext,
+):
+    """Pluie énorme : plafonnée dans les lignes du modèle, intacte dans `effective`.
+
+    Une pluie normale n'est pas touchée par le plafond.
+    """
+    effective = _country_defaults(_entry_aaa(context_min)) | {"annual_rainfall_mm": 1e300}
+
+    df = _assemble_candidates(context_min, "AAA", effective)
+
+    assert (df["rain_mm"] == MODEL_RAINFALL_FLOAT32_CEILING).all()
+    assert effective["annual_rainfall_mm"] == 1e300
+
+    normal = _country_defaults(_entry_aaa(context_min))
+    df_normal = _assemble_candidates(context_min, "AAA", normal)
+    assert (df_normal["rain_mm"] == normal["annual_rainfall_mm"]).all()
+
+
+def test_recommend_huge_rainfall_behaves_like_any_rainfall_beyond_learned_thresholds(
+    bundle_recommend: Bundle, context_min: RecommendContext
+):
+    """Pluie 1e300 : mêmes classement et rendements qu'au-delà de tous les seuils appris.
+
+    Les arbres ne comparent la pluie qu'à leurs seuils appris : toute valeur
+    supérieure au plus grand seuil donne la même prédiction. Le plafond technique
+    est lui-même au-delà de ces seuils, il ne change donc pas le résultat.
+    """
+    max_threshold = _max_learned_rain_threshold(bundle_recommend)
+    assert max_threshold < MODEL_RAINFALL_FLOAT32_CEILING
+
+    def ranking(rainfall_mm: float) -> list[tuple[str, float]]:
+        response = recommend(
+            bundle_recommend, context_min, "AAA", conditions={"annual_rainfall_mm": rainfall_mm}
+        )
+        return [
+            (item["crop"], item["predicted_yield_tons_per_hectare"])
+            for item in response["recommendations"]
+        ]
+
+    huge = ranking(1e300)
+    assert huge == ranking(MODEL_RAINFALL_FLOAT32_CEILING)
+    assert huge == ranking(max_threshold + 1.0)
 
 
 # --- public_training_domain_recommend ---
