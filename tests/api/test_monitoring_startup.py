@@ -261,3 +261,68 @@ def test_business_resource_failure_still_blocks_startup(
     with pytest.raises(FileNotFoundError, match="business artefact missing"):
         with TestClient(app):
             pass
+
+
+# ===========================================================================
+# Historique de démonstration : MONITORING_DEMO_HISTORY
+# ===========================================================================
+
+
+def _stored_calls() -> int:
+    with runtime.monitoring_session_factory() as session:
+        return session.scalar(select(func.count()).select_from(ApiRequest))
+
+
+def test_demo_history_is_off_by_default():
+    """Sans `MONITORING_DEMO_HISTORY` (Docker Compose local, tests) : la base reste vide."""
+    with TestClient(app):
+        assert _stored_calls() == 0
+
+
+def test_demo_history_fills_an_empty_database_at_startup(monkeypatch: pytest.MonkeyPatch):
+    """Base vide : historique créé au démarrage, puis les vraies requêtes s'y ajoutent."""
+    monkeypatch.setenv("MONITORING_DEMO_HISTORY", "true")
+    monkeypatch.setenv("MONITORING_API_TOKEN", TOKEN)
+
+    with TestClient(app) as client:
+        seeded = _stored_calls()
+        totals = {
+            days: client.get("/monitoring/summary", params={"days": days}, headers=AUTH).json()["total_requests"]
+            for days in (7, 30, 90)
+        }
+        assert client.post("/predict", json=PREDICT_PAYLOAD).status_code == 200
+        assert _stored_calls() == seeded + 1
+
+    assert 0 < totals[7] < totals[30] < totals[90] <= seeded
+
+
+def test_demo_history_keeps_an_existing_database(monkeypatch: pytest.MonkeyPatch):
+    """Redémarrage sur une base non vide : rien n'est ajouté ni supprimé."""
+    monkeypatch.setenv("MONITORING_DEMO_HISTORY", "true")
+    with TestClient(app) as client:
+        client.post("/predict", json=PREDICT_PAYLOAD)
+        before = _stored_calls()
+
+    with TestClient(app):
+        assert _stored_calls() == before
+
+
+def test_demo_history_failure_does_not_block_startup(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+):
+    """Échec du seed : un warning (type d'erreur seulement), puis un démarrage normal."""
+    monkeypatch.setenv("MONITORING_DEMO_HISTORY", "true")
+    monkeypatch.setenv("MONITORING_API_TOKEN", TOKEN)
+
+    def failing_seed(session_factory, environment):
+        raise RuntimeError("cannot read /private/models")
+
+    monkeypatch.setattr(api_main, "seed_demo_history", failing_seed)
+
+    with caplog.at_level(logging.WARNING):
+        with TestClient(app) as client:
+            _assert_business_endpoints_work(client)
+            assert client.get("/monitoring/requests", headers=AUTH).status_code == 200
+
+    assert "monitoring demo history skipped (RuntimeError); API continues" in caplog.text
+    assert "/private/models" not in caplog.text

@@ -232,3 +232,54 @@ def test_write_appends_rows_and_keeps_existing_ones(capsys):
     assert latest.id == real_id
     assert summary["total_requests"] == total
     assert summary["error_count"] > 0
+
+
+# --- Historique de démonstration au démarrage de l'API ------------------------------
+
+
+def test_demo_history_fills_an_empty_database_with_recent_calls(engine):
+    """Base vide : 90 jours d'appels qui se terminent au démarrage, vues 7 / 30 / 90 jours remplies."""
+    factory = create_session_factory(engine)
+
+    added = seed.seed_demo_history(factory, "staging", now=END)
+
+    with factory() as session:
+        stored = session.scalars(select(ApiRequest)).all()
+        totals = {days: summarize_requests(session, days=days, now=END)["total_requests"] for days in (7, 30, 90)}
+    assert added == len(stored) > 0
+    assert all(END - timedelta(days=90) < row.timestamp < END for row in stored)
+    assert 0 < totals[7] < totals[30] < totals[90] == added
+    assert {row.environment for row in stored} == {"staging"}
+
+
+def test_demo_history_is_the_reference_history_for_this_start(engine):
+    """Déterministe : pour une même date de démarrage, les lignes de `generate_history` (graine 42)."""
+    factory = create_session_factory(engine)
+    seed.seed_demo_history(factory, "staging", now=END)
+
+    expected = seed.generate_history(
+        seed.load_catalog("staging"), days=seed.DEFAULT_DAYS, end=END, seed=seed.DEFAULT_SEED
+    )
+    with factory() as session:
+        stored = session.scalars(select(ApiRequest).order_by(ApiRequest.id)).all()
+    assert [(r.timestamp, r.service, r.status_code, r.request_payload) for r in stored] == [
+        (e["timestamp"], e["service"], e["status_code"], e["request_payload"]) for e in expected
+    ]
+
+
+def test_demo_history_never_touches_a_database_with_calls(engine):
+    """Base non vide : rien n'est ajouté, modifié ni supprimé."""
+    factory = create_session_factory(engine)
+    real = {
+        "timestamp": END, "service": "predict", "endpoint": "/predict", "method": "POST",
+        "status_code": 200, "success": True, "duration_ms": 6, "api_version": API_VERSION,
+        "model_version": "1.0.0", "request_payload": {"rainfall_mm": 550.0}, "environment": "test",
+    }
+    with factory() as session:
+        real_id = insert_api_request(session, real)
+
+    assert seed.seed_demo_history(factory, "staging", now=END) == 0
+
+    with factory() as session:
+        stored = session.scalars(select(ApiRequest)).all()
+    assert [(row.id, row.request_payload) for row in stored] == [(real_id, {"rainfall_mm": 550.0})]

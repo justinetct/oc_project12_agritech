@@ -16,7 +16,9 @@ Sans variable d'environnement fournie :
 - `LOGFIRE_TOKEN` = `None` (aucun envoi réseau, mode silencieux) ;
 - `LOGFIRE_ENVIRONMENT` = valeur de `ENVIRONMENT` ;
 - `LOGFIRE_SERVICE_NAME` = `agritech-answers` ;
-- `MONITORING_API_TOKEN` = `None` (endpoints `/monitoring/*` indisponibles).
+- `MONITORING_API_TOKEN` = `None` (endpoints `/monitoring/*` indisponibles) ;
+- `MONITORING_DEMO_HISTORY` = désactivé (pas d'historique de démonstration
+  ajouté au démarrage de l'API).
 
 Une chaîne vide (`LOGFIRE_TOKEN=`, `MONITORING_API_TOKEN=`) est traitée comme
 absence : elle ne produit jamais un token vide.
@@ -31,6 +33,9 @@ from dataclasses import dataclass
 DEFAULT_DATABASE_URL = "sqlite:///data/monitoring/api.sqlite"
 DEFAULT_ENVIRONMENT = "local"
 DEFAULT_LOGFIRE_SERVICE_NAME = "agritech-answers"
+
+# Valeurs qui activent un drapeau booléen, comme `NOTIFICATIONS_ENABLED`.
+TRUE_VALUES = {"1", "true", "yes", "on"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +56,8 @@ class MonitoringConfig:
         logfire_service_name : nom de service transmis à Logfire.
         api_token : secret attendu dans l'en-tête `Authorization: Bearer`
             des endpoints `/monitoring/*` ; `None` les rend indisponibles.
+        demo_history : ajoute au démarrage de l'API un historique de
+            démonstration si la base est vide (`MONITORING_DEMO_HISTORY`).
     """
 
     database_url: str
@@ -59,6 +66,7 @@ class MonitoringConfig:
     logfire_environment: str
     logfire_service_name: str
     api_token: str | None
+    demo_history: bool = False
 
 
 def load_config() -> MonitoringConfig:
@@ -79,4 +87,5 @@ def load_config() -> MonitoringConfig:
             os.environ.get("LOGFIRE_SERVICE_NAME") or DEFAULT_LOGFIRE_SERVICE_NAME
         ),
         api_token=os.environ.get("MONITORING_API_TOKEN") or None,
+        demo_history=os.environ.get("MONITORING_DEMO_HISTORY", "").strip().lower() in TRUE_VALUES,
     )

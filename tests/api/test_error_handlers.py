@@ -7,14 +7,22 @@ qu'aucune information interne ne fuite au client, et que la fonction pure
 
 from __future__ import annotations
 
+import asyncio
+import json
 from dataclasses import replace
 
 import pytest
+from fastapi.exceptions import RequestValidationError
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, Field, ValidationError
 
 from agritech.api.core import runtime
-from agritech.api.error_handlers import format_validation_errors, validation_summary
+from agritech.api.error_handlers import (
+    format_validation_errors,
+    validation_error_body,
+    validation_exception_handler,
+    validation_summary,
+)
 from agritech.api.main import app
 
 
@@ -221,6 +229,18 @@ def test_format_validation_errors_transforms_loc_and_drops_input_and_ctx():
     # Les attributs `input` et `ctx` ne doivent PAS avoir de correspondant public.
     assert not hasattr(d, "input")
     assert not hasattr(d, "ctx")
+
+
+def test_validation_error_body_is_the_body_of_the_422_handler():
+    """Sans requête HTTP, `validation_error_body` donne le corps exact de la réponse 422."""
+    exc = RequestValidationError(
+        [{"type": "missing", "loc": ("body", "irrigation_used"), "msg": "Field required", "input": {}}]
+    )
+
+    response = asyncio.run(validation_exception_handler(None, exc))
+
+    assert response.status_code == 422
+    assert validation_error_body(exc) == json.loads(response.body)
 
 
 # --- validation_summary : résumé court d'une 422 pour le monitoring ---

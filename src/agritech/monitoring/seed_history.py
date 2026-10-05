@@ -4,7 +4,10 @@ Outil manuel de développement et de démonstration : il remplit la table
 `api_requests` avec des appels `/predict` et `/recommend` plausibles sur
 plusieurs semaines, pour que le dashboard de monitoring (vues 7 / 30 / 90
 jours) montre des volumes, des latences et quelques erreurs sans attendre
-des semaines d'utilisation réelle. Il n'est jamais lancé automatiquement.
+des semaines d'utilisation réelle. Le script n'est jamais lancé
+automatiquement. Seule exception, explicite : avec `MONITORING_DEMO_HISTORY`
+activé, l'API appelle `seed_demo_history` à son démarrage, qui ajoute le même
+historique uniquement si la base est vide.
 
     poetry run python -m agritech.monitoring.seed_history            # aperçu, n'écrit rien
     poetry run python -m agritech.monitoring.seed_history --write    # ajoute les lignes
@@ -27,8 +30,8 @@ Fonctionnement :
 Ce qui est généré, et ce qui ne l'est pas :
 
 - erreurs : uniquement des `422 validation_error`, sur des corps réellement
-  rejetés par les schémas de l'API ; la réponse d'erreur est produite par le
-  vrai handler 422, comme pour un appel réel ;
+  rejetés par les schémas de l'API ; la réponse d'erreur a le même corps que
+  celle du handler 422, comme pour un appel réel ;
 - succès : corps valides (domaine d'apprentissage pour l'essentiel, quelques
   valeurs en dehors), pays réels de `models/recommend_context.json`.
   Aucune prédiction n'est inventée : `response_payload` reste vide (`NULL`),
@@ -41,7 +44,6 @@ Ce qui est généré, et ce qui ne l'est pas :
 from __future__ import annotations
 
 import argparse
-import asyncio
 import json
 import random
 import sys
@@ -58,10 +60,10 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy import func, inspect, select
 from sqlalchemy.engine import make_url
 
-from agritech.api.error_handlers import validation_exception_handler, validation_summary
-from agritech.api.main import API_VERSION
+from agritech.api.error_handlers import validation_error_body, validation_summary
 from agritech.api.schemas.predict import PredictRequest
 from agritech.api.schemas.recommend import RecommendRequest
+from agritech.api.version import API_VERSION
 from agritech.config import PATHS
 from agritech.monitoring.config import load_config
 from agritech.monitoring.models import ApiRequest, Base
@@ -339,7 +341,7 @@ def _invalid_recommend_payload(rng: random.Random, catalog: Catalog) -> dict[str
 
 
 def validation_error_response(request_model: type[BaseModel], payload: Any) -> dict[str, Any]:
-    """Réponse 422 que l'API renverrait pour ce corps, via son vrai handler.
+    """Réponse 422 que l'API renverrait pour ce corps, construite comme par son handler.
 
     Lève `ValueError` si le corps est valide : une ligne d'erreur générée
     correspond toujours à un corps réellement rejeté par le contrat.
@@ -348,8 +350,7 @@ def validation_error_response(request_model: type[BaseModel], payload: Any) -> d
         request_model.model_validate(payload)
     except ValidationError as exc:
         errors = [{**error, "loc": ("body", *error["loc"])} for error in exc.errors()]
-        response = asyncio.run(validation_exception_handler(None, RequestValidationError(errors)))
-        return json.loads(response.body)
+        return validation_error_body(RequestValidationError(errors))
     raise ValueError("corps valide : l'API ne renverrait pas d'erreur 422")
 
 
@@ -392,6 +393,24 @@ def insert_rows(session_factory, rows: list[dict[str, Any]]) -> int:
         session.add_all(ApiRequest(**values) for values in rows)
         session.commit()
     return len(rows)
+
+
+def seed_demo_history(session_factory, environment: str, *, now: datetime | None = None) -> int:
+    """Ajoute l'historique de démonstration si la table `api_requests` est vide.
+
+    Appelée au démarrage de l'API quand `MONITORING_DEMO_HISTORY` est activé :
+    90 jours (graine 42) qui se terminent à `now`, maintenant par défaut, pour
+    que les vues 7 / 30 / 90 jours du dashboard soient remplies dès
+    l'ouverture. Une table qui contient déjà des appels n'est jamais modifiée.
+    Renvoie le nombre de lignes ajoutées (0 si la table n'était pas vide).
+    """
+    existing, _ = _count_and_latest(session_factory)
+    if existing:
+        return 0
+    rows = generate_history(
+        load_catalog(environment), days=DEFAULT_DAYS, end=now or datetime.now(timezone.utc), seed=DEFAULT_SEED
+    )
+    return insert_rows(session_factory, rows)
 
 
 def _count_and_latest(session_factory) -> tuple[int, datetime | None]:

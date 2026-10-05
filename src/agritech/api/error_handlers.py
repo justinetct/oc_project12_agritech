@@ -81,6 +81,21 @@ def validation_summary(details: Any) -> str | None:
     return " · ".join(parts) or None
 
 
+def _error_body(error_code: str, details: list[ValidationErrorDetail] | None = None) -> dict[str, Any]:
+    """Corps JSON d'une `ErrorResponse` pour un code donné."""
+    return ErrorResponse(error=error_code, message=_MESSAGES[error_code], details=details).model_dump()
+
+
+def validation_error_body(exc: RequestValidationError) -> dict[str, Any]:
+    """Corps d'une réponse 422, sans requête HTTP.
+
+    C'est le contenu renvoyé par `validation_exception_handler` ; l'historique
+    de démonstration du monitoring s'en sert pour archiver des erreurs
+    identiques à celles de l'API.
+    """
+    return _error_body("validation_error", format_validation_errors(exc))
+
+
 def _error_response(
     error_code: str,
     status_code: int,
@@ -88,8 +103,7 @@ def _error_response(
     headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     """Construit une `JSONResponse` conforme à `ErrorResponse` pour un code donné."""
-    body = ErrorResponse(error=error_code, message=_MESSAGES[error_code], details=details).model_dump()
-    return JSONResponse(status_code=status_code, content=body, headers=headers)
+    return JSONResponse(status_code=status_code, content=_error_body(error_code, details), headers=headers)
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:

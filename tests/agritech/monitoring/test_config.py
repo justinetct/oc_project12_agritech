@@ -25,6 +25,7 @@ MONITORED_ENV_VARS = (
     "LOGFIRE_ENVIRONMENT",
     "LOGFIRE_SERVICE_NAME",
     "MONITORING_API_TOKEN",
+    "MONITORING_DEMO_HISTORY",
 )
 
 
@@ -49,6 +50,7 @@ def test_load_config_uses_documented_defaults_when_env_is_empty():
     assert config.logfire_environment == DEFAULT_ENVIRONMENT
     assert config.logfire_service_name == DEFAULT_LOGFIRE_SERVICE_NAME
     assert config.api_token is None
+    assert config.demo_history is False
 
 
 def test_load_config_reads_all_environment_variables(monkeypatch: pytest.MonkeyPatch):
@@ -59,6 +61,7 @@ def test_load_config_reads_all_environment_variables(monkeypatch: pytest.MonkeyP
     monkeypatch.setenv("LOGFIRE_ENVIRONMENT", "production")
     monkeypatch.setenv("LOGFIRE_SERVICE_NAME", "custom-service")
     monkeypatch.setenv("MONITORING_API_TOKEN", "monitoring-token")
+    monkeypatch.setenv("MONITORING_DEMO_HISTORY", "true")
 
     config = load_config()
 
@@ -68,6 +71,7 @@ def test_load_config_reads_all_environment_variables(monkeypatch: pytest.MonkeyP
     assert config.logfire_environment == "production"
     assert config.logfire_service_name == "custom-service"
     assert config.api_token == "monitoring-token"
+    assert config.demo_history is True
 
 
 def test_load_config_logfire_environment_falls_back_to_environment(
@@ -117,6 +121,19 @@ def test_load_config_empty_string_falls_back_to_defaults(
     assert config.logfire_environment == DEFAULT_ENVIRONMENT
     assert config.logfire_service_name == DEFAULT_LOGFIRE_SERVICE_NAME
     assert config.api_token is None
+    assert config.demo_history is False
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [("true", True), ("TRUE", True), (" 1 ", True), ("yes", True), ("on", True),
+     ("false", False), ("0", False), ("no", False), ("oui", False)],
+)
+def test_load_config_demo_history_flag(monkeypatch: pytest.MonkeyPatch, value: str, expected: bool):
+    """`MONITORING_DEMO_HISTORY` s'active comme `NOTIFICATIONS_ENABLED` : 1, true, yes ou on."""
+    monkeypatch.setenv("MONITORING_DEMO_HISTORY", value)
+
+    assert load_config().demo_history is expected
 
 
 def test_monitoring_config_is_frozen():

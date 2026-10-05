@@ -82,3 +82,5 @@ def _isolate_monitoring_database(
     monkeypatch.setenv("LOGFIRE_ENVIRONMENT", "")
     monkeypatch.setenv("LOGFIRE_SERVICE_NAME", "")
     monkeypatch.setenv("MONITORING_API_TOKEN", "")
+    # Pas d'historique de démonstration au démarrage, même si un `.env` local l'active.
+    monkeypatch.setenv("MONITORING_DEMO_HISTORY", "")

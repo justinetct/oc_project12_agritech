@@ -7,9 +7,9 @@ Ce module expose :
 - l'endpoint `GET /health` qui confirme que l'API répond et renseigne l'état
   du modèle chargé.
 
-La version de l'API est déclarée en dur ci-dessous. Elle doit être maintenue
-alignée avec `[project] version` de `pyproject.toml` lors d'un bump. La
-version du modèle est lue depuis `bundle.metadata`.
+La version de l'API est déclarée dans `agritech.api.version`. Elle doit être
+maintenue alignée avec `[project] version` de `pyproject.toml` lors d'un bump.
+La version du modèle est lue depuis `bundle.metadata`.
 """
 
 from __future__ import annotations
@@ -39,9 +39,11 @@ from agritech.api.middleware.request_logger import RequestLoggerMiddleware
 from agritech.api.routers.monitoring import router as monitoring_router
 from agritech.api.routers.predict import router as predict_router
 from agritech.api.routers.recommend import router as recommend_router
+from agritech.api.version import API_VERSION
 from agritech.config import PATHS
 from agritech.monitoring.config import MonitoringConfig, load_config
 from agritech.monitoring.models import Base as MonitoringBase
+from agritech.monitoring.seed_history import seed_demo_history
 from agritech.monitoring.session import (
     create_monitoring_engine,
     create_session_factory,
@@ -49,8 +51,6 @@ from agritech.monitoring.session import (
 from agritech.observability.logfire_setup import configure_logfire
 from agritech.serving import load_bundle, load_recommend_context
 
-
-API_VERSION = "1.0.0"
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +103,23 @@ def _warn_monitoring_unavailable(step: str, exc: Exception) -> None:
     )
 
 
+def _add_demo_history(environment: str) -> None:
+    """Ajoute l'historique de démonstration si la base de monitoring est vide.
+
+    Appelée seulement avec `MONITORING_DEMO_HISTORY` activé, après une
+    initialisation SQLite réussie et avant la première requête. Jamais
+    bloquante : un échec est signalé par un `warning` (type d'erreur
+    seulement) et l'API démarre normalement.
+    """
+    try:
+        added = seed_demo_history(runtime.monitoring_session_factory, environment)
+    except Exception as exc:  # noqa: BLE001 — historique de démonstration non bloquant
+        logger.warning("monitoring demo history skipped (%s); API continues", type(exc).__name__)
+        return
+    if added:
+        logger.info("monitoring demo history: %d requests added to the empty database", added)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Prépare l'état applicatif avant de servir la première requête.
@@ -112,6 +129,8 @@ async def lifespan(app: FastAPI):
       initialise la base SQLite (engine avec PRAGMAs WAL, table `api_requests`,
       session factory) via `_init_monitoring_database`, et publie les
       métadonnées runtime pour le middleware de persistance.
+    - Avec `MONITORING_DEMO_HISTORY` activé, ajoute l'historique de
+      démonstration si la base est vide (`_add_demo_history`).
     - Publie le token des endpoints `/monitoring/*` ; s'il est absent, un
       `warning` signale au démarrage que ces endpoints seront indisponibles.
     - Configure Logfire, indépendamment de l'état de SQLite.
@@ -136,6 +155,8 @@ async def lifespan(app: FastAPI):
     # n'est publiée qu'après une initialisation SQLite entièrement réussie.
     runtime.monitoring_session_factory = None
     monitoring_engine = _init_monitoring_database(monitoring_config)
+    if monitoring_engine is not None and monitoring_config.demo_history:
+        _add_demo_history(monitoring_config.environment)
     runtime.monitoring_api_version = API_VERSION
     runtime.monitoring_environment = monitoring_config.environment
     runtime.monitoring_api_token = monitoring_config.api_token
