@@ -59,8 +59,19 @@ dev = [
     "markdown (>=3.6)",
     "pytest (>=9.1.1,<10.0.0)",
     "pytest-cov (>=7.1.0,<8.0.0)",
-    "httpx (>=0.28.1,<0.29.0)"
+    "httpx (>=0.28.1,<0.29.0)",
+    "ruff (>=0.15,<0.16)",
 ]
+
+# Lint minimal : les règles par défaut de Ruff (erreurs Pyflakes et pycodestyle E4/E7/E9),
+# sans règle de style. Les notebooks sont des rapports d'analyse exécutés : hors du lint.
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

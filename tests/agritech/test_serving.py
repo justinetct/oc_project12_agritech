@@ -21,9 +21,6 @@ from agritech.recommend_config import RECOMMEND_CROPS
 from agritech.serving import (
     MODEL_RAINFALL_FLOAT32_CEILING,
     PREDICT_PUBLIC_TO_MODEL,
-    RECOMMEND_MODEL_TO_PUBLIC,
-    RECOMMEND_PUBLIC_TO_MODEL,
-    RECOMMEND_PUBLIC_UNITS,
     RECOMMEND_TARGET_YEAR,
     Bundle,
     RecommendContext,

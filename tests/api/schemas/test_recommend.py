@@ -17,7 +17,6 @@ from agritech.api.schemas.recommend import (
     CountryContext,
     CountryEntry,
     Recommendation,
-    RecommendConditions,
     RecommendConditionValues,
     RecommendContextResponse,
     RecommendRequest,

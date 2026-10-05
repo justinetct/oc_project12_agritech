@@ -19,7 +19,7 @@ import pytest
 
 from agritech.monitoring import replay as replay_module
 from agritech.monitoring.config import load_config
-from agritech.monitoring.models import ApiRequest, Base
+from agritech.monitoring.models import Base
 from agritech.monitoring.repository import insert_api_request
 from agritech.monitoring.session import (
     create_monitoring_engine,

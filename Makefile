@@ -1,5 +1,8 @@
-.PHONY: test test-durations api streamlit gradio seed-monitoring health predict recommend \
+.PHONY: lint test test-durations api streamlit gradio seed-monitoring health predict recommend \
         docker-build docker-up docker-down docker-logs docker-demo
+
+lint:
+	poetry run ruff check .
 
 test:
 	poetry run pytest

@@ -142,7 +142,9 @@ def normaliser(config: dict) -> tuple:
     diffèrent que par un `min_samples_split` plus petit donnent exactement la même forêt, et n'en font
     donc qu'une seule ici.
     """
-    entier = lambda valeur: None if valeur is None or pd.isna(valeur) else int(valeur)
+    def entier(valeur):
+        return None if valeur is None or pd.isna(valeur) else int(valeur)
+
     propre = {"max_features": float(config["max_features"]),
               "min_samples_split": max(int(config["min_samples_split"]), 2 * int(config["min_samples_leaf"])),
               "min_samples_leaf": int(config["min_samples_leaf"]),

@@ -206,7 +206,8 @@ fichiers de données générés ne sont pas versionnés et se reconstruisent ave
 ## Tests et qualité
 
 ```bash
-make test
+make lint   # contrôle Ruff (règles par défaut, notebooks exclus)
+make test   # suite complète avec couverture
 ```
 
 La suite complète compte **736 tests**.
