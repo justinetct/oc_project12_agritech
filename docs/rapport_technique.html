@@ -1109,21 +1109,30 @@ make streamlit   # interface Streamlit sur http://localhost:8501
       </thead>
       <tbody>
       <tr>
-      <td>Interface Streamlit</td>
-      <td style="text-align: right;">109</td>
+      <td>Interfaces Streamlit et Gradio (client HTTP compris)</td>
+      <td style="text-align: right;">294</td>
       </tr>
       <tr>
       <td>API, modèles, monitoring et observabilité</td>
-      <td style="text-align: right;">241</td>
+      <td style="text-align: right;">411</td>
+      </tr>
+      <tr>
+      <td>Protocole d'entraînement (historique, découpage temporel)</td>
+      <td style="text-align: right;">13</td>
+      </tr>
+      <tr>
+      <td>Architecture Docker</td>
+      <td style="text-align: right;">18</td>
       </tr>
       <tr>
       <td><strong>Total</strong></td>
-      <td style="text-align: right;"><strong>350</strong></td>
+      <td style="text-align: right;"><strong>736</strong></td>
       </tr>
       </tbody>
       </table></div>
-      <p>Couverture : <strong>96 %</strong> sur <code>agritech.api</code>, <code>agritech.serving</code>, <code>agritech.monitoring</code>,
-      <code>agritech.observability</code> et <code>agritech.ui</code>.</p>
+      <p>Couverture : <strong>97 %</strong> du code applicatif servi (<code>agritech.api</code>, <code>agritech.serving</code>, <code>agritech.monitoring</code>,
+      <code>agritech.observability</code> et <code>agritech.ui</code>). Les modules d'entraînement, utilisés par les notebooks, sont hors de
+      ce périmètre ; leurs invariants critiques (historique sans fuite temporelle, découpage temporel) sont testés à part.</p>
       <h3 id="observabilité-et-conteneurisation">Observabilité et conteneurisation</h3>
       <p>Une couche d'observabilité a été ajoutée autour de l'API pour garder l'historique des appels et faciliter leur
       diagnostic, sans changer les contrats ni bloquer une prédiction en cas de panne. Chaque appel <code>POST /predict</code> ou
@@ -1131,9 +1140,11 @@ make streamlit   # interface Streamlit sur http://localhost:8501
       enfin, un CLI permet de rejouer une requête archivée avec le modèle courant et de comparer les deux réponses. Le
       fonctionnement de cette observabilité est détaillé en <a href="#g-observabilité">annexe G</a>, et le schéma de la table
       SQLite en <a href="#e-schéma-du-monitoring-sqlite">annexe E</a>.</p>
-      <p>L'API a aussi été containerisée avec Docker, pour disposer d'un environnement d'exécution reproductible. L'interface
-      Streamlit reste lancée séparément et appelle cette API. La configuration, les commandes et la conservation des
-      données d'observabilité lors des recréations du conteneur sont décrites en <a href="#h-docker">annexe H</a>.</p>
+      <p>L'application a aussi été containerisée avec Docker, pour disposer d'un environnement d'exécution reproductible.
+      Docker Compose lance FastAPI, Streamlit et Gradio comme trois services séparés : Streamlit et Gradio appellent FastAPI
+      par le réseau Compose, et FastAPI reste seul propriétaire de la base SQLite de monitoring. La configuration, les
+      commandes et la conservation des données d'observabilité lors des recréations des conteneurs sont décrites en
+      <a href="#h-docker">annexe H</a>.</p>
       <h2 id="annexes">Annexes</h2>
       <h3 id="a-limites-et-précautions">A. Limites et précautions</h3>
       <h4 id="a1-predict--limites-des-données">A.1 <code>/predict</code> — limites des données</h4>

@@ -1,6 +1,6 @@
 # Rapport — Agritech Answers
 
-![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Tests : 350](https://img.shields.io/badge/tests-350-2E7D32) ![Couverture : 96 %](https://img.shields.io/badge/coverage-96%25-2E7D32)
+![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Tests : 736](https://img.shields.io/badge/tests-736-2E7D32) ![Couverture : 97 %](https://img.shields.io/badge/coverage-97%25-2E7D32)
 
 *Système de prédiction de rendement et de recommandation de cultures.*
 
@@ -580,12 +580,15 @@ sont écrits au fil du développement (`make test`) :
 
 | Tests | Nombre |
 |---|---:|
-| Interface Streamlit | 109 |
-| API, modèles, monitoring et observabilité | 241 |
-| **Total** | **350** |
+| Interfaces Streamlit et Gradio (client HTTP compris) | 294 |
+| API, modèles, monitoring et observabilité | 411 |
+| Protocole d'entraînement (historique, découpage temporel) | 13 |
+| Architecture Docker | 18 |
+| **Total** | **736** |
 
-Couverture : **96 %** sur `agritech.api`, `agritech.serving`, `agritech.monitoring`,
-`agritech.observability` et `agritech.ui`.
+Couverture : **97 %** du code applicatif servi (`agritech.api`, `agritech.serving`, `agritech.monitoring`,
+`agritech.observability` et `agritech.ui`). Les modules d'entraînement, utilisés par les notebooks, sont hors de
+ce périmètre ; leurs invariants critiques (historique sans fuite temporelle, découpage temporel) sont testés à part.
 
 ### Observabilité et conteneurisation
 
@@ -596,9 +599,11 @@ enfin, un CLI permet de rejouer une requête archivée avec le modèle courant e
 fonctionnement de cette observabilité est détaillé en [annexe G](#g-observabilité), et le schéma de la table
 SQLite en [annexe E](#e-schéma-du-monitoring-sqlite).
 
-L'API a aussi été containerisée avec Docker, pour disposer d'un environnement d'exécution reproductible. L'interface
-Streamlit reste lancée séparément et appelle cette API. La configuration, les commandes et la conservation des
-données d'observabilité lors des recréations du conteneur sont décrites en [annexe H](#h-docker).
+L'application a aussi été containerisée avec Docker, pour disposer d'un environnement d'exécution reproductible.
+Docker Compose lance FastAPI, Streamlit et Gradio comme trois services séparés : Streamlit et Gradio appellent FastAPI
+par le réseau Compose, et FastAPI reste seul propriétaire de la base SQLite de monitoring. La configuration, les
+commandes et la conservation des données d'observabilité lors des recréations des conteneurs sont décrites en
+[annexe H](#h-docker).
 
 ## Annexes
 

@@ -1,6 +1,6 @@
 # Projet 12 : Concevez un système de recommandations pour une agriculture optimisée par les données
 
-![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Tests : 633](https://img.shields.io/badge/tests-633-2E7D32) ![Couverture : 96 %](https://img.shields.io/badge/coverage-96%25-2E7D32)
+![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Tests : 736](https://img.shields.io/badge/tests-736-2E7D32) ![Couverture : 97 %](https://img.shields.io/badge/coverage-97%25-2E7D32)
 
 > Agritech Answers propose deux services d'aide à la décision agricole : estimer le rendement d'une parcelle
 (`/predict`) et classer les cultures les plus adaptées à un pays (`/recommend`). Les modèles sont servis par une
@@ -209,10 +209,11 @@ fichiers de données générés ne sont pas versionnés et se reconstruisent ave
 make test
 ```
 
-La suite complète compte **633 tests**.
+La suite complète compte **736 tests**.
 
-Couverture : **96 %** sur `agritech.api`, `agritech.serving`, `agritech.monitoring`,
-`agritech.observability` et `agritech.ui`.
+Couverture : **97 %** du code applicatif servi (`agritech.api`, `agritech.serving`, `agritech.monitoring`,
+`agritech.observability` et `agritech.ui`). Les modules d'entraînement, utilisés par les notebooks, sont hors de
+ce périmètre ; leurs invariants critiques (historique sans fuite temporelle, découpage temporel) sont testés à part.
 
 ## Docker
 
