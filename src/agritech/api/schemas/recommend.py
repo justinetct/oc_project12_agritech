@@ -27,7 +27,8 @@ from agritech.api.schemas.common import (
 )
 
 
-# Borne physique commune propre aux pesticides : jamais négative, pas de borne haute.
+# Borne physique propre aux pesticides : jamais négative, pas de borne haute.
+# Comme la température et la pluie, la valeur doit être finie (`allow_inf_nan=False`).
 PESTICIDES_PHYSICAL_MIN = 0.0
 
 
@@ -48,8 +49,10 @@ PesticidesTons = Annotated[
     float,
     Field(
         ge=PESTICIDES_PHYSICAL_MIN,
+        allow_inf_nan=False,
         description=(
-            "Tonnage annuel de pesticides, en tonnes. Doit être positif ou nul. "
+            "Tonnage annuel de pesticides, en tonnes. Doit être un nombre fini, "
+            "positif ou nul. "
             "Le service applique `log1p` avant de nourrir la feature interne "
             "`log_pest_hist` du modèle."
         ),

@@ -60,6 +60,28 @@ def test_rainfall_negative_raises_validation_error():
         PredictRequest(**(VALID_PAYLOAD | {"rainfall_mm": -1.0}))
 
 
+@pytest.mark.parametrize("field", ["rainfall_mm", "temperature_celsius"])
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_non_finite_value_raises_finite_number_error(field, value):
+    """`NaN`, `+inf` et `-inf` sont rejetés avec le type `finite_number`.
+
+    Sans `allow_inf_nan=False`, `+inf` passerait la borne `ge=0` de la pluie
+    (pas de borne haute) puis ferait échouer le modèle.
+    """
+    with pytest.raises(ValidationError) as exc_info:
+        PredictRequest(**(VALID_PAYLOAD | {field: value}))
+
+    errors = exc_info.value.errors()
+    assert [(error["loc"], error["type"]) for error in errors] == [((field,), "finite_number")]
+
+
+def test_very_large_finite_rainfall_accepted():
+    """Une pluie finie très grande reste acceptée : pas de borne physique haute."""
+    request = PredictRequest(**(VALID_PAYLOAD | {"rainfall_mm": 1e308}))
+
+    assert request.rainfall_mm == 1e308
+
+
 def test_temperature_at_physical_min_accepted():
     """La borne basse `temperature_celsius = -50` est acceptée (inclusion)."""
     request = PredictRequest(**(VALID_PAYLOAD | {"temperature_celsius": -50.0}))

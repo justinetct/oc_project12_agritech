@@ -14,6 +14,7 @@ from __future__ import annotations
 import math
 from dataclasses import replace
 
+import pytest
 from fastapi.testclient import TestClient
 
 from agritech.api.core import runtime
@@ -116,6 +117,37 @@ def test_post_recommend_iso3_lowercase_returns_422_pydantic():
     detail = body["details"][0]
     assert detail["field"] == "body.iso3"
     assert detail["type"] == "string_pattern_mismatch"
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "average_temperature_celsius",
+        "annual_rainfall_mm",
+        "average_annual_pesticides_tons",
+    ],
+)
+@pytest.mark.parametrize("literal", ["NaN", "Infinity", "-Infinity", "1e400"])
+def test_post_recommend_non_finite_condition_returns_422_finite_number(field, literal):
+    """Condition non finie dans le JSON brut → 422 `finite_number`, jamais 500.
+
+    Comportement propre à la couche HTTP : le décodeur JSON de l'API accepte
+    `NaN`, `Infinity` et `-Infinity`, et lit `1e400` comme l'infini. Le corps
+    est écrit à la main, `json=` de `TestClient` refusant d'encoder ces valeurs.
+    """
+    body = f'{{"iso3": "{VALID_ISO3}", "conditions": {{"{field}": {literal}}}}}'
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/recommend", content=body, headers={"Content-Type": "application/json"}
+        )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error"] == "validation_error"
+    assert [(d["field"], d["type"]) for d in payload["details"]] == [
+        (f"body.conditions.{field}", "finite_number")
+    ]
 
 
 def test_post_recommend_bundle_none_returns_503():

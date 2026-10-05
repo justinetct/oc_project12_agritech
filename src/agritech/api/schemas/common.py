@@ -20,6 +20,8 @@ from pydantic import BaseModel, Field
 # Bornes physiques communes aux deux services. Elles rejettent uniquement des
 # entrées manifestement invalides ; elles n'ont rien à voir avec les domaines
 # d'apprentissage propres à chaque modèle (stockés dans les metadata JSON).
+# Les valeurs non finies (`NaN`, `Infinity`, `-Infinity`, acceptées par le
+# décodeur JSON) sont aussi refusées : `allow_inf_nan=False` → 422 `finite_number`.
 TEMPERATURE_PHYSICAL_MIN = -50.0
 TEMPERATURE_PHYSICAL_MAX = 60.0
 RAINFALL_PHYSICAL_MIN = 0.0
@@ -30,9 +32,10 @@ TemperatureCelsius = Annotated[
     Field(
         ge=TEMPERATURE_PHYSICAL_MIN,
         le=TEMPERATURE_PHYSICAL_MAX,
+        allow_inf_nan=False,
         description=(
             "Température moyenne saisonnière en degrés Celsius. "
-            f"Doit être comprise entre {TEMPERATURE_PHYSICAL_MIN:g} et "
+            f"Doit être un nombre fini compris entre {TEMPERATURE_PHYSICAL_MIN:g} et "
             f"{TEMPERATURE_PHYSICAL_MAX:g} °C (plage physique)."
         ),
         examples=[25.0],
@@ -43,9 +46,10 @@ RainfallMm = Annotated[
     float,
     Field(
         ge=RAINFALL_PHYSICAL_MIN,
+        allow_inf_nan=False,
         description=(
             "Pluie totale sur la période considérée, en millimètres. "
-            "Doit être positive ou nulle."
+            "Doit être un nombre fini, positif ou nul."
         ),
         examples=[500.0],
     ),
@@ -64,7 +68,10 @@ class ValidationErrorDetail(BaseModel):
         examples=["body.rainfall_mm"],
     )
     type: str = Field(
-        description="Code d'erreur Pydantic (`missing`, `bool_type`, `greater_than_equal`, …).",
+        description=(
+            "Code d'erreur Pydantic (`missing`, `bool_type`, `greater_than_equal`, "
+            "`finite_number`, …)."
+        ),
         examples=["greater_than_equal"],
     )
     message: str = Field(

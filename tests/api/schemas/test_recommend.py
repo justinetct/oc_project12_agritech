@@ -263,6 +263,44 @@ def test_conditions_pesticides_zero_accepted():
     assert request.conditions.average_annual_pesticides_tons == 0.0
 
 
+# --- Valeurs non finies ---
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "average_temperature_celsius",
+        "annual_rainfall_mm",
+        "average_annual_pesticides_tons",
+    ],
+)
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_conditions_non_finite_value_raises_finite_number_error(field, value):
+    """`NaN`, `+inf` et `-inf` sont rejetés avec le type `finite_number`.
+
+    Sans `allow_inf_nan=False`, `+inf` passerait la borne `ge=0` de la pluie et
+    des pesticides (pas de borne haute) puis ferait échouer le modèle.
+    """
+    with pytest.raises(ValidationError) as exc_info:
+        RecommendRequest(iso3=VALID_ISO3, conditions={field: value})
+
+    errors = exc_info.value.errors()
+    assert [(error["loc"], error["type"]) for error in errors] == [
+        (("conditions", field), "finite_number")
+    ]
+
+
+def test_conditions_very_large_finite_values_accepted():
+    """Pluie et pesticides finis très grands restent acceptés : pas de borne physique haute."""
+    request = RecommendRequest(
+        iso3=VALID_ISO3,
+        conditions={"annual_rainfall_mm": 1e308, "average_annual_pesticides_tons": 1e308},
+    )
+
+    assert request.conditions.annual_rainfall_mm == 1e308
+    assert request.conditions.average_annual_pesticides_tons == 1e308
+
+
 # --- Hors domaine d'apprentissage mais physiquement valide ---
 
 

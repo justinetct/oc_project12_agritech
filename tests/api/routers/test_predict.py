@@ -7,6 +7,7 @@ première requête, comme en production.
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from agritech.api.main import app
@@ -40,6 +41,34 @@ def test_post_predict_in_domain_returns_200_no_notes():
     assert body["model_version"] == "1.0.0"
     assert body["out_of_training_domain"] is False
     assert body["notes"] == []
+
+
+@pytest.mark.parametrize("field", ["rainfall_mm", "temperature_celsius"])
+@pytest.mark.parametrize("literal", ["NaN", "Infinity", "-Infinity", "1e400"])
+def test_post_predict_non_finite_value_returns_422_finite_number(field, literal):
+    """Valeur non finie dans le JSON brut → 422 `finite_number`, jamais 500.
+
+    Le décodeur JSON de l'API accepte `NaN`, `Infinity` et `-Infinity`, et lit
+    `1e400` comme l'infini : le corps est donc écrit à la main, `json=` de
+    `TestClient` refusant d'encoder ces valeurs.
+    """
+    fields = [
+        f'"{name}": {literal if name == field else value}'
+        for name, value in [("rainfall_mm", "500.0"), ("temperature_celsius", "25.0")]
+    ]
+    body = "{" + ", ".join(fields) + ', "fertilizer_used": true, "irrigation_used": false}'
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/predict", content=body, headers={"Content-Type": "application/json"}
+        )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error"] == "validation_error"
+    assert [(d["field"], d["type"]) for d in payload["details"]] == [
+        (f"body.{field}", "finite_number")
+    ]
 
 
 def test_post_predict_temperature_out_of_domain_returns_one_note():
