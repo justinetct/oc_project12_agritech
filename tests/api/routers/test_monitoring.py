@@ -120,7 +120,7 @@ def test_summary_without_data_returns_valid_empty_summary(client: TestClient):
     assert body["last_request_at"] is None
     assert body["errors_by_type"] == {}
     assert [entry["service"] for entry in body["services"]] == ["predict", "recommend"]
-    assert body["services"][0]["latency_ms"] == {"mean": None, "median": None, "p95": None, "max": None}
+    assert body["services"][0]["latency_ms"] == {"mean": None, "median": None, "max": None}
     assert len(body["requests_per_day"]) == 30
     assert body["requests_per_day"][-1] == {"date": "2026-10-02", "predict": 0, "recommend": 0}
 
@@ -147,14 +147,14 @@ def test_summary_aggregates_real_rows(client: TestClient):
             "total_requests": 3,
             "error_count": 1,
             "success_rate": pytest.approx(2 / 3),
-            "latency_ms": {"mean": 15.0, "median": 15.0, "p95": 19.5, "max": 20},
+            "latency_ms": {"mean": 15.0, "median": 15.0, "max": 20},
         },
         {
             "service": "recommend",
             "total_requests": 1,
             "error_count": 0,
             "success_rate": 1.0,
-            "latency_ms": {"mean": 30.0, "median": 30.0, "p95": 30.0, "max": 30},
+            "latency_ms": {"mean": 30.0, "median": 30.0, "max": 30},
         },
     ]
     assert body["errors_by_type"] == {"validation_error": 1}

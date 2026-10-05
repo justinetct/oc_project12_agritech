@@ -20,7 +20,6 @@ valeurs de `service`) appartient à la couche HTTP.
 
 from __future__ import annotations
 
-import math
 import statistics
 from datetime import datetime, time, timedelta, timezone
 from typing import Any
@@ -100,7 +99,7 @@ def summarize_requests(
         last_request_at : timestamp UTC de la dernière requête, ou `None` ;
         services : une entrée par service de `MONITORED_SERVICES`, avec ses
             compteurs, son taux de succès et ses latences (`mean`, `median`,
-            `p95`, `max`) calculées sur les seules requêtes réussies ;
+            `max`) calculées sur les seules requêtes réussies ;
         errors_by_type : nombre d'erreurs par `error_type` ;
         requests_per_day : une entrée par jour de la période, dans l'ordre
             chronologique, avec le volume de chaque service (0 si aucun appel).
@@ -206,30 +205,11 @@ def _success_rate(total: int, errors: int) -> float | None:
 
 
 def _latency_stats(durations: list[int]) -> dict[str, float | int | None]:
-    """Moyenne, médiane, 95e centile et maximum des durées en ms.
-
-    `None` partout si la liste est vide (aucune requête réussie).
-    """
+    """Moyenne, médiane et maximum des durées en ms ; `None` partout si la liste est vide."""
     if not durations:
-        return {"mean": None, "median": None, "p95": None, "max": None}
+        return {"mean": None, "median": None, "max": None}
     return {
         "mean": float(statistics.mean(durations)),
         "median": float(statistics.median(durations)),
-        "p95": _percentile(durations, 95),
         "max": max(durations),
     }
-
-
-def _percentile(values: list[int], percent: float) -> float:
-    """Centile par interpolation linéaire entre les deux valeurs triées voisines.
-
-    La position du centile dans la liste triée vaut ``(n - 1) × percent / 100`` ;
-    entre deux rangs, on interpole linéairement. C'est la même convention que
-    ``statistics.median`` : le 50e centile redonne exactement la médiane.
-    Avec une seule valeur, le centile est cette valeur.
-    """
-    ordered = sorted(values)
-    position = (len(ordered) - 1) * percent / 100
-    lower = math.floor(position)
-    upper = math.ceil(position)
-    return float(ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower))

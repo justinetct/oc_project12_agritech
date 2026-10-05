@@ -29,16 +29,12 @@ MonitoringService = Literal["predict", "recommend"]
 class LatencySummary(BaseModel):
     """Latences d'un service, en millisecondes, calculées sur les requêtes réussies.
 
-    Les quatre valeurs valent `null` quand le service n'a aucune requête
-    réussie sur la période.
+    Les trois valeurs valent `null` quand le service n'a aucune requête réussie
+    sur la période.
     """
 
     mean: float | None = Field(description="Durée moyenne.", examples=[13.3])
     median: float | None = Field(description="Durée médiane.", examples=[11.0])
-    p95: float | None = Field(
-        description="95e centile : 95 % des requêtes réussies sont plus rapides.",
-        examples=[40.4],
-    )
     max: int | None = Field(description="Durée maximale.", examples=[48])
 
 

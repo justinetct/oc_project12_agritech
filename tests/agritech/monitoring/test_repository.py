@@ -9,7 +9,6 @@ ce qui garantit qu'aucun test ne peut écrire dans la base locale du projet.
 
 from __future__ import annotations
 
-import statistics
 from datetime import date, datetime, timezone
 
 import pytest
@@ -314,7 +313,7 @@ def test_summarize_requests_on_empty_database(session: Session):
             "total_requests": 0,
             "error_count": 0,
             "success_rate": None,
-            "latency_ms": {"mean": None, "median": None, "p95": None, "max": None},
+            "latency_ms": {"mean": None, "median": None, "max": None},
         }
         for name in ("predict", "recommend")
     ]
@@ -369,7 +368,7 @@ def test_summarize_requests_latency_uses_only_successful_requests(session: Sessi
 
     latency = _service(summarize_requests(session, days=3, now=NOW), "predict")["latency_ms"]
 
-    assert latency == {"mean": 30.0, "median": 20.0, "p95": 56.0, "max": 60}
+    assert latency == {"mean": 30.0, "median": 20.0, "max": 60}
 
 
 def test_summarize_requests_latency_is_none_without_success(session: Session):
@@ -383,7 +382,7 @@ def test_summarize_requests_latency_is_none_without_success(session: Session):
 
     assert recommend["total_requests"] == 1
     assert recommend["success_rate"] == 0.0
-    assert recommend["latency_ms"] == {"mean": None, "median": None, "p95": None, "max": None}
+    assert recommend["latency_ms"] == {"mean": None, "median": None, "max": None}
 
 
 def test_summarize_requests_counts_errors_by_type(session: Session):
@@ -514,40 +513,3 @@ def test_summarize_requests_uses_current_utc_time_by_default(
     assert summary["requests_per_day"] == [
         {"date": date(2026, 10, 2), "predict": 1, "recommend": 0},
     ]
-
-
-# ===========================================================================
-# 95e centile des latences
-# ===========================================================================
-
-
-@pytest.mark.parametrize(
-    ("values", "expected"),
-    [
-        (list(range(1, 21)), 19.05),  # position 19 × 0,95 = 18,05 → 19 + 0,05 × (20 − 19)
-        ([10, 20], 19.5),  # position 0,95 → 10 + 0,95 × (20 − 10)
-        ([20, 10, 60], 56.0),  # ordre d'arrivée sans importance
-        ([7], 7.0),  # une seule valeur
-        ([5, 5, 5], 5.0),
-    ],
-)
-def test_percentile_interpolates_between_neighbour_ranks(values: list[int], expected: float):
-    assert repository._percentile(values, 95) == pytest.approx(expected)
-
-
-@pytest.mark.parametrize("values", [[3], [3, 9], [1, 4, 9, 12], [5, 1, 30, 7, 2, 48, 6]])
-def test_percentile_50_is_the_median(values: list[int]):
-    """Même convention que `statistics.median` : le 50e centile redonne la médiane."""
-    assert repository._percentile(values, 50) == pytest.approx(statistics.median(values))
-
-
-def test_summarize_requests_p95_ignores_failed_requests(session: Session):
-    """Une erreur très lente ne pèse pas sur le p95 des requêtes réussies."""
-    for _ in range(3):
-        insert_api_request(session, _full_row(timestamp=_utc(10, 1), duration_ms=5))
-    insert_api_request(session, _error_row(timestamp=_utc(10, 1), duration_ms=999))
-
-    latency = _service(summarize_requests(session, days=3, now=NOW), "predict")["latency_ms"]
-
-    assert latency["p95"] == 5.0
-    assert latency["max"] == 5
