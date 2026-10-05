@@ -1,6 +1,8 @@
 services:
   api:
-    build: .
+    build:
+      context: .
+      target: api
     image: agritech-answers-api:latest
     container_name: agritech-answers-api
     restart: unless-stopped
@@ -12,8 +14,35 @@ services:
       LOGFIRE_ENVIRONMENT: prod
       LOGFIRE_SERVICE_NAME: agritech-answers-api
       LOGFIRE_TOKEN: ${LOGFIRE_TOKEN:-}
+      MONITORING_API_TOKEN: ${MONITORING_API_TOKEN:-}
+    # Seul service qui monte la base de monitoring.
     volumes:
       - agritech_monitoring:/app/data/monitoring
+    # Prêt quand /health répond ; l'interface Gradio attend cet état.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  # Interface de monitoring : lit l'API par le réseau Compose, jamais SQLite
+  # (aucun volume, aucun DATABASE_URL).
+  gradio:
+    build:
+      context: .
+      target: gradio
+    image: agritech-answers-gradio:latest
+    container_name: agritech-answers-gradio
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:7860:7860"
+    environment:
+      AGRITECH_API_URL: http://api:8000
+      MONITORING_API_TOKEN: ${MONITORING_API_TOKEN:-}
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
   agritech_monitoring:
