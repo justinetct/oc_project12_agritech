@@ -35,6 +35,7 @@ from agritech.recommend_config import (
     RECOMMEND_FINAL_TEST_METRICS,
     RECOMMEND_MODEL_VERSION,
 )
+from agritech.serialization import dump_without_tree_state_memo
 from agritech.serving import _REQUIRED_METADATA_KEYS, load_bundle, load_recommend_context
 from agritech.training_data import protocol_params
 from scripts import rebuild_models as rebuild
@@ -339,6 +340,26 @@ def test_main_writes_in_served_dir_by_default(fake_rebuild: list[Path], served_d
     assert rebuild.main([]) == 0
 
     assert {path.name for path in served_dir.iterdir()} == FIVE_FILES
+
+
+def test_main_writes_the_recommend_model_without_tree_state_memo(fake_rebuild, recommend_model, monkeypatch,
+                                                                 tmp_path: Path):
+    """Le modèle `/recommend` passe par `dump_without_tree_state_memo` et se relit avec les mêmes prédictions."""
+    written: list[str] = []
+
+    def spy(model, path: Path) -> None:
+        written.append(path.name)
+        dump_without_tree_state_memo(model, path)
+
+    monkeypatch.setattr(rebuild, "dump_without_tree_state_memo", spy)
+    output_dir = tmp_path / "rebuild"
+
+    assert rebuild.main(["--output-dir", str(output_dir)]) == 0
+
+    assert written == ["recommend_model.joblib"]
+    pipeline, _, X_refit = recommend_model
+    reloaded = load_bundle("recommend", output_dir).pipeline
+    assert np.array_equal(reloaded.predict(X_refit), pipeline.predict(X_refit))
 
 
 def test_main_stops_before_writing_when_served_model_diverges(fake_rebuild, served_dir: Path, tmp_path: Path):

@@ -191,6 +191,11 @@ fichiers produits et s'arrête avant d'écrire si les modèles déjà présents 
 prédictions ; `poetry run python scripts/rebuild_models.py --output-dir /tmp/agritech-models` reconstruit
 ailleurs pour vérifier.
 
+Le modèle `/recommend` est écrit par `dump_without_tree_state_memo` (`src/agritech/serialization.py`) plutôt
+que par `joblib.dump` : même modèle, même compression lzma, et l'API le relit toujours avec `joblib.load`.
+Cette sérialisation évite que l'état des 150 arbres reste conservé temporairement pendant la lecture, ce qui
+réduit fortement le pic mémoire au chargement.
+
 ## Notebooks
 
 Les expériences sont suivies dans MLflow (`oc_p12_agritech_predict` et `oc_p12_agritech_recommend`). Les

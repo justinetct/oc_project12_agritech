@@ -8,7 +8,9 @@ Cinq fichiers sont produits, ceux que charge l'API :
 - `predict_model.joblib` et `predict_model_metadata.json` : régression linéaire sur les 4 variables
   sélectionnées, entraînée sur le train uniquement (même découpage que le notebook 11) ;
 - `recommend_model.joblib`, `recommend_model_metadata.json` et `recommend_context.json` : ExtraTrees
-  réappris sur 1991-2013, et contexte pays du serving (mêmes étapes que le notebook 16).
+  réappris sur 1991-2013, et contexte pays du serving (mêmes étapes que le notebook 16). Le modèle est
+  écrit par `dump_without_tree_state_memo` (voir `agritech.serialization`) : même compression lzma que
+  `joblib.dump`, sans le pic mémoire au chargement par l'API.
 
 Le script ne refait aucun choix : variables, hyperparamètres et protocoles sont ceux des notebooks,
 les valeurs figées sont dans `predict_config.py` et `recommend_config.py`. Il n'y a ni validation
@@ -79,6 +81,7 @@ from agritech.recommend_config import (
     RECOMMEND_VALIDATION_YEARS,
 )
 from agritech.recommend_features import add_historical_conditions, add_recommend_features
+from agritech.serialization import dump_without_tree_state_memo
 from agritech.serving import (
     RECOMMEND_TARGET_YEAR,
     load_bundle,
@@ -448,7 +451,7 @@ def main(argv: list[str] | None = None) -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     joblib.dump(predict_pipeline, output_dir / "predict_model.joblib")
     write_json(output_dir / "predict_model_metadata.json", predict_metadata)
-    joblib.dump(recommend_pipeline, output_dir / "recommend_model.joblib", compress=("lzma", 3))
+    dump_without_tree_state_memo(recommend_pipeline, output_dir / "recommend_model.joblib")
     write_json(output_dir / "recommend_model_metadata.json", recommend_metadata)
     write_json(output_dir / "recommend_context.json", context)
 

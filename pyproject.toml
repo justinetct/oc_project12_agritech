@@ -75,10 +75,10 @@ select = ["E4", "E7", "E9", "F"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=agritech.api --cov=agritech.serving --cov=agritech.monitoring --cov=agritech.observability --cov=agritech.ui --cov-report=term-missing"
+addopts = "--cov=agritech.api --cov=agritech.serving --cov=agritech.serialization --cov=agritech.monitoring --cov=agritech.observability --cov=agritech.ui --cov-report=term-missing"
 
 [tool.coverage.run]
-source = ["agritech.api", "agritech.serving", "agritech.monitoring", "agritech.observability", "agritech.ui"]
+source = ["agritech.api", "agritech.serving", "agritech.serialization", "agritech.monitoring", "agritech.observability", "agritech.ui"]
 branch = true
 
 [tool.coverage.report]
