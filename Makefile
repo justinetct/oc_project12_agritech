@@ -1,5 +1,5 @@
-.PHONY: lint test test-durations api streamlit gradio seed-monitoring rebuild-models health predict recommend \
-        requirements docker-build docker-up docker-down docker-logs docker-demo
+.PHONY: lint test test-durations test-api test-streamlit test-gradio api streamlit gradio seed-monitoring \
+        rebuild-models health predict recommend requirements docker-build docker-up docker-down docker-logs docker-demo
 
 lint:
 	poetry run ruff check .
@@ -9,6 +9,24 @@ test:
 
 test-durations:
 	poetry run pytest --durations=20
+
+# Tests par composant, sans couverture (la couverture globale est mesurée par `make test`).
+# Un nouveau fichier de test absent de ces listes tourne quand même avec `make test`.
+UI_SHARED_TESTS = tests/agritech/ui/test_api_client.py tests/agritech/ui/test_errors.py \
+                  tests/agritech/ui/test_settings.py tests/agritech/ui/test_theme.py
+
+test-api:
+	poetry run pytest --no-cov tests/api tests/agritech/monitoring tests/agritech/observability \
+	    tests/agritech/test_serving.py
+
+test-streamlit:
+	poetry run pytest --no-cov tests/agritech/ui/test_predict_page.py tests/agritech/ui/test_recommend_page.py \
+	    tests/agritech/ui/test_components.py tests/agritech/ui/test_country_labels.py \
+	    tests/agritech/ui/test_icons.py tests/agritech/ui/test_widgets.py $(UI_SHARED_TESTS)
+
+test-gradio:
+	poetry run pytest --no-cov tests/agritech/ui/test_gradio_app.py tests/agritech/ui/test_monitoring_view.py \
+	    $(UI_SHARED_TESTS)
 
 api:
 	poetry run uvicorn agritech.api.main:app --reload

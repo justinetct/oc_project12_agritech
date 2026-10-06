@@ -1,0 +1,120 @@
+# CI d'Agritech Answers : dépendances, lint, tests et images Docker.
+#
+# Lancée à chaque push et pull request vers `staging` et `main`, ou à la main.
+# Ce workflow ne déploie rien et n'utilise aucun secret : si le déploiement
+# automatique est activé, c'est Render qui redéploie un service, une fois tous
+# les checks du commit au vert.
+
+name: CI
+
+on:
+  push:
+    branches: [staging, main]
+  pull_request:
+    branches: [staging, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un nouveau push sur la même branche annule le run en cours : seul le dernier commit compte.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Dépendances, lint et suite complète avec couverture : tout test tourne au moins ici.
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      # Version de Poetry qui a généré poetry.lock, avec le plugin utilisé par `make requirements`.
+      - name: Install Poetry
+        run: |
+          pipx install poetry==2.3.3
+          pipx inject poetry poetry-plugin-export==1.10.0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: poetry
+
+      - name: Check poetry.lock
+        run: poetry check --lock
+
+      - name: Check Docker requirements
+        run: |
+          make requirements
+          git diff --exit-code -- requirements.txt requirements-streamlit.txt requirements-gradio.txt \
+            || { echo "::error::Docker requirements are out of date: run make requirements and commit the files."; exit 1; }
+
+      # Tous les groupes, comme en local : deux modules de test importent MLflow (groupe notebook).
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Lint
+        run: make lint
+
+      - name: Test
+        run: make test
+
+  # Un check par service : ses tests, puis son image Docker démarrée comme sur Render.
+  service:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: API
+            service: api
+            health: /health
+          - name: Streamlit
+            service: streamlit
+            health: /_stcore/health
+          - name: Gradio
+            service: gradio
+            health: /
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Poetry
+        run: pipx install poetry==2.3.3
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: poetry
+
+      # Toutes les dépendances : le conftest racine charge l'API et les modèles pour chaque session de tests.
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Test service
+        run: make test-${{ matrix.service }}
+
+      - name: Build image
+        run: docker build --build-arg SERVICE=${{ matrix.service }} -t agritech-${{ matrix.service }} .
+
+      # Comme sur Render : un conteneur seul, qui écoute sur le port fourni par PORT.
+      - name: Start container
+        run: docker run -d --name app -e PORT=10000 -p 10000:10000 agritech-${{ matrix.service }}
+
+      - name: Wait for health check
+        run: |
+          for attempt in $(seq 1 60); do
+            curl -sf "http://127.0.0.1:10000${{ matrix.health }}" > /dev/null && exit 0
+            sleep 2
+          done
+          echo "::error::No response on ${{ matrix.health }} after 2 minutes."
+          exit 1
+
+      - name: Container logs
+        if: failure()
+        run: docker logs app
