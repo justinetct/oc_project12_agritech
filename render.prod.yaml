@@ -27,6 +27,11 @@ services:
         value: sqlite:////app/data/monitoring/api.sqlite
       - key: MONITORING_DEMO_HISTORY
         value: "true"
+      # Logfire : le token est saisi dans le dashboard Render, jamais écrit ici.
+      - key: LOGFIRE_SERVICE_NAME
+        value: agritech-answers-api
+      - key: LOGFIRE_TOKEN
+        sync: false
       - fromGroup: agritech-monitoring-prod
 
   - type: web
