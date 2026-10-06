@@ -1,5 +1,5 @@
 .PHONY: lint test test-durations api streamlit gradio seed-monitoring rebuild-models health predict recommend \
-        docker-build docker-up docker-down docker-logs docker-demo
+        requirements docker-build docker-up docker-down docker-logs docker-demo
 
 lint:
 	poetry run ruff check .
@@ -46,6 +46,13 @@ recommend:
 # (interpolation Compose). Sans LOGFIRE_TOKEN, l'API tourne sans Logfire.
 
 DOCKER_SERVICES = api streamlit gradio
+
+# Requirements des trois images, exportés depuis poetry.lock (plugin poetry-plugin-export).
+# À relancer après chaque changement de dépendances, avant de reconstruire les images.
+requirements:
+	poetry export --only main,api --without-hashes -f requirements.txt -o requirements.txt
+	poetry export --only streamlit --without-hashes -f requirements.txt -o requirements-streamlit.txt
+	poetry export --only gradio --without-hashes -f requirements.txt -o requirements-gradio.txt
 
 docker-build:
 	docker compose build $(DOCKER_SERVICES)
