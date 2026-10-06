@@ -1,5 +1,6 @@
 # Production d'Agritech Answers : trois web services Docker construits depuis la branche main.
 # Aucun secret dans ce fichier : le token de monitoring est généré par Render.
+# Chaque service est redéployé seulement quand tous les checks GitHub du commit sont verts.
 
 envVarGroups:
   # Token partagé uniquement par l'API et le dashboard de monitoring de la production.
@@ -15,7 +16,7 @@ services:
     plan: free
     region: frankfurt
     branch: main
-    autoDeployTrigger: "off"
+    autoDeployTrigger: "checksPass"
     healthCheckPath: /health
     envVars:
       - key: SERVICE
@@ -34,7 +35,7 @@ services:
     plan: free
     region: frankfurt
     branch: main
-    autoDeployTrigger: "off"
+    autoDeployTrigger: "checksPass"
     healthCheckPath: /_stcore/health
     envVars:
       - key: SERVICE
@@ -51,7 +52,7 @@ services:
     plan: free
     region: frankfurt
     branch: main
-    autoDeployTrigger: "off"
+    autoDeployTrigger: "checksPass"
     healthCheckPath: /
     envVars:
       - key: SERVICE
