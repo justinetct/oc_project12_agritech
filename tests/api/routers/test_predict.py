@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from agritech.api.main import app
+from agritech.predict_config import PREDICT_MODEL_VERSION
 
 
 VALID_PAYLOAD = {
@@ -38,7 +39,7 @@ def test_post_predict_in_domain_returns_200_no_notes():
     }
     assert isinstance(body["yield_tons_per_hectare"], float)
     assert body["unit"] == "t/ha"
-    assert body["model_version"] == "1.0.0"
+    assert body["model_version"] == PREDICT_MODEL_VERSION
     assert body["out_of_training_domain"] is False
     assert body["notes"] == []
 

@@ -6,7 +6,7 @@
 Cinq fichiers sont produits, ceux que charge l'API :
 
 - `predict_model.joblib` et `predict_model_metadata.json` : régression linéaire sur les 4 variables
-  sélectionnées, entraînée sur le train uniquement (même découpage que le notebook 11) ;
+  sélectionnées, celle évaluée par le notebook 11, réapprise sur toutes les lignes du dataset ;
 - `recommend_model.joblib`, `recommend_model_metadata.json` et `recommend_context.json` : ExtraTrees
   réappris sur 1991-2013, et contexte pays du serving (mêmes étapes que le notebook 16). Le modèle est
   écrit par `dump_without_tree_state_memo` (voir `agritech.serialization`) : même compression lzma que
@@ -15,8 +15,9 @@ Cinq fichiers sont produits, ceux que charge l'API :
 Le script ne refait aucun choix : variables, hyperparamètres et protocoles sont ceux des notebooks,
 les valeurs figées sont dans `predict_config.py` et `recommend_config.py`. Il n'y a ni validation
 croisée, ni évaluation sur le test, ni MLflow : les métriques des metadata sont celles de l'évaluation
-finale déjà faite (notebooks 11 et 15), recopiées telles quelles. `created_on` et `versions` décrivent
-la reconstruction elle-même.
+finale déjà faite (notebooks 11 et 15), recopiées telles quelles dans la partie `evaluation`, qui décrit
+le modèle évalué ; la partie `refit` décrit l'apprentissage du modèle servi, qui n'est pas réévalué.
+`created_on` et `versions` décrivent la reconstruction elle-même.
 
 Il n'a pas besoin des fichiers de `models/` pour reconstruire. Contrôles, dans l'ordre :
 
@@ -95,8 +96,9 @@ from agritech.training_data import feature_types, load_dataset, protocol_params,
 
 SERVED_DIR = PATHS.root / "models"
 
-# Effectifs attendus, ceux des notebooks 11 et 16.
-PREDICT_N_TRAIN, PREDICT_N_TEST = 799_815, 199_954
+# Effectifs attendus : évaluation des notebooks 11 et 15, réapprentissages du serving (/predict ici, /recommend
+# dans le notebook 16).
+PREDICT_N_TRAIN, PREDICT_N_TEST, PREDICT_N_REFIT = 799_815, 199_954, 999_769
 RECOMMEND_N_TRAIN, RECOMMEND_N_TEST, RECOMMEND_N_REFIT = 14_941, 695, 15_636
 RECOMMEND_N_COUNTRIES = 115
 
@@ -107,12 +109,12 @@ RECOMMEND_FINAL_NUMERIC = ["year", *RECOMMEND_HISTORICAL_CONDITIONS, *RECOMMEND_
 # Historique enregistré dans le contexte : les 3 années qui précèdent l'année cible du serving.
 HISTORY_YEARS = [RECOMMEND_TARGET_YEAR - lag for lag in (3, 2, 1)]
 
-# Prédictions de référence, obtenues avec les artefacts servis (predict du 18/09/2026, recommend du
+# Prédictions de référence, obtenues avec les artefacts servis (predict 1.1.0 du 06/10/2026, recommend du
 # 28/09/2026) par le code de serving de l'API. Une reconstruction correcte les retrouve.
 TOLERANCE = 1e-6  # t/ha
 REFERENCE_PREDICT = [
-    ({"rainfall_mm": 500.0, "temperature_celsius": 25.0, "fertilizer_used": True, "irrigation_used": False}, 4.501949),
-    ({"rainfall_mm": 900.0, "temperature_celsius": 18.0, "fertilizer_used": False, "irrigation_used": True}, 6.058169),
+    ({"rainfall_mm": 500.0, "temperature_celsius": 25.0, "fertilizer_used": True, "irrigation_used": False}, 4.501372),
+    ({"rainfall_mm": 900.0, "temperature_celsius": 18.0, "fertilizer_used": False, "irrigation_used": True}, 6.059238),
 ]
 REFERENCE_RECOMMEND_ISO3 = "FRA"  # conditions préremplies du pays
 REFERENCE_RECOMMEND = [
@@ -155,29 +157,33 @@ def categorical_values(pipeline, categorical: list[str]) -> dict[str, list]:
 
 
 def build_predict() -> tuple:
-    """Modèle `/predict` : même découpage que le notebook 11, entraînement sur le train uniquement.
+    """Modèle `/predict` : le modèle évalué par le notebook 11, réappris sur toutes les lignes.
 
-    Renvoie le pipeline entraîné, ses metadata et 1 000 lignes fixes du test (une toutes les 200),
-    qui servent à comparer avec le modèle servi. Le test n'est pas évalué.
+    Le découpage du notebook 11 n'apprend rien ici : il décrit l'évaluation dans les metadata et
+    fournit 1 000 lignes fixes du test (une toutes les 200), qui servent à comparer avec le modèle
+    servi. Le pipeline, avec les mêmes variables et les réglages par défaut, est appris sur les
+    `PREDICT_ROWS` lignes. Il n'est pas évalué : les métriques restent celles du modèle évalué.
     """
     df = load_dataset(PREDICT_DATASET, PREDICT_ROWS, PREDICT_FEATURES + [PREDICT_TARGET],
                       non_negative=[PREDICT_TARGET], verbose=False)
-    X_train, X_test, y_train, _ = split(df, PREDICT_FEATURES, PREDICT_TARGET, PREDICT_TEST_SIZE, SEED, verbose=False)
+    X_train, X_test, _, _ = split(df, PREDICT_FEATURES, PREDICT_TARGET, PREDICT_TEST_SIZE, SEED, verbose=False)
     features = PREDICT_SELECTED_FEATURES
     categorical, numeric = feature_types(features, PREDICT_CATEGORICAL, PREDICT_NUMERIC)
 
-    pipeline = build_pipeline(LinearRegression(), categorical, numeric).fit(X_train[features], y_train)
+    pipeline = build_pipeline(LinearRegression(), categorical, numeric).fit(df[features], df[PREDICT_TARGET])
 
     protocol = protocol_params(PREDICT_DATASET, X_train, X_test, PREDICT_TEST_SIZE, SEED,
                                PREDICT_CV_FOLDS, PREDICT_CV_SHUFFLE)
-    return pipeline, predict_metadata(pipeline, categorical, numeric, protocol), X_test[features].iloc[::200]
+    metadata = predict_metadata(pipeline, categorical, numeric, protocol, n_refit=len(df))
+    return pipeline, metadata, X_test[features].iloc[::200]
 
 
-def predict_metadata(pipeline, categorical: list[str], numeric: list[str], protocol: dict) -> dict:
+def predict_metadata(pipeline, categorical: list[str], numeric: list[str], protocol: dict, n_refit: int) -> dict:
     """Metadata de `/predict`, dans l'ordre des clés du fichier servi.
 
-    `protocol` : paramètres du protocole (`training_data.protocol_params`). Les métriques, la version et
-    le domaine d'apprentissage sont les valeurs figées de `predict_config.py`.
+    `refit` décrit l'apprentissage du modèle servi (`n_refit` lignes) ; `evaluation` décrit le modèle
+    évalué par le notebook 11 (`protocol` : `training_data.protocol_params`) et porte ses métriques.
+    Les métriques, la version et le domaine d'apprentissage sont les valeurs figées de `predict_config.py`.
     """
     return {
         "service": "predict",
@@ -191,15 +197,22 @@ def predict_metadata(pipeline, categorical: list[str], numeric: list[str], proto
         "categorical_values": categorical_values(pipeline, categorical),
         "preprocessing": PREPROCESSING_DESCRIPTION,
         "training_dataset": protocol["dataset"],
-        "n_train": protocol["n_train"],
-        "n_test": protocol["n_test"],
-        "test_size": protocol["test_size"],
-        "random_state": protocol["random_state"],
-        "cv_folds": protocol["cv_folds"],
-        "trained_on": "train_only",
-        "final_test_metrics": PREDICT_FINAL_TEST_METRICS,
+        "refit": {
+            "n_samples": n_refit,
+            "trained_on": "all_rows_after_cleaning",
+        },
+        "evaluation": {
+            "n_train": protocol["n_train"],
+            "n_test": protocol["n_test"],
+            "test_size": protocol["test_size"],
+            "random_state": protocol["random_state"],
+            "cv_folds": protocol["cv_folds"],
+            "trained_on": "train_only",
+            "test_metrics": PREDICT_FINAL_TEST_METRICS,
+            "notebook": "notebooks/11_predict_final_evaluation.ipynb",
+        },
         "training_domain": PREDICT_TRAINING_DOMAIN,
-        "notebook": "notebooks/11_predict_final_evaluation.ipynb",
+        "built_by": "scripts/rebuild_models.py",
         "created_on": date.today().isoformat(),
         "versions": installed_versions(),
     }
@@ -207,14 +220,20 @@ def predict_metadata(pipeline, categorical: list[str], numeric: list[str], proto
 
 def check_predict(pipeline, metadata: dict) -> None:
     """Contrôles du modèle `/predict` reconstruit, sans les artefacts servis."""
-    check((metadata["n_train"], metadata["n_test"]) == (PREDICT_N_TRAIN, PREDICT_N_TEST), "découpage /predict")
+    evaluation, refit = metadata["evaluation"], metadata["refit"]
+    check((evaluation["n_train"], evaluation["n_test"]) == (PREDICT_N_TRAIN, PREDICT_N_TEST),
+          "découpage de l'évaluation /predict")
+    check(refit["n_samples"] == PREDICT_N_REFIT == evaluation["n_train"] + evaluation["n_test"],
+          f"lignes du réapprentissage /predict : {refit['n_samples']}")
+    check(evaluation["test_metrics"] == PREDICT_FINAL_TEST_METRICS, "métriques /predict recopiées")
     check(type(pipeline["model"]) is LinearRegression, "type du modèle /predict")
     check(pipeline["model"].get_params() == LinearRegression().get_params(), "hyperparamètres /predict par défaut")
     check(list(pipeline.feature_names_in_) == PREDICT_SELECTED_FEATURES, "variables /predict")
     check(metadata["categorical_values"] == {"Fertilizer_Used": [False, True], "Irrigation_Used": [False, True]},
           "modalités /predict")
     check(set(metadata["training_domain"]) <= set(metadata["numeric_features"]), "domaine /predict")
-    print(f"/predict   : {metadata['n_train']} lignes d'entraînement, variables {metadata['features']}")
+    print(f"/predict   : {refit['n_samples']} lignes réapprises (évaluation : {evaluation['n_train']} + "
+          f"{evaluation['n_test']}), variables {metadata['features']}")
 
 
 # --- /recommend -------------------------------------------------------------------------------------

@@ -10,6 +10,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from agritech.api.main import app
+from agritech.predict_config import PREDICT_MODEL_VERSION
 
 
 def test_health_returns_200_after_startup():
@@ -22,7 +23,7 @@ def test_health_returns_200_after_startup():
     assert body["status"] == "ok"
     assert isinstance(body["api_version"], str) and body["api_version"]
     assert body["model_loaded"] is True
-    assert body["model_version"] == "1.0.0"
+    assert body["model_version"] == PREDICT_MODEL_VERSION
 
 
 def test_openapi_document_lists_health():

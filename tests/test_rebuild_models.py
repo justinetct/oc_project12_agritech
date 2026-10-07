@@ -23,9 +23,12 @@ from sklearn.linear_model import LinearRegression
 from agritech.modeling import experiment_pipeline
 from agritech.predict_config import (
     PREDICT_DATASET,
+    PREDICT_FEATURES,
     PREDICT_FINAL_TEST_METRICS,
     PREDICT_MODEL_VERSION,
     PREDICT_SELECTED_FEATURES,
+    PREDICT_TARGET,
+    PREDICT_TEST_SIZE,
     PREDICT_TRAINING_DOMAIN,
 )
 from agritech.preprocessing import build_pipeline
@@ -37,7 +40,7 @@ from agritech.recommend_config import (
 )
 from agritech.serialization import dump_without_tree_state_memo
 from agritech.serving import _REQUIRED_METADATA_KEYS, load_bundle, load_recommend_context
-from agritech.training_data import protocol_params
+from agritech.training_data import protocol_params, split
 from scripts import rebuild_models as rebuild
 
 FIVE_FILES = {
@@ -76,11 +79,24 @@ def _predict_pipeline(scale: float = 1.0):
                           ["Rainfall_mm", "Temperature_Celsius"]).fit(X, y)
 
 
-def _predict_metadata(pipeline) -> dict:
+def _predict_metadata(pipeline, protocol: dict | None = None, n_refit: int | None = None) -> dict:
+    """Metadata `/predict` ; par défaut, évaluation 9 + 3 lignes et réapprentissage sur les 12."""
     X = _predict_frame()
-    protocol = protocol_params(PREDICT_DATASET, X.iloc[:9], X.iloc[9:], 0.2, 42, 5, True)
+    protocol = protocol or protocol_params(PREDICT_DATASET, X.iloc[:9], X.iloc[9:], 0.2, 42, 5, True)
     return rebuild.predict_metadata(pipeline, ["Fertilizer_Used", "Irrigation_Used"],
-                                    ["Rainfall_mm", "Temperature_Celsius"], protocol)
+                                    ["Rainfall_mm", "Temperature_Celsius"], protocol,
+                                    n_refit=len(X) if n_refit is None else n_refit)
+
+
+def _predict_dataset(rows: int = 40) -> pd.DataFrame:
+    """Toutes les colonnes du dataset `/predict`, avec une cible bruitée : appris sur le train seul ou
+    sur toutes les lignes, le modèle n'est pas le même."""
+    rng = np.random.default_rng(1)
+    df = _predict_frame(rows).assign(Crop="Wheat", Soil_Type="Loam", Region="North", Weather_Condition="Sunny",
+                                     Days_to_Harvest=rng.integers(60, 150, rows))
+    df[PREDICT_TARGET] = (0.005 * df["Rainfall_mm"] + 0.02 * df["Temperature_Celsius"] + 1.5 * df["Fertilizer_Used"]
+                          + 1.2 * df["Irrigation_Used"] + rng.normal(0, 0.5, rows))
+    return df[PREDICT_FEATURES + [PREDICT_TARGET]]
 
 
 def _recommend_frames() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Series]:
@@ -132,7 +148,7 @@ def test_predict_frozen_constants_match_served_metadata():
     served = _served_metadata("predict")
 
     assert served["model_version"] == PREDICT_MODEL_VERSION
-    assert served["final_test_metrics"] == PREDICT_FINAL_TEST_METRICS
+    assert served["evaluation"]["test_metrics"] == PREDICT_FINAL_TEST_METRICS
     assert served["training_domain"] == PREDICT_TRAINING_DOMAIN
     assert served["features"] == PREDICT_SELECTED_FEATURES
 
@@ -183,14 +199,79 @@ def test_recommend_context_keeps_the_three_previous_years_of_each_country(tmp_pa
 
 def test_predict_metadata_has_the_served_structure_and_build_info():
     metadata = _predict_metadata(_predict_pipeline())
+    served = _served_metadata("predict")
 
-    assert list(metadata) == list(_served_metadata("predict"))
+    assert list(metadata) == list(served)
+    assert list(metadata["refit"]) == list(served["refit"])
+    assert list(metadata["evaluation"]) == list(served["evaluation"])
     assert set(_REQUIRED_METADATA_KEYS) <= set(metadata)
     assert metadata["categorical_values"] == {"Fertilizer_Used": [False, True], "Irrigation_Used": [False, True]}
-    assert (metadata["n_train"], metadata["n_test"]) == (9, 3)
-    assert metadata["final_test_metrics"] == PREDICT_FINAL_TEST_METRICS
+    assert metadata["refit"] == {"n_samples": 12, "trained_on": "all_rows_after_cleaning"}
+    assert metadata["built_by"] == "scripts/rebuild_models.py"
     assert metadata["created_on"] == date.today().isoformat()
     assert metadata["versions"]["scikit-learn"] == sklearn.__version__
+
+
+def test_predict_metadata_keeps_the_metrics_with_the_evaluated_model():
+    """Les métriques ne décrivent que le modèle évalué (train seul) : rien ne les rattache au refit."""
+    metadata = _predict_metadata(_predict_pipeline())
+
+    assert metadata["evaluation"] == {
+        "n_train": 9,
+        "n_test": 3,
+        "test_size": 0.2,
+        "random_state": 42,
+        "cv_folds": 5,
+        "trained_on": "train_only",
+        "test_metrics": PREDICT_FINAL_TEST_METRICS,
+        "notebook": "notebooks/11_predict_final_evaluation.ipynb",
+    }
+    assert "final_test_metrics" not in metadata
+    assert set(metadata["refit"]) == {"n_samples", "trained_on"}
+
+
+# --- Réapprentissage /predict ---------------------------------------------------------------------
+
+
+def test_build_predict_refits_the_evaluated_model_on_all_rows(monkeypatch):
+    df = _predict_dataset()
+    monkeypatch.setattr(rebuild, "load_dataset", lambda *args, **kwargs: df)
+
+    pipeline, metadata, sample = rebuild.build_predict()
+
+    features = PREDICT_SELECTED_FEATURES
+    categorical, numeric = ["Fertilizer_Used", "Irrigation_Used"], ["Rainfall_mm", "Temperature_Celsius"]
+    X_train, X_test, y_train, _ = split(df, PREDICT_FEATURES, PREDICT_TARGET, PREDICT_TEST_SIZE, rebuild.SEED,
+                                        verbose=False)
+    on_all_rows = build_pipeline(LinearRegression(), categorical, numeric).fit(df[features], df[PREDICT_TARGET])
+    on_train = build_pipeline(LinearRegression(), categorical, numeric).fit(X_train[features], y_train)
+
+    assert np.allclose(pipeline.predict(df[features]), on_all_rows.predict(df[features]))
+    assert not np.allclose(pipeline.predict(df[features]), on_train.predict(df[features]))
+    assert metadata["refit"] == {"n_samples": 40, "trained_on": "all_rows_after_cleaning"}
+    assert (metadata["evaluation"]["n_train"], metadata["evaluation"]["n_test"]) == (32, 8)
+    assert metadata["evaluation"]["test_metrics"] == PREDICT_FINAL_TEST_METRICS
+    assert sample.index.isin(X_test.index).all()
+
+
+def _real_protocol() -> dict:
+    """Effectifs de l'évaluation du notebook 11, sans le dataset."""
+    return {"dataset": PREDICT_DATASET.name, "n_train": rebuild.PREDICT_N_TRAIN, "n_test": rebuild.PREDICT_N_TEST,
+            "test_size": 0.2, "random_state": 42, "cv_folds": 5, "cv_shuffle": True}
+
+
+def test_check_predict_accepts_the_refit_on_all_rows():
+    pipeline = _predict_pipeline()
+
+    rebuild.check_predict(pipeline, _predict_metadata(pipeline, _real_protocol(), rebuild.PREDICT_N_REFIT))
+
+
+def test_check_predict_rejects_a_model_learned_on_the_train_only():
+    pipeline = _predict_pipeline()
+    metadata = _predict_metadata(pipeline, _real_protocol(), rebuild.PREDICT_N_TRAIN)
+
+    with pytest.raises(RuntimeError, match="réapprentissage /predict"):
+        rebuild.check_predict(pipeline, metadata)
 
 
 def test_recommend_metadata_has_the_served_structure_and_computed_values(recommend_model):

@@ -24,6 +24,7 @@ from agritech.monitoring.models import ApiRequest
 from agritech.monitoring.repository import insert_api_request, summarize_requests
 from agritech.monitoring.session import create_session_factory
 from agritech.monitoring import seed_history as seed
+from agritech.predict_config import PREDICT_MODEL_VERSION
 
 
 END = datetime(2026, 10, 5, 8, 51, 58, tzinfo=timezone.utc)
@@ -160,7 +161,7 @@ def test_recommend_uses_many_real_countries(catalog, rows):
 
 def test_versions_and_environment_match_the_project(catalog, rows):
     assert {r["api_version"] for r in rows} == {API_VERSION}
-    assert {r["model_version"] for r in rows if r["service"] == "predict"} == {"1.0.0"}
+    assert {r["model_version"] for r in rows if r["service"] == "predict"} == {PREDICT_MODEL_VERSION}
     assert {r["model_version"] for r in rows if r["service"] == "recommend"} == {"2.0.0"}
     assert {r["environment"] for r in rows} == {"local"}
     assert {(r["endpoint"], r["method"]) for r in rows} == {("/predict", "POST"), ("/recommend", "POST")}
