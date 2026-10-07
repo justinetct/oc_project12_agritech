@@ -24,7 +24,7 @@ from agritech.recommend_config import RECOMMEND_CROPS
 
 # Clés que le metadata d'un modèle servi par l'API doit obligatoirement porter.
 # `training_domain` alimente le drapeau `out_of_training_domain` de la réponse ;
-# `model_version` alimente `/health` et servira à tracer l'artefact côté client.
+# `model_version` et `created_on` alimentent `/health` (`version`, `refit_on`).
 _REQUIRED_METADATA_KEYS = (
     "service",
     "features",
@@ -48,11 +48,16 @@ PREDICT_PUBLIC_TO_MODEL: dict[str, str] = {
 
 @dataclass(frozen=True, slots=True)
 class Bundle:
-    """Pipeline scikit-learn chargé en mémoire et ses métadonnées JSON."""
+    """Pipeline scikit-learn chargé en mémoire et ses métadonnées JSON.
+
+    `artifact_size_bytes` est la taille du fichier `.joblib` lu par `load_bundle` ;
+    `None` pour un bundle construit à la main.
+    """
 
     name: str
     pipeline: Any
     metadata: dict
+    artifact_size_bytes: int | None = None
 
 
 def load_bundle(name: str, models_dir: Path | None = None) -> Bundle:
@@ -60,7 +65,8 @@ def load_bundle(name: str, models_dir: Path | None = None) -> Bundle:
 
     Lit `models/{name}_model.joblib` (pipeline scikit-learn) et
     `models/{name}_model_metadata.json` (dict), vérifie que les clés
-    obligatoires sont présentes, puis renvoie un `Bundle` immuable.
+    obligatoires sont présentes, puis renvoie un `Bundle` immuable, avec la
+    taille du `.joblib` lu.
 
     Lève une exception explicite plutôt qu'un chargement silencieux :
     fichier absent, JSON invalide ou clé obligatoire manquante.
@@ -79,8 +85,9 @@ def load_bundle(name: str, models_dir: Path | None = None) -> Bundle:
     if missing:
         raise ValueError(f"metadata {metadata_path.name} : clés manquantes {missing}")
 
+    artifact_size_bytes = joblib_path.stat().st_size
     pipeline = joblib.load(joblib_path)
-    return Bundle(name=name, pipeline=pipeline, metadata=metadata)
+    return Bundle(name=name, pipeline=pipeline, metadata=metadata, artifact_size_bytes=artifact_size_bytes)
 
 
 def _public_by_model(public_to_model: dict[str, str]) -> dict[str, str]:

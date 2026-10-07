@@ -78,6 +78,17 @@ def test_load_bundle_predict_reads_versioned_artifacts():
     assert hasattr(bundle.pipeline, "predict")
 
 
+def test_load_bundle_records_the_size_of_the_loaded_joblib(tmp_path: Path):
+    """`artifact_size_bytes` est la taille du `.joblib` réellement lu, dans le dossier donné."""
+    for suffix in ("model.joblib", "model_metadata.json"):
+        shutil.copy(PATHS.root / "models" / f"predict_{suffix}", tmp_path / f"predict_{suffix}")
+
+    bundle = load_bundle("predict", tmp_path)
+
+    assert bundle.artifact_size_bytes == (tmp_path / "predict_model.joblib").stat().st_size > 0
+    assert Bundle(name="predict", pipeline=bundle.pipeline, metadata=bundle.metadata).artifact_size_bytes is None
+
+
 def test_load_bundle_missing_joblib(tmp_path: Path):
     """Fichier `.joblib` absent : `FileNotFoundError` explicite."""
     shutil.copy(MODELS_DIR / "predict_model_metadata.json", tmp_path / "predict_model_metadata.json")

@@ -3,13 +3,14 @@
 Ce module expose :
 
 - une instance `FastAPI` avec titre, description et version ;
-- un `lifespan` qui charge le modèle `/predict` au démarrage ;
+- un `lifespan` qui charge les modèles `/predict` et `/recommend` et le
+  contexte `/recommend` au démarrage ;
 - l'endpoint `GET /health` qui confirme que l'API répond et renseigne l'état
-  du modèle chargé.
+  des deux modèles chargés.
 
 La version de l'API est déclarée dans `agritech.api.version`. Elle doit être
 maintenue alignée avec `[project] version` de `pyproject.toml` lors d'un bump.
-La version du modèle est lue depuis `bundle.metadata`.
+Les versions des modèles sont lues dans les metadata de leurs bundles.
 """
 
 from __future__ import annotations
@@ -39,6 +40,7 @@ from agritech.api.middleware.request_logger import RequestLoggerMiddleware
 from agritech.api.routers.monitoring import router as monitoring_router
 from agritech.api.routers.predict import router as predict_router
 from agritech.api.routers.recommend import router as recommend_router
+from agritech.api.schemas.health import HealthResponse, ModelsStatus, ModelStatus
 from agritech.api.version import API_VERSION
 from agritech.config import PATHS
 from agritech.monitoring.config import MonitoringConfig, load_config
@@ -49,7 +51,7 @@ from agritech.monitoring.session import (
     create_session_factory,
 )
 from agritech.observability.logfire_setup import configure_logfire
-from agritech.serving import load_bundle, load_recommend_context
+from agritech.serving import Bundle, load_bundle, load_recommend_context
 
 
 logger = logging.getLogger(__name__)
@@ -215,17 +217,34 @@ app.add_exception_handler(Exception, unhandled_exception_handler)
 app.add_middleware(RequestLoggerMiddleware)
 
 
-@app.get("/health")
-def health() -> dict:
-    """État de l'API : version de l'API et état du modèle chargé.
+def _model_status(bundle: Bundle | None) -> ModelStatus:
+    """État d'un modèle d'après son bundle ; champs vides s'il n'est pas chargé."""
+    if bundle is None:
+        return ModelStatus(loaded=False, version=None, refit_on=None, artifact_size_bytes=None)
+    return ModelStatus(
+        loaded=True,
+        version=bundle.metadata["model_version"],
+        refit_on=bundle.metadata["created_on"],
+        artifact_size_bytes=bundle.artifact_size_bytes,
+    )
 
-    Après le lifespan, `model_loaded` vaut `True` et `model_version` reprend
-    la clé `model_version` du metadata du bundle chargé.
+
+@app.get("/health", response_model=HealthResponse)
+def health() -> HealthResponse:
+    """État de l'API et des deux modèles servis.
+
+    Le lifespan charge les deux bundles et le contexte `/recommend`, et l'API
+    ne démarre pas si l'un d'eux manque : une fois démarrée, tout est chargé.
+    `version` et `refit_on` viennent des metadata de chaque bundle,
+    `artifact_size_bytes` du fichier `.joblib` lu au démarrage.
     """
-    bundle = runtime.bundle_predict
-    return {
-        "status": "ok",
-        "api_version": API_VERSION,
-        "model_loaded": bundle is not None,
-        "model_version": bundle.metadata["model_version"] if bundle is not None else None,
-    }
+    return HealthResponse(
+        status="ok",
+        api_version=API_VERSION,
+        environment=runtime.monitoring_environment,
+        models=ModelsStatus(
+            predict=_model_status(runtime.bundle_predict),
+            recommend=_model_status(runtime.bundle_recommend),
+        ),
+        recommend_context_loaded=runtime.recommend_context is not None,
+    )
