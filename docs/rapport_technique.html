@@ -1776,10 +1776,10 @@
       jamais persisté en SQLite. Les 4xx ressortent en warning, les 5xx en error. La corrélation avec
       SQLite passe par un <code>trace_id</code> commun. En préproduction et en production, le token Logfire est saisi
       dans Render et les traces sont séparées par environnement (<code>staging</code>, <code>prod</code>).</p>
-      <figure><img width="4944" height="2310" alt="Capture Logfire de la timeline des appels API et du détail d'un POST /predict (environnement local, capture antérieure au refit /predict 1.1.0)" src="assets/figures/16_observability_logfire.png" /><figcaption>Capture Logfire de la timeline des appels API et du détail d'un POST /predict (environnement local, capture antérieure au refit /predict 1.1.0)</figcaption></figure>
-      <p><em>La timeline Logfire permet de distinguer immédiatement les appels réussis (200) des erreurs de
-      validation (422). Le panneau de détail donne accès à la requête, à la réponse et au statut de
-      l'appel.</em></p>
+      <figure><img width="4684" height="2074" alt="Capture Logfire de la préproduction : appels POST /predict et POST /recommend, dont un 422 en orange, et détail d'un GET /health qui expose /predict 1.1.0 et /recommend 2.0.0" src="assets/figures/16_observability_logfire.png" /><figcaption>Capture Logfire de la préproduction : appels POST /predict et POST /recommend, dont un 422 en orange, et détail d'un GET /health qui expose /predict 1.1.0 et /recommend 2.0.0</figcaption></figure>
+      <p><em>La timeline Logfire distingue immédiatement les appels réussis (200) de l'erreur de validation (422).
+      Le panneau de détail montre la réponse de <code>GET /health</code> : environnement et versions de l'API et des deux
+      modèles servis.</em></p>
       <h3 id="h-docker">H. Docker</h3>
       <p>L'API, l'interface Streamlit et le dashboard Gradio sont packagés dans des images Docker pour les rendre
       portables et reproductibles. Chaque image ne contient que le nécessaire au runtime ; seule celle de l'API embarque

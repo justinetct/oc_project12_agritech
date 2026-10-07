@@ -874,11 +874,11 @@ jamais persisté en SQLite. Les 4xx ressortent en warning, les 5xx en error. La 
 SQLite passe par un `trace_id` commun. En préproduction et en production, le token Logfire est saisi
 dans Render et les traces sont séparées par environnement (`staging`, `prod`).
 
-![Capture Logfire de la timeline des appels API et du détail d'un POST /predict (environnement local, capture antérieure au refit /predict 1.1.0)](assets/figures/16_observability_logfire.png)
+![Capture Logfire de la préproduction : appels POST /predict et POST /recommend, dont un 422 en orange, et détail d'un GET /health qui expose /predict 1.1.0 et /recommend 2.0.0](assets/figures/16_observability_logfire.png)
 
-_La timeline Logfire permet de distinguer immédiatement les appels réussis (200) des erreurs de
-validation (422). Le panneau de détail donne accès à la requête, à la réponse et au statut de
-l'appel._
+_La timeline Logfire distingue immédiatement les appels réussis (200) de l'erreur de validation (422).
+Le panneau de détail montre la réponse de `GET /health` : environnement et versions de l'API et des deux
+modèles servis._
 
 ### H. Docker
 
