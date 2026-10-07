@@ -2,7 +2,7 @@
   "service": "predict",
   "model_type": "LinearRegression",
   "artifact": "predict_model.joblib",
-  "model_version": "1.0.0",
+  "model_version": "1.1.0",
   "target": "Yield_tons_per_hectare",
   "features": [
     "Rainfall_mm",
@@ -30,16 +30,23 @@
   },
   "preprocessing": "OneHotEncoder(handle_unknown='ignore') on categorical, passthrough on numeric",
   "training_dataset": "predict_training_dataset.csv",
-  "n_train": 799815,
-  "n_test": 199954,
-  "test_size": 0.2,
-  "random_state": 42,
-  "cv_folds": 5,
-  "trained_on": "train_only",
-  "final_test_metrics": {
-    "rmse": 0.4992678452943281,
-    "mae": 0.39833799309037676,
-    "r2": 0.913234820907552
+  "refit": {
+    "n_samples": 999769,
+    "trained_on": "all_rows_after_cleaning"
+  },
+  "evaluation": {
+    "n_train": 799815,
+    "n_test": 199954,
+    "test_size": 0.2,
+    "random_state": 42,
+    "cv_folds": 5,
+    "trained_on": "train_only",
+    "test_metrics": {
+      "rmse": 0.4992678452943281,
+      "mae": 0.39833799309037676,
+      "r2": 0.913234820907552
+    },
+    "notebook": "notebooks/11_predict_final_evaluation.ipynb"
   },
   "training_domain": {
     "Rainfall_mm": {
@@ -53,8 +60,8 @@
       "unit": "°C"
     }
   },
-  "notebook": "notebooks/11_predict_final_evaluation.ipynb",
-  "created_on": "2026-09-18",
+  "built_by": "scripts/rebuild_models.py",
+  "created_on": "2026-10-06",
   "versions": {
     "python": "3.12.13",
     "scikit-learn": "1.9.0",
