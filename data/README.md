@@ -1,7 +1,7 @@
 # Données
 
 Les fichiers de données ne sont **pas versionnés** dans Git (≈ 96 Mo, dont un CSV
-de 89 Mo). Ils sont fournis dans le cadre du Projet 12 OpenClassrooms et doivent
+de 89 Mo). Ils sont fournis dans le cadre du projet et doivent
 être placés localement dans ce dossier.
 
 ## Arborescence attendue
@@ -27,7 +27,7 @@ data/
 
 ## Provenance
 
-Les deux jeux de données sont fournis dans le cadre du Projet 12 OpenClassrooms.
+Les deux jeux de données sont fournis dans le cadre du projet.
 Ils ne sont pas redistribués dans ce repository.
 
 - `agriculture-crop-yield` — observations au niveau parcelle

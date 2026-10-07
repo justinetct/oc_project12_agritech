@@ -48,7 +48,7 @@ class PredictResponse(BaseModel):
     )
     model_version: str = Field(
         description="Version du modèle qui a produit la prédiction (voir `/health`).",
-        examples=["1.0.0"],
+        examples=["1.1.0"],
     )
     out_of_training_domain: bool = Field(
         description=(

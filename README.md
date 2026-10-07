@@ -94,7 +94,7 @@ dans [`data/README.md`](data/README.md).
 |---|---|
 | **Découpage** | 80 % entraînement (799 815) · 20 % test (199 954) |
 | **Validation** | Validation croisée à 5 folds sur l'entraînement |
-| **Référence** | Prédiction de la moyenne : RMSE 1,70 t/ha |
+| **Référence** | Prédiction de la moyenne : RMSE 1,70 t/ha en validation croisée |
 | **Modèle retenu** | `LinearRegression` |
 | **Variables** | Pluie · température · fertilisation · irrigation |
 | **Test final** | **RMSE 0,4993 · MAE 0,3983 · R² 0,9132** |
@@ -112,7 +112,7 @@ Après l’évaluation, le même pipeline est réentraîné sur les 999 769 lign
 |---|---|
 | **Découpage** | Validation temporelle 2008-2012 · test final 2013 (695 lignes) |
 | **Validation** | Chaque année est prédite à partir des années précédentes uniquement |
-| **Référence** | `DummyRegressor` : RMSE 8,50 t/ha |
+| **Référence** | `DummyRegressor` : RMSE 8,50 t/ha en validation 2008-2012 |
 | **Modèle retenu** | `ExtraTreesRegressor` · 150 arbres |
 | **Variables** | Culture · année · historiques température/pesticides · pluie · géographie |
 | **Test final** | **RMSE 1,6584 · MAE 0,7615 · R² 0,9638** |
@@ -121,7 +121,8 @@ Les variables utilisées sont `crop`, `year`, les historiques sur 3 ans de temp�
 la pluie fixe du pays et sa position géographique (`lat_abs`, `geo_x`, `geo_y`, `geo_z`). Le code pays `iso3`
 n'est pas utilisé comme variable.
 
-La modélisation améliore progressivement la RMSE de validation :
+La modélisation améliore progressivement la RMSE de validation 2008-2012, mesurée sur les mêmes lignes de validation
+(le test final 2013 est à part) :
 
 | Modèle | RMSE (t/ha) |
 |---|---:|
@@ -132,7 +133,7 @@ La modélisation améliore progressivement la RMSE de validation :
 
 
 
-La validation temporelle du modèle final atteint **RMSE 1,4349 t/ha, MAE 0,7114 t/ha et R² 0,9710**
+La validation temporelle du modèle final atteint **RMSE 1,4349 t/ha, MAE 0,7114 t/ha et R² 0,971**
 sur 2008-2012.
 
 #### Modèle servi
@@ -207,7 +208,9 @@ d'écrire, le script compare le résultat aux fichiers déjà présents dans `mo
 test `/predict` et sur les 15 636 lignes `/recommend`, métadonnées, contexte) et s'arrête s'ils diffèrent. Après
 l'écriture, il recharge les 5 fichiers avec le code de serving et vérifie des prédictions de référence et le
 classement de la France ; `poetry run python scripts/rebuild_models.py --output-dir /tmp/agritech-models`
-reconstruit ailleurs pour vérifier.
+reconstruit ailleurs pour vérifier. Les notebooks 11 et 15 écrivent leur modèle évalué dans `models/` : après leur
+réexécution, `git restore models/` remet les artefacts servis ; sinon, supprimer les fichiers réécrits puis lancer
+`make rebuild-models`.
 
 Le modèle `/recommend` est sérialisé par `dump_without_tree_state_memo` (`src/agritech/serialization.py`) : même
 fichier lzma, relu par `joblib.load`, avec un pic mémoire plus faible au chargement, pour tenir dans les 512 Mo de
@@ -272,7 +275,7 @@ flowchart LR
 
 L'API expose les services `/predict` et `/recommend`, leurs contextes associés, ainsi que des endpoints de monitoring protégés par token.
 
-Le monitoring combine **SQLite** pour l'historique des requêtes, **Gradio** pour la visualisation des indicateurs et **Logfire** pour l'observabilité de l'API. En préproduction et en production, les environnements et leurs données d'observabilité sont séparés.
+Le monitoring combine **SQLite** pour l'historique des appels `POST /predict` et `POST /recommend`, **Gradio** pour la visualisation des indicateurs et **Logfire** pour l'observabilité de l'API (ces deux appels et `GET /health`). Le dashboard Gradio déployé est public ; seuls les endpoints `/monitoring/*` de l'API demandent un token. En préproduction et en production, les environnements et leurs données d'observabilité sont séparés.
 
 ## Tests et qualité
 
@@ -316,11 +319,11 @@ flowchart LR
     PRE -.->|"PR / Merge"| MAIN
 ```
 
-Chaque push sur `staging` ou `main` déclenche la CI : qualité, tests, construction des images Docker et healthchecks. **Render ne déploie qu'après validation des quatre checks.**
+La CI se lance à chaque push ou pull request vers `staging` ou `main`, ou à la main (`workflow_dispatch`) : qualité, tests, construction des images Docker et healthchecks. GitHub Actions ne déploie rien : **Render attend que tous les checks du commit soient verts**, puis reconstruit ses propres images et redéploie l'environnement de la branche.
 
 `staging` alimente la **préproduction** et `main` la **production**. Le passage de `staging` à `main` reste manuel.
 
-Les deux environnements disposent de leur propre configuration et de leurs propres secrets, stockés dans Render et jamais versionnés dans Git.
+Les deux environnements disposent de leur propre configuration et de leurs propres secrets, générés ou saisis dans Render et jamais versionnés dans Git.
 
 ## Structure du dépôt
 
