@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 330" width="768" height="330" role="img" aria-label="Architecture de l'application : l'interface Streamlit appelle l'API FastAPI en HTTP ; l'API charge les bundles Predict et Recommend du dossier models ; chaque appel est archivé dans SQLite, tracé dans Logfire si un token est défini, et peut être rejoué en ligne de commande.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 356" width="768" height="356" role="img" aria-label="Architecture de l'application : l'interface Streamlit et le dashboard Gradio appellent l'API FastAPI en HTTP, Gradio par les endpoints de monitoring ; l'API charge les modèles Predict et Recommend du dossier models ; chaque appel est archivé dans SQLite et tracé dans Logfire si un token est défini.">
   <!-- Schéma écrit directement en SVG, même style que 06_pipelines.svg. -->
   <title>Architecture de l'application</title>
   <defs>
@@ -17,7 +17,7 @@
     </style>
   </defs>
 
-  <rect width="768" height="330" fill="#f7f4ec"/>
+  <rect width="768" height="356" fill="#f7f4ec"/>
 
   <!-- Interface -->
   <rect x="20" y="30" width="210" height="150" rx="14" fill="#ffffff" stroke="#e4dccb"/>
@@ -37,7 +37,7 @@
 
   <!-- Modèles -->
   <rect x="538" y="30" width="210" height="150" rx="14" fill="#ffffff" stroke="#e4dccb"/>
-  <text class="gran" x="643" y="56" text-anchor="middle">BUNDLES</text>
+  <text class="gran" x="643" y="56" text-anchor="middle">MODÈLES</text>
   <text class="titre" x="643" y="80" text-anchor="middle">Predict · Recommend</text>
   <text class="ligne" x="643" y="108" text-anchor="middle">pipelines, métadonnées,</text>
   <text class="ligne" x="643" y="127" text-anchor="middle">contexte des pays</text>
@@ -49,10 +49,20 @@
   <line class="fl" x1="491" y1="92" x2="536" y2="92"/>
   <text class="flux" x="513" y="84" text-anchor="middle">charge</text>
 
+  <!-- Dashboard de monitoring -->
+  <rect x="20" y="214" width="210" height="122" rx="14" fill="#ffffff" stroke="#e4dccb"/>
+  <text class="gran" x="125" y="240" text-anchor="middle">MONITORING</text>
+  <text class="titre" x="125" y="264" text-anchor="middle">Gradio</text>
+  <text class="ligne" x="125" y="290" text-anchor="middle">volumes, erreurs, latences</text>
+  <text class="code" x="125" y="318" text-anchor="middle">gradio_app/</text>
+  <path class="fl" d="M 232 275 H 322 V 183"/>
+  <text class="flux" x="277" y="267" text-anchor="middle">HTTP</text>
+  <text class="code" x="277" y="293" text-anchor="middle" style="font-size: 10.5px">/monitoring/*</text>
+
   <!-- Observabilité -->
-  <line class="fld" x1="384" y1="182" x2="384" y2="226"/>
-  <rect x="160" y="228" width="448" height="80" rx="14" fill="#fdfcf7" stroke="#e4dccb"/>
-  <text class="gran" x="384" y="252" text-anchor="middle">OBSERVABILITÉ</text>
-  <text class="ligne" x="384" y="276" text-anchor="middle">SQLite api_requests · Logfire (facultatif) · CLI de rejeu</text>
-  <text class="code" x="384" y="295" text-anchor="middle">src/agritech/monitoring/, src/agritech/observability/</text>
+  <line class="fld" x1="430" y1="182" x2="430" y2="212"/>
+  <rect x="360" y="214" width="388" height="122" rx="14" fill="#fdfcf7" stroke="#e4dccb"/>
+  <text class="gran" x="554" y="242" text-anchor="middle">OBSERVABILITÉ</text>
+  <text class="ligne" x="554" y="278" text-anchor="middle">SQLite api_requests · Logfire (facultatif)</text>
+  <text class="code" x="554" y="318" text-anchor="middle">src/agritech/monitoring/, src/agritech/observability/</text>
 </svg>
