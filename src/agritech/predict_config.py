@@ -39,12 +39,14 @@ PREDICT_TEST_SIZE = 0.2
 PREDICT_CV_FOLDS = 5
 PREDICT_CV_SHUFFLE = True
 
-# Modèle servi par l'API, reconstruit par `scripts/rebuild_models.py`. Valeurs figées : elles ne sont
-# pas recalculées à la reconstruction.
-PREDICT_MODEL_VERSION = "1.0.0"
+# Modèle servi par l'API : le modèle évalué, réappris sur les `PREDICT_ROWS` lignes par
+# `scripts/rebuild_models.py`. Valeurs figées : elles ne sont pas recalculées à la reconstruction.
+# 1.0.0 : modèle évalué, appris sur le train seul ; 1.1.0 : même modèle réappris sur toutes les lignes.
+PREDICT_MODEL_VERSION = "1.1.0"
 
 # Évaluation finale sur le test réservé (notebook 11), une seule fois : la mesure de généralisation du
-# modèle servi.
+# modèle évalué, appris sur le train seul. Le modèle servi, réappris ensuite sur toutes les lignes, n'a
+# pas de nouvelle évaluation.
 PREDICT_FINAL_TEST_METRICS = {
     "rmse": 0.4992678452943281,
     "mae": 0.39833799309037676,

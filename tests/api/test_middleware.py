@@ -25,6 +25,7 @@ from agritech.api.core import runtime
 from agritech.api.main import app
 from agritech.api.middleware import request_logger
 from agritech.monitoring.models import ApiRequest
+from agritech.predict_config import PREDICT_MODEL_VERSION
 
 
 VALID_PREDICT_PAYLOAD = {
@@ -65,7 +66,7 @@ def test_post_predict_success_persists_full_row():
     assert row.success is True
     assert row.duration_ms > 0
     assert row.api_version == "1.0.0"
-    assert row.model_version == "1.0.0"
+    assert row.model_version == PREDICT_MODEL_VERSION
     assert row.environment == "test"
     assert row.request_payload == VALID_PREDICT_PAYLOAD
     assert isinstance(row.response_payload, dict)
@@ -120,7 +121,7 @@ def test_post_predict_422_pydantic_is_persisted():
     assert row.request_payload == payload  # payload conservé (JSON exploitable)
     assert row.response_payload["error"] == "validation_error"
     # Même en 422, on archive la version du bundle déployé.
-    assert row.model_version == "1.0.0"
+    assert row.model_version == PREDICT_MODEL_VERSION
 
 
 def test_post_recommend_422_unknown_country_is_persisted():

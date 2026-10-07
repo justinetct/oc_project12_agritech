@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 560" width="768" height="560" role="img" aria-label="Chaîne de déploiement : un push sur staging ou main déclenche GitHub Actions et ses quatre checks (Quality, API, Streamlit, Gradio) ; quand tous les checks du commit sont verts, Render redéploie l'environnement de la branche. La préproduction suit staging, la production suit main. Chaque environnement a sa propre API FastAPI, appelée par son interface Streamlit et son dashboard Gradio, ses modèles, sa base SQLite de monitoring, sa configuration et ses secrets. Les deux API envoient leurs traces à Logfire, séparées par environnement.">
+  <!-- Schéma écrit directement en SVG, même style que 06_pipelines.svg et 17_architecture.svg. -->
+  <title>Chaîne de déploiement et environnements</title>
+  <defs>
+    <marker id="fleche" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#5aa47c"/>
+    </marker>
+    <style>
+      text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+      .titre  { font-size: 15px; font-weight: 800; fill: #14452f; }
+      .gran   { font-size: 10.5px; font-weight: 800; letter-spacing: 1.2px; fill: #2c7a53; }
+      .ligne  { font-size: 12px; fill: #3a4a43; }
+      .petit  { font-size: 10.5px; fill: #63706a; }
+      .boite  { font-size: 13px; font-weight: 700; fill: #14452f; }
+      .chip   { font-size: 11.5px; font-weight: 700; fill: #14452f; }
+      .code   { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; font-weight: 600; fill: #14452f; }
+      .flux   { font-size: 11px; font-weight: 600; fill: #2c7a53; }
+      .bandeau  { font-size: 11px; font-weight: 800; letter-spacing: 1.2px; fill: #14452f; }
+      .bandeauc { font-size: 11px; font-weight: 800; letter-spacing: 1.2px; fill: #ffffff; }
+      .note   { font-size: 11.5px; font-style: italic; fill: #63706a; }
+      .fl     { stroke: #5aa47c; stroke-width: 2; marker-end: url(#fleche); fill: none; }
+      .tr     { stroke: #5aa47c; stroke-width: 2; fill: none; }
+      .fld    { stroke: #5aa47c; stroke-width: 1.6; stroke-dasharray: 5 4; marker-end: url(#fleche); fill: none; }
+    </style>
+  </defs>
+
+  <rect width="768" height="560" fill="#f7f4ec"/>
+
+  <!-- ─────────── Chaîne : Git → GitHub Actions → Render ─────────── -->
+  <rect x="20" y="24" width="150" height="104" rx="14" fill="#ffffff" stroke="#e4dccb"/>
+  <text class="gran" x="95" y="46" text-anchor="middle">DÉPÔT</text>
+  <text class="titre" x="95" y="69" text-anchor="middle">GitHub</text>
+  <rect x="33" y="84" width="62" height="24" rx="12" fill="#ffffff" stroke="#d9cfbd" stroke-width="1.5"/>
+  <text class="code" x="64" y="100" text-anchor="middle">staging</text>
+  <rect x="101" y="84" width="56" height="24" rx="12" fill="#ffffff" stroke="#d9cfbd" stroke-width="1.5"/>
+  <text class="code" x="129" y="100" text-anchor="middle">main</text>
+
+  <line class="fl" x1="172" y1="76" x2="211" y2="76"/>
+  <text class="flux" x="191" y="68" text-anchor="middle">push</text>
+
+  <rect x="213" y="24" width="272" height="104" rx="14" fill="#ffffff" stroke="#e4dccb"/>
+  <text class="gran" x="349" y="46" text-anchor="middle">INTÉGRATION CONTINUE</text>
+  <text class="titre" x="349" y="69" text-anchor="middle">GitHub Actions</text>
+  <rect x="223" y="84" width="64" height="24" rx="12" fill="#e8f2ea" stroke="#5aa47c"/>
+  <text class="chip" x="255" y="100" text-anchor="middle">Quality</text>
+  <rect x="292" y="84" width="42" height="24" rx="12" fill="#e8f2ea" stroke="#5aa47c"/>
+  <text class="chip" x="313" y="100" text-anchor="middle">API</text>
+  <rect x="339" y="84" width="72" height="24" rx="12" fill="#e8f2ea" stroke="#5aa47c"/>
+  <text class="chip" x="375" y="100" text-anchor="middle">Streamlit</text>
+  <rect x="416" y="84" width="58" height="24" rx="12" fill="#e8f2ea" stroke="#5aa47c"/>
+  <text class="chip" x="445" y="100" text-anchor="middle">Gradio</text>
+
+  <line class="fl" x1="487" y1="76" x2="554" y2="76"/>
+  <text class="flux" x="520" y="66" text-anchor="middle">checks</text>
+  <text class="flux" x="520" y="94" text-anchor="middle">verts</text>
+
+  <rect x="556" y="24" width="192" height="104" rx="14" fill="#e8f2ea" stroke="#5aa47c" stroke-width="1.5"/>
+  <text class="gran" x="652" y="46" text-anchor="middle">DÉPLOIEMENT</text>
+  <text class="titre" x="652" y="69" text-anchor="middle">Render</text>
+  <text class="ligne" x="652" y="92" text-anchor="middle">« After CI Checks Pass »</text>
+  <text class="petit" x="652" y="110" text-anchor="middle">redéploiement automatique</text>
+
+  <!-- Render vers les deux environnements -->
+  <line class="tr" x1="652" y1="128" x2="652" y2="148"/>
+  <line class="tr" x1="197" y1="148" x2="652" y2="148"/>
+  <line class="fl" x1="197" y1="148" x2="197" y2="170"/>
+  <line class="fl" x1="571" y1="148" x2="571" y2="170"/>
+  <text class="code" x="205" y="164">staging</text>
+  <text class="code" x="579" y="164">main</text>
+
+  <!-- ─────────── Préproduction ─────────── -->
+  <rect x="20" y="172" width="354" height="246" rx="14" fill="#fdfcf7" stroke="#e4dccb"/>
+  <rect x="30" y="182" width="334" height="30" rx="8" fill="#e9f3ed" stroke="#5aa47c"/>
+  <text class="bandeau" x="197" y="201" text-anchor="middle">PRÉPRODUCTION · BRANCHE STAGING</text>
+
+  <rect x="34" y="230" width="104" height="44" rx="10" fill="#ffffff" stroke="#e4dccb"/>
+  <text class="boite" x="86" y="249" text-anchor="middle">Streamlit</text>
+  <text class="petit" x="86" y="265" text-anchor="middle">interface métier</text>
+  <rect x="34" y="290" width="104" height="44" rx="10" fill="#ffffff" stroke="#e4dccb"/>
+  <text class="boite" x="86" y="309" text-anchor="middle">Gradio</text>
+  <text class="petit" x="86" y="325" text-anchor="middle">monitoring</text>
+
+  <rect x="170" y="252" width="92" height="60" rx="10" fill="#e8f2ea" stroke="#5aa47c" stroke-width="1.5"/>
+  <text class="boite" x="216" y="278" text-anchor="middle">FastAPI</text>
+  <text class="petit" x="216" y="295" text-anchor="middle">API</text>
+
+  <rect x="286" y="230" width="74" height="44" rx="10" fill="#ffffff" stroke="#e4dccb"/>
+  <text class="boite" x="323" y="257" text-anchor="middle">Modèles</text>
+  <rect x="286" y="290" width="74" height="44" rx="10" fill="#ffffff" stroke="#e4dccb"/>
+  <text class="boite" x="323" y="309" text-anchor="middle">SQLite</text>
+  <text class="petit" x="323" y="325" text-anchor="middle">monitoring</text>
+
+  <line class="fl" x1="138" y1="252" x2="168" y2="272"/>
+  <line class="fl" x1="138" y1="312" x2="168" y2="292"/>
+  <line class="fl" x1="262" y1="268" x2="284" y2="252"/>
+  <line class="fl" x1="262" y1="296" x2="284" y2="312"/>
+
+  <g transform="translate(36,360)">
+    <rect x="0" y="6" width="12" height="9" rx="2" fill="#2c7a53"/>
+    <path d="M 3 6 V 4 a 3 3 0 0 1 6 0 V 6" fill="none" stroke="#2c7a53" stroke-width="1.6"/>
+  </g>
+  <text class="ligne" x="56" y="370">Configuration et secrets</text>
+  <text class="ligne" x="56" y="386">propres à la préproduction</text>
+
+  <!-- ─────────── Production ─────────── -->
+  <rect x="394" y="172" width="354" height="246" rx="14" fill="#fdfcf7" stroke="#e4dccb"/>
+  <rect x="404" y="182" width="334" height="30" rx="8" fill="#14452f"/>
+  <text class="bandeauc" x="571" y="201" text-anchor="middle">PRODUCTION · BRANCHE MAIN</text>
+
+  <rect x="408" y="230" width="104" height="44" rx="10" fill="#ffffff" stroke="#e4dccb"/>
+  <text class="boite" x="460" y="249" text-anchor="middle">Streamlit</text>
+  <text class="petit" x="460" y="265" text-anchor="middle">interface métier</text>
+  <rect x="408" y="290" width="104" height="44" rx="10" fill="#ffffff" stroke="#e4dccb"/>
+  <text class="boite" x="460" y="309" text-anchor="middle">Gradio</text>
+  <text class="petit" x="460" y="325" text-anchor="middle">monitoring</text>
+
+  <rect x="544" y="252" width="92" height="60" rx="10" fill="#e8f2ea" stroke="#5aa47c" stroke-width="1.5"/>
+  <text class="boite" x="590" y="278" text-anchor="middle">FastAPI</text>
+  <text class="petit" x="590" y="295" text-anchor="middle">API</text>
+
+  <rect x="660" y="230" width="74" height="44" rx="10" fill="#ffffff" stroke="#e4dccb"/>
+  <text class="boite" x="697" y="257" text-anchor="middle">Modèles</text>
+  <rect x="660" y="290" width="74" height="44" rx="10" fill="#ffffff" stroke="#e4dccb"/>
+  <text class="boite" x="697" y="309" text-anchor="middle">SQLite</text>
+  <text class="petit" x="697" y="325" text-anchor="middle">monitoring</text>
+
+  <line class="fl" x1="512" y1="252" x2="542" y2="272"/>
+  <line class="fl" x1="512" y1="312" x2="542" y2="292"/>
+  <line class="fl" x1="636" y1="268" x2="658" y2="252"/>
+  <line class="fl" x1="636" y1="296" x2="658" y2="312"/>
+
+  <g transform="translate(410,360)">
+    <rect x="0" y="6" width="12" height="9" rx="2" fill="#2c7a53"/>
+    <path d="M 3 6 V 4 a 3 3 0 0 1 6 0 V 6" fill="none" stroke="#2c7a53" stroke-width="1.6"/>
+  </g>
+  <text class="ligne" x="430" y="370">Configuration et secrets</text>
+  <text class="ligne" x="430" y="386">propres à la production</text>
+
+  <!-- ─────────── Logfire ─────────── -->
+  <path class="fld" d="M 216 312 V 478 H 282"/>
+  <path class="fld" d="M 590 312 V 478 H 486"/>
+  <text class="flux" x="224" y="440">traces</text>
+  <text class="flux" x="582" y="440" text-anchor="end">traces</text>
+
+  <rect x="284" y="450" width="200" height="56" rx="14" fill="#ffffff" stroke="#e4dccb"/>
+  <text class="titre" x="384" y="474" text-anchor="middle">Logfire</text>
+  <text class="petit" x="384" y="494" text-anchor="middle">traces séparées : staging · prod</text>
+
+  <text class="note" x="384" y="540" text-anchor="middle">Aucune valeur secrète dans Git : les tokens sont générés ou saisis dans Render.</text>
+</svg>

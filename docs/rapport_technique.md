@@ -1,6 +1,6 @@
 # Rapport — Agritech Answers
 
-![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Tests : 753](https://img.shields.io/badge/tests-753-2E7D32) ![Couverture : 97 %](https://img.shields.io/badge/coverage-97%25-2E7D32)
+![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Tests : 793](https://img.shields.io/badge/tests-793-2E7D32) ![Couverture : 97 %](https://img.shields.io/badge/coverage-97%25-2E7D32)
 
 *Système de prédiction de rendement et de recommandation de cultures.*
 
@@ -8,14 +8,15 @@
 
 1. [Contexte et données](#1-contexte-et-données)
 2. [Exploration et stratégie](#2-exploration-et-stratégie)
-3. [`/predict` — estimation du rendement](#3-predict--estimation-du-rendement)
-4. [`/recommend` — recommandation de cultures](#4-recommend--recommandation-de-cultures)
+3. [Modélisation `/predict` — estimation du rendement](#3-modélisation-predict--estimation-du-rendement)
+4. [Modélisation `/recommend` — recommandation de cultures](#4-modélisation-recommend--recommandation-de-cultures)
 5. [De l'analyse à l'application](#5-de-lanalyse-à-lapplication)
+6. [Qualité, déploiement et monitoring](#6-qualité-déploiement-et-monitoring)
 
 [Annexes](#annexes)
 
-- [A. Limites et précautions](#a-limites-et-précautions)
-- [B. Glossaire](#b-glossaire)
+- [A. Glossaire](#a-glossaire)
+- [B. Limites et précautions](#b-limites-et-précautions)
 - [C. Tuning `/predict`](#c-tuning-predict)
 - [D. Tuning `/recommend`](#d-tuning-recommend)
 - [E. Schéma du monitoring SQLite](#e-schéma-du-monitoring-sqlite)
@@ -52,16 +53,16 @@ propre modèle**, et les lignes des deux jeux ne sont jamais mélangées.
 | Température moyenne (`Temperature_Celsius`) | **oui** | oui |
 | Engrais, oui ou non (`Fertilizer_Used`) | **oui** | oui |
 | Irrigation, oui ou non (`Irrigation_Used`) | **oui** | oui |
-| Culture (`Crop`) | non : aucun gain mesuré (chapitre 3) | non |
-| Type de sol (`Soil_Type`) | non : aucun gain mesuré (chapitre 3) | non |
+| Culture (`Crop`) | non : aucun gain mesuré ([chapitre 3](#3-modélisation-predict--estimation-du-rendement)) | non |
+| Type de sol (`Soil_Type`) | non : aucun gain mesuré ([chapitre 3](#3-modélisation-predict--estimation-du-rendement)) | non |
 
 Culture et type de sol existent dans le dataset, mais l'analyse les a écartés du modèle : l'interface ne demande donc
 que les quatre variables réellement utilisées.
 
 ### Préparation des données
 
-- **Agriculture CropYield** : un million de lignes sans valeur manquante ni doublon, aux distributions uniformes et
-  aux catégories équilibrées : tout indique un jeu simulé. Les 231 rendements négatifs, impossibles, sont retirés :
+- **Agriculture CropYield** : un million de lignes sans valeur manquante ni doublon, aux distributions très
+  régulières et aux catégories équilibrées. Les 231 rendements négatifs, impossibles, sont retirés :
   il reste 999 769 lignes pour `/predict`.
 - **CropYield Prediction** : le fichier déjà assemblé, `yield_df.csv`, n'est pas utilisé. Il duplique des lignes
   (jusqu'à 52 relevés de température par pays et par année dans `temp.csv`) et perd des pays dont le nom diffère d'un fichier à
@@ -74,14 +75,15 @@ Trois règles donnent le dataset historique nettoyé, sans inventer de valeurs :
 |---|---|---:|---:|
 | Pluie absente certaines années | la valeur connue du pays est reprise (947 lignes de 2003, 6 des Bahamas en 1990‑1991) | 953 complétées | — |
 | Pays sans température ou sans pesticides | pays retirés plutôt que complétés avec les valeurs d'un voisin | −6 322 | −51 |
-| Pluie erronée | Monténégro et Soudan, dont la pluie est recopiée d'un pays voisin dans l'ordre alphabétique, retirés | −38 | −2 |
+| Pluie erronée | Monténégro et Soudan, dont la pluie est recopiée d'un autre pays dans l'ordre alphabétique, retirés | −38 | −2 |
 
 **Dataset historique nettoyé : 16 319 lignes, 115 pays, 10 cultures, 1990-2013, aucune valeur manquante**
-(`data/processed/crop_yield_clean.csv`). C'est le dataset d'entraînement de `/recommend`.
+(`data/processed/crop_yield_clean.csv`). C'est le dataset historique nettoyé utilisé comme source pour la modélisation
+de `/recommend`.
 
 ## 2. Exploration et stratégie
 
-### Jeu parcellaire : quatre variables portent le rendement
+### Jeu parcellaire (`/predict`) : quatre variables portent le rendement
 
 | Variable | Corrélation | Relation observée |
 |---|---|---|
@@ -119,7 +121,7 @@ Trois règles donnent le dataset historique nettoyé, sans inventer de valeurs :
 - **Aucune réduction de variables possible** : sans le rendement, chaque axe explique environ 20 % de la variance,
   et les cultures ne se séparent pas. L'ACP reste exploratoire.
 
-### Jeu historique : des cultures très différentes
+### Jeu historique (`/recommend`) : des cultures très différentes
 
 ![Évolution du rendement moyen par culture, dataset historique nettoyé, 1990-2013](assets/figures/03_evolution_rendements.png)
 
@@ -139,16 +141,11 @@ Sur les quatre cultures communes, l'historique montre des niveaux bien distincts
 
 ![Les deux pipelines de données du projet](assets/figures/06_pipelines.svg)
 
-## 3. `/predict` — estimation du rendement
+## 3. Modélisation `/predict` — estimation du rendement
 
-La modélisation suit cinq étapes, toutes avec le même protocole :
-
-1. référence et protocole (notebook 07) ;
-2. sélection des features et feature engineering (notebook 08) ;
-3. modèles non linéaires sur les deux jeux de variables, puis vérification du feature engineering
-   (notebook 09) ;
-4. tuning (notebook 10) ;
-5. évaluation finale sur le jeu de test et sauvegarde du modèle (notebook 11).
+La modélisation suit cinq étapes, toutes avec le même protocole : référence (notebook 07), sélection des variables
+et feature engineering (notebook 08), modèles non linéaires (notebook 09), tuning (notebook 10) et évaluation finale
+sur le jeu de test (notebook 11). Le modèle retenu est ensuite réappris sur toutes les lignes pour être servi.
 
 ### Protocole
 
@@ -166,66 +163,65 @@ La modélisation suit cinq étapes, toutes avec le même protocole :
   variables numériques inchangées, puis le modèle. L'encodage est réappris dans chaque fold : pas de
   fuite de données.
 
+### Feature engineering : les variables construites
+
+L'exploration montre des relations simples et presque linéaires. Avant de garder un modèle aussi simple, on vérifie
+si des relations plus complexes apportent une information en plus. Deux familles d'interactions sont construites à
+partir des variables du jeu :
+
+| Variable construite | Calcul | Pourquoi |
+|---|---|---|
+| `Rainfall_x_Fertilizer` | pluie × engrais (0 ou 1) | l'effet de la pluie pourrait dépendre de l'engrais |
+| `Rainfall_x_Irrigation` | pluie × irrigation (0 ou 1) | l'effet de la pluie pourrait dépendre de l'irrigation |
+| `Fertilizer_x_Irrigation` | engrais × irrigation | les deux intrants pourraient se renforcer |
+| `Rainfall_x_<culture>`, `Temperature_x_<culture>` | pluie et température limitées aux lignes d'une culture, 0 ailleurs : 12 colonnes pour les 6 cultures | chaque culture pourrait avoir sa propre pente de pluie et de température |
+
+Les colonnes sont ajoutées dans le pipeline, avant l'encodage : elles sont recalculées dans chaque fold.
+
 ### Jeux de variables testés
 
 | Jeu | Features | One‑hot | Numériques | Total colonnes |
 |---|---|---:|---:|---:|
-| toutes les variables | <code class="cat">Crop</code>, <code class="cat">Soil_Type</code>, <code class="cat">Region</code>, <code class="cat">Weather_Condition</code>, <code class="cat">Fertilizer_Used</code>, <code class="cat">Irrigation_Used</code>, `Rainfall_mm`, `Temperature_Celsius`, `Days_to_Harvest` | 23 | 3 | **26** |
-| variables réduites | <code class="cat">Crop</code>, <code class="cat">Soil_Type</code>, <code class="cat">Fertilizer_Used</code>, <code class="cat">Irrigation_Used</code>, `Rainfall_mm`, `Temperature_Celsius` | 16 | 2 | **18** |
-| variables sélectionnées | <code class="cat">Fertilizer_Used</code>, <code class="cat">Irrigation_Used</code>, `Rainfall_mm`, `Temperature_Celsius` | 4 | 2 | **6** |
-| variables sélectionnées + <code class="cat">Crop</code> | les 4 variables sélectionnées et <code class="cat">Crop</code> | 10 | 2 | **12** |
-| toutes les variables + feature engineering | toutes les variables et des interactions numériques | 23 | 6 ou 15 | **29 ou 38** |
+| 1. Toutes les variables | <code class="cat">Crop</code>, <code class="cat">Soil_Type</code>, <code class="cat">Region</code>, <code class="cat">Weather_Condition</code>, <code class="cat">Fertilizer_Used</code>, <code class="cat">Irrigation_Used</code>, `Rainfall_mm`, `Temperature_Celsius`, `Days_to_Harvest` | 23 | 3 | **26** |
+| 2. Variables réduites | <code class="cat">Crop</code>, <code class="cat">Soil_Type</code>, <code class="cat">Fertilizer_Used</code>, <code class="cat">Irrigation_Used</code>, `Rainfall_mm`, `Temperature_Celsius` | 16 | 2 | **18** |
+| 3. + interactions eau × intrants | toutes les variables, <code class="interact">Rainfall_x_Fertilizer</code>, <code class="interact">Rainfall_x_Irrigation</code>, <code class="interact">Fertilizer_x_Irrigation</code> | 23 | 6 | **29** |
+| 4. + effets selon la culture | toutes les variables, <code class="interact">Rainfall_x_&lt;culture&gt;</code>, <code class="interact">Temperature_x_&lt;culture&gt;</code> | 23 | 15 | **38** |
+| 5. Variables sélectionnées + <code class="cat">Crop</code> | <code class="cat">Crop</code>, <code class="cat">Fertilizer_Used</code>, <code class="cat">Irrigation_Used</code>, `Rainfall_mm`, `Temperature_Celsius` | 10 | 2 | **12** |
+| 6. Variables sélectionnées | <code class="cat">Fertilizer_Used</code>, <code class="cat">Irrigation_Used</code>, `Rainfall_mm`, `Temperature_Celsius` | 4 | 2 | **6** |
 
 <code class="cat">catégorielle</code> : encodée par one-hot, une colonne par modalité, variables oui/non comprises ;
-`numérique` : gardée telle quelle.
+`numérique` : gardée telle quelle ; <code class="interact">interaction</code> : colonne construite (section précédente), numérique.
 
-Les variables réduites retirent `Region`, `Weather_Condition` et `Days_to_Harvest` ; les variables
-sélectionnées sont les 4 qui portent le signal.
+Les variables réduites retirent `Region`, `Weather_Condition` et `Days_to_Harvest` ; les jeux 3 et 4 ajoutent les
+interactions aux 9 variables ; les variables sélectionnées sont les 4 qui portent le signal.
 
 ### Référence et sélection des variables
 
-| Modèle | Features | RMSE CV (t/ha) | MAE CV (t/ha) | R² CV |
-|---|---|---:|---:|---:|
-| **`LinearRegression`** | **variables sélectionnées** | **0,500332** | **0,399292** | **0,91289** |
-| `LinearRegression` | variables sélectionnées + <code class="cat">Crop</code> | 0,500333 | 0,399293 | 0,91289 |
-| `LinearRegression` | variables réduites | 0,500334 | 0,399293 | 0,91289 |
-| `LinearRegression` | toutes les variables | 0,500337 | 0,399294 | 0,91289 |
-| `LinearRegression` | toutes les variables + interactions pluie, engrais, irrigation | 0,500338 | 0,399296 | 0,91289 |
-| `LinearRegression` | toutes les variables + effets selon la culture | 0,500341 | 0,399297 | 0,91289 |
-| `DummyRegressor` | aucune : rendement moyen | 1,695214 | 1,388358 | ≈ 0 |
+Chaque jeu est appris par la même régression linéaire, avec les mêmes 5 folds.
 
-L'écart-type entre folds est d'environ 0,0009 t/ha sur la RMSE des régressions.
+| Étape | RMSE CV (t/ha) | MAE CV (t/ha) | R² CV | Ce qu'on apprend |
+|---|---:|---:|---:|---|
+| Référence naïve (`DummyRegressor`) | 1,695214 | 1,388358 | ≈ 0 | prédire le rendement moyen donne une erreur proche de l'écart-type du rendement (1,695 t/ha) |
+| 1. Toutes les variables | 0,500337 | 0,399294 | 0,91289 | la régression linéaire réduit l'erreur d'environ 70 % |
+| 2. Variables réduites | 0,500334 | 0,399293 | 0,91289 | `Region`, `Weather_Condition` et `Days_to_Harvest` n'apportent rien |
+| 3. + interactions eau × intrants | 0,500338 | 0,399296 | 0,91289 | l'effet de la pluie ne dépend pas des intrants : ces colonnes ne pèsent presque rien dans les prédictions |
+| 4. + effets selon la culture | 0,500341 | 0,399297 | 0,91289 | les colonnes par culture se partagent l'information de la pluie sans en ajouter |
+| 5. Variables sélectionnées + <code class="cat">Crop</code> | 0,500333 | 0,399293 | 0,91289 | la culture n'apporte rien (détail ci-dessous) |
+| **6. Variables sélectionnées** | **0,500332** | **0,399292** | **0,91289** | **les 4 variables suffisent : meilleure régression** |
 
-- Le `DummyRegressor` a une RMSE proche de l'écart-type du rendement (1,695 t/ha) ; la régression
-  linéaire la réduit d'environ 70 %.
-- Toutes les régressions tiennent dans 0,00001 t/ha, bien moins que la variation d'un fold à
-  l'autre : ni les variables supplémentaires ni le feature engineering n'apportent de gain.
-- **Features retenues : les 4 variables sélectionnées**, qui portent le signal.
+- Les écarts entre régressions (0,00001 t/ha) sont bien plus petits que la variation entre folds (0,0009 t/ha) :
+  aucun gain.
+- **`Crop`** : à conditions identiques, la culture ne change la prédiction que de 0,003 t/ha, pour une erreur de
+  0,50 t/ha. Elle n'est donc ni dans le modèle ni dans l'interface.
+- Ces relations existent peut-être en agronomie, mais ce jeu de données ne permet pas de les mettre en évidence.
 
-Ces scores décrivent une performance prédictive, pas un lien de cause à effet.
-
-### Feature engineering : des relations plus complexes aident-elles ?
-
-L'exploration montre des relations simples et presque linéaires. Avant de garder un modèle aussi simple, on a
-vérifié si des relations plus complexes apportaient une information en plus. Chaque test est comparé à la
-régression sur toutes les variables (RMSE 0,500337 t/ha).
-
-| Question | Test | Résultat | Décision |
-|---|---|---|---|
-| L'effet de la pluie dépend-il de l'engrais ou de l'irrigation ? | 3 colonnes croisées « eau × intrants » : pluie × engrais, pluie × irrigation, engrais × irrigation | RMSE 0,500338 ; ces colonnes ne pèsent presque rien dans les prédictions | non retenues |
-| La pluie et la température jouent-elles différemment selon la culture ? | une pente de pluie et une pente de température par culture (12 colonnes) | RMSE 0,500341 ; les nouvelles colonnes se partagent l'information de la pluie sans en ajouter | non retenues |
-| La culture aide-t-elle à prédire ? | modèle avec et sans `Crop` ; même parcelle rejouée avec les 6 cultures | +0,000002 t/ha ; la prédiction ne change que de 0,003 t/ha d'une culture à l'autre, pour une erreur de 0,50 t/ha | `Crop` hors du modèle |
-| Un modèle plus souple en tire-t-il parti ? | les deux familles d'interactions ajoutées à 5 modèles d'ensemble (notebook 09) | écarts de 0,00014 t/ha au plus, souvent une légère dégradation | pas de gain |
-
-Ces relations n'ont pas apporté de gain prédictif mesurable avec nos données et notre protocole. Cela ne veut pas
-dire qu'elles n'existent pas en agronomie : ce jeu de données ne permet pas de les mettre en évidence. `Crop` n'est
-donc pas une variable du modèle, et l'interface ne la demande pas.
+**Variables retenues : les 4 variables sélectionnées**, avec une RMSE de validation croisée de **0,500332 t/ha** pour la régression linéaire.
 
 ### Modèles non linéaires
 
-Six modèles sont comparés sur les deux jeux de variables, sans optimisation : l'arbre et la forêt
-avec `min_samples_leaf=100`, les boostings avec les réglages par défaut de leur librairie (sans arrêt anticipé pour
-HistGradientBoosting). La régression linéaire sert de référence.
+Six modèles sont comparés sur les jeux 1 et 2, sans optimisation : l'arbre et la forêt avec `min_samples_leaf=100`,
+les boostings avec les réglages par défaut de leur librairie (sans arrêt anticipé pour HistGradientBoosting). La
+régression linéaire sert de référence.
 
 | Modèle | Toutes les variables — RMSE <span class="s2">(MAE / R²)</span> | Variables réduites — RMSE <span class="s2">(MAE / R²)</span> |
 |---|---:|---:|
@@ -237,15 +233,11 @@ HistGradientBoosting). La régression linéaire sert de référence.
 | `XGBoost` | 0,502183 <span class="s2">(0,4008 / 0,9122)</span> | 0,502008 <span class="s2">(0,4006 / 0,9123)</span> |
 | `DecisionTree` | 0,508558 <span class="s2">(0,4059 / 0,9100)</span> | 0,507489 <span class="s2">(0,4051 / 0,9104)</span> |
 
-- Aucun ne fait mieux que la régression linéaire, qui reste devant sur chacun des 5 folds. Les
-  meilleurs boostings (HistGradientBoosting, LightGBM, CatBoost) sont à moins d'un millième de t/ha,
-  pour un entraînement plus long.
-- Les variables réduites font aussi bien que toutes les variables : écart négligeable pour la
-  régression linéaire, HistGradientBoosting et LightGBM, léger gain pour l'arbre, XGBoost et
-  CatBoost. Seule la forêt fait un peu mieux avec toutes les variables, d'un écart huit fois plus
-  petit que l'écart-type entre folds.
-- Permutation, corrélation de Spearman et SHAP donnent la même hiérarchie : la pluie, puis l'engrais
-  et l'irrigation, puis la température ; les autres variables n'apportent rien.
+- Aucun ne bat la régression linéaire, devant sur chacun des 5 folds ; les meilleurs boostings sont à moins d'un
+  millième de t/ha, pour un entraînement plus long.
+- Les variables réduites font aussi bien que toutes les variables.
+- Ajoutées aux modèles d'ensemble (notebook 09), les interactions n'apportent rien non plus (écarts ≤ 0,00014 t/ha).
+- Permutation, Spearman et SHAP donnent la même hiérarchie : pluie, puis engrais et irrigation, puis température.
 
 ![Importance globale des variables selon SHAP, pour HistGradientBoosting : moyenne des valeurs absolues sur 5 000 lignes de validation du fold 1 (notebook 09)](assets/figures/10_shap_predict.png)
 
@@ -255,31 +247,31 @@ peu de structure supplémentaire à apprendre.
 
 ### Tuning
 
-Sur les 4 variables sélectionnées et les mêmes folds : tuning léger de 5 familles (10 configurations chacune), puis
-tuning approfondi des deux modèles retenus pour l'approfondissement, CatBoost et HistGradientBoosting
-(35 configurations chacune). Les grilles testées sont détaillées en
-[annexe C](#c-tuning-predict).
+Sur les 4 variables sélectionnées et les mêmes folds, un tuning léger teste 5 familles de modèles, puis un tuning
+approfondi les 2 meilleures. Les grilles testées sont détaillées en [annexe C](#c-tuning-predict).
 
-| Modèle, variables sélectionnées | RMSE CV (t/ha) | MAE CV (t/ha) | R² CV | Folds gagnés face à la régression linéaire |
-|---|---:|---:|---:|---:|
-| **`LinearRegression`** | **0,500332** | **0,399292** | **0,91289** | — |
-| `CatBoost` optimisé | 0,500411 | 0,399369 | 0,91286 | 0 sur 5 |
-| `HistGradientBoosting` optimisé | 0,500640 | 0,399543 | 0,91278 | 0 sur 5 |
+| Étape | Résultat (RMSE, MAE, R² de validation croisée) |
+|---|---|
+| 1. Tuning léger (10 configurations par famille) | meilleurs : **CatBoost 0,500503** et HistGradientBoosting 0,500737 ; aucune famille ne passe sous la régression linéaire (0,500332) |
+| 2. Tuning approfondi (35 configurations chacun) | CatBoost 0,500411 (MAE 0,399369, R² 0,91286)<br>HistGradientBoosting 0,500640 (MAE 0,399543, R² 0,91278) |
+| 3. Comparaison avec la régression linéaire | **régression linéaire 0,500332** (MAE 0,399292, R² 0,91289) : devant en moyenne et sur chacun des 5 folds, 0 fold gagné par CatBoost ou HistGradientBoosting |
+| 4. Choix | **régression linéaire** : meilleure RMSE, entraînement de 0,1 s par fold contre 16 s pour CatBoost et 29 s pour HistGradientBoosting |
 
-- Le tuning améliore légèrement les deux modèles, sans dépasser la régression linéaire, ni en
-  moyenne ni sur un seul fold.
-- Entraînement par fold : 16 s pour CatBoost et 29 s pour HistGradientBoosting, contre 0,1 s pour la
-  régression linéaire.
+Le tuning améliore légèrement les deux modèles, sans dépasser la régression linéaire, ni en moyenne ni sur un seul
+fold.
 
 ### Modèle final
 
 **`LinearRegression` avec les 4 variables sélectionnées** : meilleure RMSE en validation croisée, entraînement quasi
 instantané, coefficients directement lisibles. Ce choix repose uniquement sur la validation croisée.
 
+- Modèle évalué (notebook 11) : appris sur les 799 815 lignes d'entraînement, puis évalué une seule fois sur les
+  199 954 lignes de test. C'est ce modèle que mesure l'évaluation finale ci-dessous.
+
 ### Évaluation finale sur le jeu de test
 
 Le notebook 11 vérifie que le pipeline redonne les scores de validation croisée, l'entraîne sur tout
-le jeu d'entraînement, puis l'évalue sur le jeu de test. La ligne « Train » mesure ce modèle final
+le jeu d'entraînement, puis l'évalue sur le jeu de test. La ligne « Train » mesure ce modèle évalué
 sur les données qui ont servi à l'entraîner.
 
 | Jeu | RMSE (t/ha) | MAE (t/ha) | R² |
@@ -288,33 +280,30 @@ sur les données qui ont servi à l'entraîner.
 | Validation croisée | 0,500332 | 0,399292 | 0,91289 |
 | **Test** | **0,499268** | **0,398338** | **0,91323** |
 
-- Les scores du train et de la validation croisée sont quasi identiques : aucun signe de surapprentissage n'apparaît.
-- Les scores du test sont très proches, et même légèrement meilleurs : les écarts restent de l'ordre
-  de la variation entre folds.
-- Le résidu moyen est presque nul (+0,0001 t/ha). 68,3 % des prédictions sont à moins de 0,5 t/ha de
-  la valeur réelle, et 95,5 % à moins de 1 t/ha.
-- Par tranches de 0,5 t/ha de rendement réel, l'erreur absolue moyenne reste autour de 0,4 t/ha
-  entre 1 et 8,5 t/ha, où se trouvent 98,4 % des lignes du test. Elle augmente aux deux extrémités,
-  peu peuplées.
-- **Les 231 rendements négatifs**, retirés avant le découpage, ont des cibles de −1,15 t/ha à
-  presque 0. Le modèle final leur prédit des rendements faibles mais positifs, de 0,817 à
-  1,815 t/ha. Ce résultat est cohérent avec l'hypothèse d'anomalies dans les données, sans la
-  démontrer.
+- Train, validation croisée et test donnent des scores presque identiques : pas de surapprentissage.
+- **Les 231 rendements négatifs** retirés (−1,15 t/ha à presque 0) reçoivent des prédictions faibles mais positives
+  (0,817 à 1,815 t/ha), ce qui va dans le sens d'anomalies dans les données.
 
-### Sauvegarde et suivi MLflow
+### Modèle servi : refit sur les 999 769 lignes
 
-- **Modèle sauvegardé.** Le pipeline complet, entraîné sur le seul jeu d'entraînement, est dans
-  `models/predict_model.joblib`. Ses métadonnées sont dans `models/predict_model_metadata.json` :
-  variables et valeurs attendues, preprocessing, protocole, scores sur le test, versions. Rechargé,
-  il redonne les mêmes prédictions sur 1 000 lignes du test.
-- **Suivi.** Les 150 évaluations sont dans une expérience MLflow dédiée à `/predict`, un run par
-  évaluation, avec le protocole, le jeu de variables et les mêmes métriques `cv_`. Le run d'évaluation finale, à
-  l'étape `final_evaluation`, ajoute `test_rmse`, `test_mae` et `test_r2`. La capture montre les 11 runs de
-  synthèse : triés par `cv_rmse_mean`, ils donnent directement le classement des modèles.
+Une fois l'évaluation finale faite, `scripts/rebuild_models.py` réapprend le même pipeline, avec les mêmes 4 variables
+et les mêmes réglages, sur les **999 769 lignes**. C'est ce refit que sert l'API (`models/predict_model.joblib`,
+`model_version` 1.1.0). Ses métadonnées (`models/predict_model_metadata.json`) séparent `evaluation` (découpage
+80/20, métriques du test, notebook 11) et `refit` (999 769 lignes).
+
+Ce refit n'est pas réévalué : le test fait désormais partie de son apprentissage. **Les performances de référence
+restent celles du test ci-dessus**, mesurées avant le refit.
+
+### Suivi MLflow
+
+Les 150 évaluations sont dans une expérience MLflow dédiée à `/predict`, un run par évaluation, avec le protocole, le
+jeu de variables et les mêmes métriques `cv_`. Le run d'évaluation finale, à l'étape `final_evaluation`, ajoute
+`test_rmse`, `test_mae` et `test_r2`. La capture montre les 11 runs de synthèse : triés par `cv_rmse_mean`, ils donnent
+directement le classement des modèles. Le refit du modèle servi n'a pas de run MLflow.
 
 ![Expérience MLflow /predict : les 11 runs de synthèse (références, modèles non linéaires et meilleurs réglages), triés par RMSE de validation croisée](assets/figures/09_mlflow_predict.png)
 
-## 4. `/recommend` — recommandation de cultures
+## 4. Modélisation `/recommend` — recommandation de cultures
 
 La modélisation suit la même progression que pour `/predict` (notebooks 12 à 15) ; le notebook 16 réapprend
 ensuite le modèle retenu pour le servir. Le modèle prédit un rendement par
@@ -346,7 +335,7 @@ suivantes sont construites à partir de ces données, toujours avec les seules a
 | `temp_hist`, `log_pest_hist` | moyenne des 3 années précédentes de la température et des pesticides | les conditions de l'année à venir ne sont pas connues au moment de recommander |
 
 - La position décrit la géographie du pays sans lui donner d'identifiant. Mais chaque pays ayant une position unique,
-  un arbre peut aussi s'en servir pour reconnaître le pays (annexe A.2).
+  un arbre peut aussi s'en servir pour reconnaître le pays ([annexe B.2](#b2-recommend--limites-des-données)).
 
 - Le notebook 13 teste aussi des **interactions culture × variable** : une colonne par culture et par variable, qui
   ne vaut la variable que pour les lignes de cette culture (0 sinon), pour que chaque culture ait son propre effet
@@ -366,7 +355,7 @@ suivantes sont construites à partir de ces données, toujours avec les seules a
 La température et les pesticides de l'année sont remplacés par leur moyenne sur les 3 années précédentes
 (`temp_hist`, `log_pest_hist`), connues au moment de recommander. La pluie reste celle du pays, fixe dans ce
 dataset. `crop` est encodée par one-hot, une colonne par culture (10 modalités) ; les autres variables sont
-numériques, gardées telles quelles.
+numériques : standardisées pour la régression linéaire, gardées telles quelles pour les modèles à arbres.
 
 <code class="interact">interactions</code> ajoute une colonne par culture et par variable (0 pour les lignes des
 autres cultures) : chaque culture peut avoir sa propre pente pour cette variable. Exemples :
@@ -382,35 +371,35 @@ nativement un effet différent selon la culture, sans en avoir besoin. La ligne 
 
 | Étape | RMSE (t/ha) | MAE (t/ha) | R² | Ce qu'on apprend |
 |---|---:|---:|---:|---|
-| Référence naïve | 8,503 | 5,907 | −0,015 | prédire le rendement moyen ne suffit pas |
+| Référence naïve | 8,502 | 5,907 | −0,015 | prédire le rendement moyen ne suffit pas |
 | Variables d'origine | 5,507 | 3,460 | 0,574 | les variables disponibles apportent déjà beaucoup d'information |
 | Pesticides en log | 5,346 | 3,368 | 0,598 | le logarithme améliore la régression et est conservé |
 | + interactions culture × conditions | 4,995 | 3,081 | 0,649 | chaque culture peut avoir sa propre pente de température, de pluie et de pesticides |
 | + position du pays | 4,851 | 3,025 | 0,669 | la position seule, sans lui donner d'interaction, améliore encore, en gardant les interactions culture × conditions de la ligne précédente |
-| **+ interactions culture × géographie** | **4,673** | **2,871** | **0,693** | **meilleure régression linéaire du notebook 13 (`crop_x_geography`)** |
+| **+ interactions culture × géographie** | **4,673** | **2,871** | **0,693** | **référence linéaire retenue (`crop_x_geography`) ; une tendance par culture atteint 4,607 mais n'est pas conservée, risquée à prolonger** |
 
 Sur les lignes qui ont un historique, cette régression obtient un RMSE de 4,664 (pas 4,673 : le nombre de lignes
 diffère). Remplacer la température et les pesticides de l'année par leur moyenne des 3 années précédentes fait
 passer ce RMSE à 4,644 — les seules conditions connues au moment de recommander.
 
 **Référence linéaire retenue : interactions culture × géographie, RMSE 4,673 t/ha** — meilleure régression sans
-identifiant de pays, reprise comme référence au notebook 14.
+identifiant de pays ni tendance par culture, reprise comme référence au notebook 14.
 
 ### Modèles non linéaires
 
 On teste d'abord les modèles à arbres avec les variables de base, sans interaction, pour voir l'impact du non
 linéaire seul.
 
-Réglages de départ (annexe D.1), validation temporelle :
+Réglages de départ ([annexe D.1](#d1-réglages-de-départ)), validation temporelle :
 
-| Modèle | Pesticides en log — RMSE <span class="s2">(MAE / R²)</span> | Position du pays — RMSE <span class="s2">(MAE / R²)</span> | Repr. finale — RMSE |
+| Modèle | Pesticides en log — RMSE <span class="s2">(MAE / R²)</span> | Position du pays — RMSE <span class="s2">(MAE / R²)</span> | Repr. finale — RMSE <span class="s2">(MAE / R²)</span> |
 |---|---:|---:|---:|
-| **`ExtraTrees`** | **1,706** <span class="s2">(0,846 / 0,959)</span> | **1,515** <span class="s2">(0,743 / 0,968)</span> | **1,442** |
-| `RandomForest` | 2,098 <span class="s2">(1,002 / 0,938)</span> | 1,648 <span class="s2">(0,821 / 0,962)</span> | 1,609 |
-| `XGBoost` | 2,119 <span class="s2">(1,193 / 0,937)</span> | 1,751 <span class="s2">(0,984 / 0,957)</span> | 1,693 |
-| `HistGradientBoosting` | 2,286 <span class="s2">(1,306 / 0,926)</span> | 1,897 <span class="s2">(1,094 / 0,949)</span> | 1,844 |
-| `LightGBM` | 2,270 <span class="s2">(1,320 / 0,928)</span> | 1,916 <span class="s2">(1,116 / 0,948)</span> | 1,843 |
-| `CatBoost` | 2,306 <span class="s2">(1,430 / 0,925)</span> | 1,884 <span class="s2">(1,140 / 0,950)</span> | 1,851 |
+| **`ExtraTrees`** | **1,706** <span class="s2">(0,846 / 0,959)</span> | **1,515** <span class="s2">(0,743 / 0,968)</span> | **1,442** <span class="s2">(0,710 / 0,971)</span> |
+| `RandomForest` | 2,098 <span class="s2">(1,002 / 0,938)</span> | 1,648 <span class="s2">(0,821 / 0,962)</span> | 1,609 <span class="s2">(0,797 / 0,964)</span> |
+| `XGBoost` | 2,119 <span class="s2">(1,193 / 0,937)</span> | 1,751 <span class="s2">(0,984 / 0,957)</span> | 1,693 <span class="s2">(0,956 / 0,960)</span> |
+| `HistGradientBoosting` | 2,286 <span class="s2">(1,306 / 0,926)</span> | 1,897 <span class="s2">(1,094 / 0,949)</span> | 1,844 <span class="s2">(1,064 / 0,952)</span> |
+| `LightGBM` | 2,270 <span class="s2">(1,320 / 0,928)</span> | 1,916 <span class="s2">(1,116 / 0,948)</span> | 1,843 <span class="s2">(1,074 / 0,952)</span> |
+| `CatBoost` | 2,306 <span class="s2">(1,430 / 0,925)</span> | 1,884 <span class="s2">(1,140 / 0,950)</span> | 1,851 <span class="s2">(1,119 / 0,952)</span> |
 
 Le notebook 14 teste quand même les interactions culture × géographie sur les six familles : elles dégradent les
 forêts (`RandomForest`, `ExtraTrees`) et `XGBoost`, et n'améliorent que légèrement `HistGradientBoosting`,
@@ -441,7 +430,7 @@ Un tuning léger teste 6 familles de modèles, puis un tuning plus fin approfond
   est lent à charger.
 - **Moins d'arbres.** La taille d'une forêt dépend de son nombre de nœuds, donc surtout du nombre d'arbres. Or la
   RMSE ne baisse plus au-delà de 150 arbres : on garde la même performance pour un fichier deux fois plus petit
-  (60,8 Mo compressés), plus rapide à charger et à interroger (annexe D.4).
+  (60,8 Mo compressés), plus rapide à charger et à interroger ([annexe D.4](#d4-allègement-dextratrees)).
 - **Compression lzma.** Le même modèle, compressé en lzma plutôt qu'en zlib, passe de 60,8 à 44,7 Mo : sous 50 Mo.
 
 ### Modèle final
@@ -451,7 +440,7 @@ Un tuning léger teste 6 familles de modèles, puis un tuning plus fin approfond
 - Variables : culture, année, température et pesticides moyens des 3 années précédentes, pluie du pays, position du
   pays (`lat_abs`, `geo_x`, `geo_y`, `geo_z`).
 - Les conditions historiques utilisent la moyenne des 3 années précédentes : la première année de chaque pays
-  (1990) n'a donc pas d'historique et sort de l'apprentissage, ce qui ramène le développement de 15 624 à 14 941
+  n'a donc pas d'historique et sort de l'apprentissage, ce qui ramène le développement de 15 624 à 14 941
   lignes (1991-2012).
 - Modèle évalué (notebook 15) : pipeline complet de 44,7 Mo compressés (lzma). C'est ce modèle que mesurent
   l'importance des variables et l'évaluation finale ci-dessous.
@@ -460,24 +449,36 @@ Un tuning léger teste 6 familles de modèles, puis un tuning plus fin approfond
 
 ![Importance par permutation du modèle final, hors apprentissage : hausse de la RMSE quand une famille de variables est mélangée dans une année de validation, 2008-2012 (notebook 15)](assets/figures/14_importance_recommend.png)
 
+| Famille | Variables du modèle | Hausse de RMSE (t/ha, moyenne 2008-2012) |
+|---|---|---:|
+| Culture | <code class="cat">crop</code> (10 cultures) | 9,10 |
+| Géographie | `lat_abs`, `geo_x`, `geo_y`, `geo_z` (position du pays) | 4,27 |
+| Pesticides | `log_pest_hist` (moyenne des 3 années précédentes, en log) | 1,40 |
+| Pluie | `rain_mm` (valeur fixe du pays) | 1,12 |
+| Température | `temp_hist` (moyenne des 3 années précédentes) | 0,98 |
+| Année | `year` (non mélangée : sans elle, la RMSE passe de 1,435 à 1,830) | — |
+
 - La culture compte de loin le plus, puis la géographie ; les pesticides, la pluie et la température viennent loin
   derrière. L'ordre est le même les 5 années.
-- `year` ne peut pas être mélangée dans une seule année de validation : sans elle, le modèle réappris passe de 1,435
-  à 1,830 t/ha de RMSE.
-- Ces importances décrivent l'usage des variables par le modèle, pas un effet causal : pluie, température, pesticides
-  et géographie sont des valeurs du pays, qui portent en partie le même signal.
+- `year` est la même pour toutes les lignes d'une année de validation : on ne peut pas la mélanger, son rôle est
+  mesuré en réapprenant le modèle sans elle.
+- Pluie, température, pesticides et géographie sont des valeurs du pays : elles portent en partie le même signal, que
+  le modèle peut se partager entre elles.
 
-### Évaluation finale
+### Évaluation finale sur le jeu de test
+
+Le notebook 15 apprend le modèle retenu sur 1991-2012, puis l'évalue une seule fois sur 2013, gardée de côté
+jusque-là : le modèle était figé avant cette évaluation.
 
 | Jeu | RMSE (t/ha) | MAE (t/ha) | R² |
 |---|---:|---:|---:|
-| Validation temporelle 2008‑2012 | 1,4349 | 0,7114 | 0,9710 |
+| Validation temporelle 2008‑2012 | 1,4349 | 0,7114 | 0,971 |
 | **Test final 2013 (695 lignes)** | **1,6584** | **0,7615** | **0,9638** |
 
-- Le test est cohérent avec la validation, dont l'erreur augmentait déjà d'une année à l'autre (environ 1,22 t/ha en
-  2008, 1,58 en 2012).
-- 2013 n'a servi à aucun choix : le modèle était figé avant l'évaluation finale.
-- Limite : toutes les lignes de 2013 portent sur des couples pays × culture déjà observés.
+- Validation et test donnent des scores proches : le test est un peu moins bon, dans la continuité de l'erreur de
+  validation, qui augmentait déjà d'une année à l'autre (environ 1,22 t/ha en 2008, 1,58 en 2012).
+- **Limite** : en 2013, chaque culture testée figurait déjà dans les données de son pays les années précédentes. Le
+  test ne mesure donc pas les recommandations de cultures jamais observées dans un pays.
 
 ### Modèle servi : refit sur 1991-2013
 
@@ -493,13 +494,13 @@ restent celles du test 2013 ci-dessus**, mesurées avant le refit.
 
 ![Culture classée n°1 par ExtraTrees dans les conditions de la demande 2012, modèle appris jusqu'en 2011 (notebook 15)](assets/figures/12_carte_n1_2012.png)
 
-La carte montre, pour chacun des 115 pays, la culture classée n°1 pour la campagne 2012 par un ExtraTrees appris
-jusqu'en 2011.
+La carte montre, pour chacun des 115 pays, la culture classée n°1 pour la campagne 2012 par l'ExtraTrees finaliste à
+300 arbres, appris jusqu'en 2011 : un diagnostic du comportement, sans rôle dans le choix du modèle final.
 
 - Seules cinq cultures arrivent n°1, celles aux rendements les plus élevés en t/ha : pomme de terre, patate douce,
   manioc, igname et plantain.
 - **Limite : 25 des 115 n°1 sont des cultures jamais observées dans le pays**, un cas que la validation ne mesure
-  presque pas (annexe A.3). Le top 3 est plus robuste que le seul n°1.
+  presque pas ([annexe B.3](#b3-recommend--limites-de-validation)). Le top 3 est plus robuste que le seul n°1.
 
 ### Suivi MLflow
 
@@ -511,11 +512,13 @@ Les 1 422 évaluations sont journalisées dans une expérience MLflow dédiée �
 
 ## 5. De l'analyse à l'application
 
-Les deux modèles sont servis par une API, et une interface Streamlit permet de les utiliser.
+Les deux modèles sont servis par une API : une interface Streamlit permet de les utiliser, et un dashboard Gradio
+suit l'activité de l'API. Le suivi des appels, la qualité du code et le déploiement sont présentés au
+[chapitre 6](#6-qualité-déploiement-et-monitoring).
 
 ### Architecture
 
-![Architecture de l'application : l'interface Streamlit appelle l'API FastAPI, qui charge les bundles Predict et Recommend ; chaque appel est archivé et tracé par la couche d'observabilité](assets/figures/17_architecture.svg)
+![Architecture de l'application : l'interface Streamlit et le dashboard Gradio appellent l'API FastAPI, qui charge les modèles Predict et Recommend ; les appels /predict et /recommend sont archivés et tracés par la couche d'observabilité](assets/figures/17_architecture.svg)
 
 - **L'API** est construite avec **FastAPI** ; **Pydantic** définit et valide les contrats d'entrée et de sortie. Les
   modèles sont chargés au démarrage, et la logique de prédiction reste séparée de la couche HTTP
@@ -523,16 +526,22 @@ Les deux modèles sont servis par une API, et une interface Streamlit permet de 
 - **L'interface Streamlit ne contient aucune logique ML.** Les bornes, les domaines d'apprentissage, les pays, les
   cultures et les valeurs par défaut viennent des endpoints `/context` ; l'interface envoie les valeurs saisies et
   affiche ce que l'API renvoie : rendement, classement et avertissements.
+- **Reproductibilité.** Les artefacts servis peuvent être reconstruits à partir des données préparées avec
+  `make rebuild-models` ; la commande et les contrôles associés sont documentés dans le README. Les notebooks 11 et
+  15 écrivent leur modèle évalué au même endroit : le README indique comment restaurer ensuite les artefacts servis.
 
 ### API
 
-![Documentation Swagger de l'API : les cinq endpoints /health, /predict/context, /predict, /recommend/context et /recommend](assets/screenshots/UI_API.png)
+![Documentation Swagger de l'API en production : l'endpoint de santé, les quatre endpoints métier et les deux endpoints de monitoring, protégés par token](assets/screenshots/UI_API.png)
 
-L'API expose cinq endpoints, documentés automatiquement par FastAPI dans Swagger (`/docs`) :
+L'API expose un endpoint de santé et quatre endpoints métier, documentés automatiquement par FastAPI dans Swagger
+(`/docs`) :
 
 - `GET /health` : état du service ;
 - `GET /predict/context` et `GET /recommend/context` : ce dont l'interface a besoin pour construire ses formulaires ;
 - `POST /predict` et `POST /recommend` : les deux services.
+
+Deux endpoints de monitoring, en lecture seule et protégés par token, complètent l'API ([chapitre 6](#6-qualité-déploiement-et-monitoring)).
 
 ### Parcours Predict
 
@@ -541,11 +550,11 @@ L'API expose cinq endpoints, documentés automatiquement par FastAPI dans Swagge
 - L'utilisateur saisit **quatre conditions** : pluie, température, fertilisation et irrigation.
 - `GET /predict/context` fournit les bornes, le domaine d'apprentissage et les unités affichés dans le formulaire.
 - `POST /predict` renvoie le rendement estimé et signale les valeurs hors du domaine d'apprentissage.
-- La culture n'est pas demandée : elle n'apporte pas de gain mesurable au modèle (chapitre 3).
+- La culture n'est pas demandée : elle n'apporte pas de gain mesurable au modèle ([chapitre 3](#3-modélisation-predict--estimation-du-rendement)).
 
 ### Parcours Recommend
 
-![Interface Streamlit Recommend : culture recommandée et classement des cultures](assets/screenshots/UI_recommend.png)
+![Interface Streamlit Recommend : culture recommandée et classement des cultures (France, conditions modifiées)](assets/screenshots/UI_recommend.png)
 
 - L'utilisateur **choisit son pays**.
 - Ses conditions historiques (température, pluie, pesticides) sont **proposées automatiquement** par
@@ -568,131 +577,141 @@ L'API expose cinq endpoints, documentés automatiquement par FastAPI dans Swagge
 Les bornes exactes sont visibles dans Swagger ; le contrat d'erreur est détaillé en
 [annexe F](#f-erreurs-de-lapi).
 
-### Reconstruction des modèles servis
+## 6. Qualité, déploiement et monitoring
 
-Les modèles servis ont été produits par les notebooks 11 et 16. Pour pouvoir les reconstruire sans relancer les
-notebooks, une seule commande refait les 5 fichiers que charge l'API : les deux modèles, leurs métadonnées et le
-contexte pays de `/recommend`.
+Ce chapitre présente les tests, la conteneurisation, le déploiement en préproduction et en production, puis le
+suivi de l'API.
 
-```bash
-make rebuild-models
-```
+### Applications en ligne
 
-La commande part des datasets préparés (`data/processed/`) et du GeoJSON, et réutilise le code de préparation du
-package : lecture et contrôle des datasets, découpages, variables historiques et géographiques, pipelines. Elle ne
-relance pas les expériences (comparaison de modèles, feature engineering, tuning, validation croisée, MLflow) : les
-variables et les réglages sont ceux retenus à la fin des sections 3 et 4. Elle garde la différence entre les deux
-services :
+| | Préproduction (branche `staging`) | Production (branche `main`) |
+|---|---|---|
+| API FastAPI (Swagger) | [oc-p12-agritech-api-preprod.onrender.com/docs](https://oc-p12-agritech-api-preprod.onrender.com/docs) | [oc-p12-agritech-api-prod.onrender.com/docs](https://oc-p12-agritech-api-prod.onrender.com/docs) |
+| Interface Streamlit | [oc-p12-agritech-streamlit-preprod.onrender.com](https://oc-p12-agritech-streamlit-preprod.onrender.com) | [oc-p12-agritech-streamlit-prod.onrender.com](https://oc-p12-agritech-streamlit-prod.onrender.com) |
+| Dashboard Gradio (monitoring) | [oc-p12-agritech-gradio-preprod.onrender.com](https://oc-p12-agritech-gradio-preprod.onrender.com) | [oc-p12-agritech-gradio-prod.onrender.com](https://oc-p12-agritech-gradio-prod.onrender.com) |
 
-- `/predict` : la régression linéaire est entraînée sur le seul jeu d'entraînement (799 815 lignes), comme dans le
-  notebook 11 ;
-- `/recommend` : le modèle évalué une seule fois sur 2013 est réentraîné sur 1991-2013 (15 636 lignes), comme dans
-  le notebook 16.
+Les services sont hébergés sur l'offre gratuite de Render : après une période sans trafic, le premier accès peut
+prendre environ une minute.
 
-Les métriques des métadonnées restent celles des évaluations finales (test réservé pour `/predict`, 2013 pour
-`/recommend`). Elles sont recopiées telles quelles : le test n'est pas réévalué pendant la reconstruction. Le
-script contrôle les fichiers produits (effectifs, variables, réglages, domaine d'apprentissage, contexte des 115
-pays), les recharge avec le code de l'API et vérifie quelques prédictions de référence. Si des modèles sont déjà
-présents dans `models/`, il compare aussi leurs prédictions et s'arrête avant d'écrire en cas d'écart. Avec les
-modèles actuels, la reconstruction redonne les mêmes prédictions : à moins de 1e-12 t/ha près pour `/predict`, à
-l'identique pour `/recommend`.
+### Tests et qualité
 
-### Lancement local et tests
-
-```bash
-make api         # API sur http://127.0.0.1:8000, documentation sur /docs
-make streamlit   # interface Streamlit sur http://localhost:8501
-```
-
-L'interface appelle l'API à l'adresse donnée par `AGRITECH_API_URL`, par défaut `http://localhost:8000`. Les tests
-sont écrits au fil du développement (`make test`) :
+La suite complète est relancée par la CI à chaque push ou pull request vers `staging` ou `main`, et à la
+demande :
 
 | Tests | Nombre |
 |---|---:|
 | Interfaces Streamlit et Gradio (client HTTP compris) | 294 |
-| API, modèles, monitoring et observabilité | 411 |
+| API, modèles, monitoring et observabilité | 438 |
 | Protocole d'entraînement (historique, découpage temporel) | 13 |
-| Architecture Docker | 18 |
-| Reconstruction des modèles (script) | 17 |
-| **Total** | **753** |
+| Architecture Docker | 22 |
+| Reconstruction et sérialisation des modèles | 26 |
+| **Total** | **793** |
 
-Couverture : **97 %** du code applicatif servi (`agritech.api`, `agritech.serving`, `agritech.monitoring`,
-`agritech.observability` et `agritech.ui`). Les modules d'entraînement, utilisés par les notebooks, sont hors de
-ce périmètre ; leurs invariants critiques (historique sans fuite temporelle, découpage temporel) sont testés à part.
+Couverture globale : **97 %** sur le périmètre mesuré. Les invariants des modules d'entraînement
+(historique sans fuite temporelle, découpage temporel) sont testés à part. Lint : Ruff (`make lint`).
 
-### Observabilité et conteneurisation
+### Docker : une image par service
 
-Une couche d'observabilité a été ajoutée autour de l'API pour garder l'historique des appels et faciliter leur
-diagnostic, sans changer les contrats ni bloquer une prédiction en cas de panne. Chaque appel `POST /predict` ou
-`POST /recommend` est archivé dans une base SQLite ; Logfire apporte en plus une observabilité externe facultative ;
-enfin, un CLI permet de rejouer une requête archivée avec le modèle courant et de comparer les deux réponses. Le
-fonctionnement de cette observabilité est détaillé en [annexe G](#g-observabilité), et le schéma de la table
-SQLite en [annexe E](#e-schéma-du-monitoring-sqlite).
+- Un seul `Dockerfile`, avec une cible par service (`api`, `streamlit`, `gradio`) ; chaque image n'installe que ses
+  dépendances, et seule celle de l'API contient les modèles.
+- L'argument `SERVICE` choisit l'image, car Render ne permet pas de choisir la cible ; `PORT` fixe le port d'écoute.
+- En local, Docker Compose lance les trois services ([annexe H](#h-docker)).
 
-L'application a aussi été containerisée avec Docker, pour disposer d'un environnement d'exécution reproductible.
-Docker Compose lance FastAPI, Streamlit et Gradio comme trois services séparés : Streamlit et Gradio appellent FastAPI
-par le réseau Compose, et FastAPI reste seul propriétaire de la base SQLite de monitoring. La configuration, les
-commandes et la conservation des données d'observabilité lors des recréations des conteneurs sont décrites en
-[annexe H](#h-docker).
+### CI/CD : de Git à Render
+
+![Chaîne de déploiement : GitHub Actions valide chaque commit poussé sur staging ou main, puis Render redéploie la préproduction (staging) ou la production (main) ; chaque environnement a ses propres services, sa configuration et ses secrets](assets/figures/19_deploiement.svg)
+
+Chaque push ou pull request vers `staging` ou `main`, ou un lancement manuel, déclenche quatre checks GitHub Actions
+en parallèle ([historique des runs](https://github.com/justinetct/oc_project12_agritech/actions/workflows/ci.yml)) :
+
+| Check | Ce qui est vérifié |
+|---|---|
+| Quality | `poetry.lock` cohérent, requirements Docker à jour, lint Ruff, suite complète avec couverture |
+| API | tests de l'API, du monitoring, de l'observabilité et du serving (438), puis image `api`, démarrage du conteneur et `/health` |
+| Streamlit | tests de l'interface et du client HTTP commun (178), puis image `streamlit`, démarrage et `/_stcore/health` |
+| Gradio | tests du dashboard et du client HTTP commun (213), puis image `gradio`, démarrage et réponse de `/` |
+
+![Run GitHub Actions du commit 7ce028b sur main : les quatre checks sont verts](assets/figures/20_github_actions.png)
+
+- Chaque image est démarrée comme sur Render (`PORT=10000`) et doit répondre à son healthcheck ; un check rouge
+  désigne directement le service en cause.
+- GitHub Actions ne déploie rien : les six services Render attendent que tous les checks d'un commit soient verts
+  (« After CI Checks Pass »), puis reconstruisent eux-mêmes les images.
+
+### Monitoring : historique, dashboard et traces
+
+| Brique | Rôle | Emplacement |
+|---|---|---|
+| SQLite (`api_requests`) | historique de chaque `POST /predict` et `POST /recommend` : entrées, réponse, statut, durée, versions | dans l'API, seule à lire et écrire la base |
+| `GET /monitoring/summary` et `GET /monitoring/requests` | résumé d'une période et derniers appels, protégés par token | endpoints de l'API |
+| Dashboard Gradio | volumes, erreurs et latences par service | service séparé, qui appelle l'API |
+| Logfire | trace de `POST /predict`, `POST /recommend` et `GET /health` | service externe, actif si un token est configuré |
+
+![Dashboard Gradio de la production, vue 30 jours : historique de démonstration et appels réels](assets/figures/18_monitoring_gradio.png)
+
+- Gradio ne lit jamais la base : il passe par l'API. Le dashboard déployé est public ; seuls les endpoints
+  `/monitoring/*` de l'API demandent un token.
+- Sur Render, la base SQLite est éphémère : l'API régénère un historique de démonstration de 90 jours quand elle est
+  recréée. Les volumes affichés viennent surtout de cet historique et ne représentent pas un trafic réel.
+- SQLite suffit pour une seule instance de démonstration ; PostgreSQL serait utile avec plusieurs instances ou un
+  suivi dans la durée.
+- Logfire sépare les traces de préproduction et de production. Détails en [annexe G](#g-observabilité), schéma de
+  la table en [annexe E](#e-schéma-du-monitoring-sqlite).
 
 ## Annexes
 
-### A. Limites et précautions
-
-#### A.1 `/predict` — limites des données
-
-- Le jeu parcellaire est simulé (distributions uniformes, catégories équilibrées) : les liens appris par `/predict`
-  ne sont pas des preuves agronomiques.
-- Il n'a ni pays ni année, et `Region` ne correspond à aucun lieu : une estimation ne peut pas être rattachée à un
-  lieu ou à une saison précise.
-- Les six cultures ont des rendements quasiment identiques : la culture ne changerait pas l'estimation,
-  c'est pourquoi l'interface ne la demande pas.
-
-#### A.2 `/recommend` — limites des données
-
-- Les conditions sont nationales : la pluie est une valeur fixe par pays, sans variation d'une année à l'autre, et
-  les pesticides sont un tonnage national, qui dépend de la taille du pays.
-- La température moyenne varie surtout d'un pays à l'autre (99,8 % de la variance de `temp_hist`) : le modèle apprend
-  ces conditions en comparant des pays.
-- Chaque pays a une position unique : un arbre peut s'en servir pour reconnaître le pays.
-- 115 pays et un historique jusqu'en 2013 : les autres pays ne peuvent pas être servis, et des campagnes plus récentes
-  demanderont des données à jour.
-
-#### A.3 `/recommend` — limites de validation
-
-- La validation ne mesure presque que des couples pays × culture déjà vus pendant l'apprentissage : 3 469 lignes sur
-  3 472. Le test 2013 n'en contient aucun nouveau.
-- Or, pour la campagne 2012, 25 des 115 cultures classées n°1 n'avaient jamais été observées dans le pays : la
-  qualité de ce type de recommandation n'est presque pas mesurée.
-- Comparaison avec les rendements observés en 2012, une année de validation (ce n'est pas un nouveau test) : le n°1
-  du modèle est la culture au meilleur rendement observé dans 83 pays sur 115 ; parmi les 32 différences, 25 viennent
-  de cultures jamais observées dans le pays. En ne classant que les cultures observées dans le pays en 2012, le même
-  n°1 est retrouvé dans 105 pays ; la culture au meilleur rendement observé est dans le top 3 du modèle dans 109 pays.
-- Une seule année de test : en validation, l'erreur variait de 1,22 à 1,58 t/ha selon l'année.
-
-#### A.4 Utilisation, extrapolation et causalité
-
-- Les scores et les importances décrivent des prédictions, pas des effets de cause à effet.
-- ExtraTrees n'extrapole pas : au-delà des valeurs apprises, il répond comme au bord de la plage connue. L'API signale ces
-  valeurs (`out_of_training_domain`), et l'interface affiche un avertissement.
-- Un stress test (notebook 15) a modifié les conditions de quelques pays (température ±3 °C, pluie ±30 %,
-  pesticides ±50 %) : le classement d'ExtraTrees reste relativement stable. Ce test décrit le modèle ; il ne
-  démontre aucun effet agronomique.
-
-### B. Glossaire
+### A. Glossaire
 
 | Terme | Définition |
 |---|---|
-| ACP | analyse en composantes principales : projection des données sur les axes de plus grande variance |
-| F1, F2, … | axes de l'ACP, ordonnés par variance décroissante |
-| Importance par permutation | hausse de l'erreur quand une variable est mélangée : ce que le modèle perd sans cette information |
-| MAE | *Mean Absolute Error* — écart moyen, en t/ha, entre la prédiction et la valeur réelle |
+| ACP | analyse en composantes principales : résume les variables en axes (F1, F2, …) de variance décroissante |
+| CI/CD | GitHub Actions teste chaque push ou pull request vers `staging` ou `main` ; Render redéploie ensuite automatiquement quand tous les checks sont verts |
+| Healthcheck | adresse qui indique qu'un service fonctionne (`/health` pour l'API) |
+| Importance par permutation | hausse de l'erreur quand une variable est mélangée |
+| MAE | erreur absolue moyenne, en t/ha |
+| Préproduction | copie de la production, pour valider une modification avant de la publier |
 | R² | part des variations du rendement expliquée par le modèle (1 = parfait, 0 = pas mieux que la moyenne) |
-| RMSE | *Root Mean Squared Error* — racine de l'erreur quadratique moyenne, en t/ha ; pénalise davantage les grosses erreurs que la MAE |
-| SHAP | valeurs de Shapley appliquées au modèle : contribution de chaque variable à chaque prédiction |
-| Spearman | corrélation de rang : mesure si deux variables varient dans le même sens, sans supposer de relation linéaire |
-| Validation croisée | le jeu d'entraînement est coupé en 5 parts ; chaque part est prédite par un modèle appris sur les 4 autres |
-| Validation temporelle | chaque année est prédite par un modèle appris sur les années précédentes |
+| RMSE | racine de l'erreur quadratique moyenne, en t/ha : pénalise davantage les grosses erreurs |
+| SHAP | contribution de chaque variable à chaque prédiction |
+| Spearman | corrélation de rang, sans supposer de relation linéaire |
+| Validation croisée | 5 parts du jeu d'entraînement, chacune prédite par un modèle appris sur les 4 autres |
+| Validation temporelle | chaque année prédite par un modèle appris sur les années précédentes |
+
+### B. Limites et précautions
+
+#### B.1 `/predict` — limites des données
+
+- Distributions très régulières et catégories équilibrées : les liens appris décrivent ces données, pas des preuves
+  agronomiques.
+- Ni pays ni année, et `Region` ne correspond à aucun lieu ; les six cultures ont des rendements quasiment
+  identiques.
+
+#### B.2 `/recommend` — limites des données
+
+- Conditions nationales : pluie fixe par pays, pesticides en tonnage national, qui dépend de la taille du pays.
+- La température varie surtout d'un pays à l'autre : le modèle apprend en comparant des pays.
+- Chaque pays a une position unique : un arbre peut s'en servir pour reconnaître le pays.
+- 115 pays et des données jusqu'en 2013.
+
+#### B.3 `/recommend` — limites de validation
+
+- La validation et le test portent presque uniquement sur des couples pays × culture déjà vus : en validation
+  2008-2012, 3 469 lignes sur 3 472 portent sur un couple déjà présent dans l'apprentissage du fold ; au test 2013,
+  les 695 lignes sur 695.
+- Diagnostics de l'ExtraTrees finaliste à 300 arbres, appris jusqu'en 2011, sans rôle dans le choix du modèle
+  final. Pour la campagne 2012, 25 des 115 cultures qu'il classe n°1 n'avaient jamais été observées dans le pays :
+  ce cas n'est presque pas mesuré.
+- Même modèle, face aux rendements observés en 2012 : même n°1 dans 83 pays sur 115, et dans 105 en ne classant
+  que les cultures observées ; la meilleure culture observée est dans le top 3 dans 109 pays.
+- Une seule année de test.
+
+#### B.4 Utilisation et extrapolation
+
+- ExtraTrees n'extrapole pas : l'API signale les valeurs hors du domaine d'apprentissage, et l'interface affiche un
+  avertissement.
+- Un stress test (notebook 15 : température ±3 °C, pluie ±30 %, pesticides ±50 %, 8 scénarios × 5 pays) sur
+  l'ExtraTrees finaliste à 300 arbres garde le top 3 identique, ordre compris, dans 35 cas sur 40. C'est un
+  diagnostic, sans rôle dans le choix du modèle.
 
 ### C. Tuning `/predict`
 
@@ -791,7 +810,7 @@ Le modèle retenu (150 arbres) est sauvegardé en lzma (44,7 Mo) au lieu de zlib
 ### E. Schéma du monitoring SQLite
 
 Table `api_requests` : une ligne par appel `POST /predict` ou `/recommend`. Elle conserve les
-informations nécessaires au suivi, au diagnostic et au rejeu des requêtes.
+informations nécessaires au suivi et au diagnostic des requêtes.
 
 | Colonne | Type SQLAlchemy | Nullable | Rôle |
 |---|---|---|---|
@@ -804,7 +823,7 @@ informations nécessaires au suivi, au diagnostic et au rejeu des requêtes.
 | `success` | `Boolean` | non | `True` si `status_code < 400` |
 | `duration_ms` | `Integer` | non | durée en millisecondes (≥ 1) |
 | `api_version` | `String(20)` | non | version de l'API au moment de la requête |
-| `model_version` | `String(20)` | oui | version du bundle chargé ; `NULL` si aucun modèle |
+| `model_version` | `String(20)` | oui | version du modèle chargé ; `NULL` si aucun modèle |
 | `request_payload` | `JSON` | non | corps de la requête tel que reçu |
 | `response_payload` | `JSON` | oui | corps de la réponse tel que renvoyé |
 | `error_type` | `String(50)` | oui | code d'erreur unifié — `NULL` en succès |
@@ -815,7 +834,7 @@ informations nécessaires au suivi, au diagnostic et au rejeu des requêtes.
 Deux index couvrent les seuls accès attendus :
 
 - `(service, timestamp)` — lister les appels d'un service par ordre chronologique ;
-- `(success, timestamp)` — retrouver les erreurs récentes, utilisé par le mode replay batch.
+- `(success, timestamp)` — retrouver les erreurs récentes.
 
 ### F. Erreurs de l'API
 
@@ -825,7 +844,9 @@ Les erreurs partagent le même contrat `ErrorResponse` (`error`, `message`, `det
   liste `details` (`field`, `type`, `message`) qui ne recopie ni le payload d'origine ni le contexte interne de
   Pydantic. Pour `/recommend`, un `iso3` bien formé mais absent du contexte servi renvoie aussi un 422, avec
   `type="unknown_country"` sur le champ `body.iso3` ;
+- **401 `unauthorized`** : token absent ou invalide sur `/monitoring/*` ;
 - **503 `model_unavailable`** : le modèle ou son contexte n'est pas chargé ;
+- **503 `monitoring_unavailable`** : le monitoring est indisponible ;
 - **500 `internal_error`** : exception non prévue. Ni le message brut, ni la traceback, ni les chemins de fichiers
   ne sont renvoyés au client ; ils sont seulement loggés côté serveur.
 
@@ -836,37 +857,28 @@ français.
 
 ### G. Observabilité
 
-Une fois `/predict` et `/recommend` en service, on veut savoir quels appels arrivent, s'ils
-réussissent ou échouent, et pouvoir vérifier plus tard qu'une prédiction faite hier reste
-cohérente avec le modèle disponible aujourd'hui. Cette couche s'ajoute sans changer le contrat
-HTTP, et une panne d'observabilité ne fait jamais échouer une prédiction valide.
+Une fois `/predict` et `/recommend` en service, on veut savoir quels appels arrivent, s'ils réussissent ou
+échouent, et conserver les informations utiles au suivi et au diagnostic. Cette couche s'ajoute sans changer le
+contrat HTTP ; elle est conçue pour ne pas faire échouer une prédiction valide en cas d'indisponibilité de
+l'observabilité.
 
-**SQLite — l'historique persistant.** Chaque `POST /predict` et `POST /recommend` est archivé
+**SQLite — l'historique des appels.** Chaque `POST /predict` et `POST /recommend` est archivé
 dans une table `api_requests` : payloads, statut, durée, versions API et modèle, trace ID
 Logfire. Les endpoints techniques ne sont pas persistés, aucun en-tête ni IP n'est capturé. Le
-schéma détaillé de la table est en annexe E.
+schéma détaillé de la table est en [annexe E](#e-schéma-du-monitoring-sqlite).
 
 **Logfire — l'observabilité externe optionnelle.** Configurée uniquement si `LOGFIRE_TOKEN` est
 présent ; sinon aucun envoi réseau. Chaque appel observé apparaît comme un span nommé d'après la
 route, avec requête et réponse en attributs — y compris `GET /health`, tracé côté Logfire mais
 jamais persisté en SQLite. Les 4xx ressortent en warning, les 5xx en error. La corrélation avec
-SQLite passe par un `trace_id` commun.
+SQLite passe par un `trace_id` commun. En préproduction et en production, le token Logfire est saisi
+dans Render et les traces sont séparées par environnement (`staging`, `prod`).
 
-![Capture Logfire de la timeline des appels API et du détail d'un POST /predict](assets/figures/16_observability_logfire.png)
+![Capture Logfire de la préproduction : appels POST /predict et POST /recommend, dont un 422 en orange, et détail d'un GET /health qui expose /predict 1.1.0 et /recommend 2.0.0](assets/figures/16_observability_logfire.png)
 
-_La timeline Logfire permet de distinguer immédiatement les appels réussis (200) des erreurs de
-validation (422). Le panneau de détail donne accès à la requête, à la réponse et au statut de
-l'appel._
-
-**CLI de rejeu.** Le module `agritech.monitoring.replay` reprend une ligne archivée et invoque
-directement `agritech.serving` avec le modèle actuellement disponible :
-
-    poetry run python -m agritech.monitoring.replay 42
-    poetry run python -m agritech.monitoring.replay --failed --since 2026-09-29
-
-Il affiche la requête, la réponse archivée, la réponse actuelle et un diff JSON. Le dépôt ne
-conserve qu'un artefact par service : si `model_version` a changé depuis l'appel archivé, un
-WARNING est affiché et le replay ne constitue pas une reproduction stricte.
+_La timeline Logfire distingue immédiatement les appels réussis (200) de l'erreur de validation (422).
+Le panneau de détail montre la réponse de `GET /health` : environnement et versions de l'API et des deux
+modèles servis._
 
 ### H. Docker
 
@@ -893,8 +905,11 @@ survit aux recréations du conteneur.
 | `LOGFIRE_ENVIRONMENT` | `local` | Contexte Logfire |
 | `LOGFIRE_SERVICE_NAME` | `agritech-answers-api` | Nom de service Logfire |
 | `LOGFIRE_TOKEN` | *optionnel* | Sans token, mode silencieux, aucun envoi réseau |
+| `MONITORING_API_TOKEN` | *depuis le shell ou `.env`* | Token des endpoints `/monitoring/*`, transmis à l'API et au dashboard Gradio |
 
-Les cibles `make docker-*` transmettent `LOGFIRE_TOKEN` s'il est défini (shell ou `.env`).
+Les cibles `make docker-*` transmettent `LOGFIRE_TOKEN` et `MONITORING_API_TOKEN` s'ils sont définis (shell ou
+`.env`). La CI et Render construisent les services à partir du même `Dockerfile` ([chapitre 6](#6-qualité-déploiement-et-monitoring)) ; sur Render, les
+variables sont fixées par les Blueprints et les secrets générés ou saisis dans Render.
 
 ---
 

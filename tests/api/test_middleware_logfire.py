@@ -18,6 +18,7 @@ from agritech.api.core import runtime
 from agritech.api.main import app
 from agritech.api.middleware import request_logger
 from agritech.monitoring.models import ApiRequest
+from agritech.predict_config import PREDICT_MODEL_VERSION
 
 
 VALID_PREDICT_PAYLOAD = {
@@ -105,7 +106,7 @@ def test_persisted_event_is_emitted_after_successful_insert(
     assert attrs["success"] is True
     assert attrs["duration_ms"] > 0
     assert attrs["api_version"] == "1.0.0"
-    assert attrs["model_version"] == "1.0.0"
+    assert attrs["model_version"] == PREDICT_MODEL_VERSION
     assert attrs["environment"] == "test"
 
 

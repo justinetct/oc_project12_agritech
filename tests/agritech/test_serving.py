@@ -17,6 +17,7 @@ import pandas as pd
 import pytest
 
 from agritech.config import PATHS
+from agritech.predict_config import PREDICT_MODEL_VERSION
 from agritech.recommend_config import RECOMMEND_CROPS
 from agritech.serving import (
     MODEL_RAINFALL_FLOAT32_CEILING,
@@ -67,7 +68,7 @@ def test_load_bundle_predict_reads_versioned_artifacts():
     assert isinstance(bundle, Bundle)
     assert bundle.name == "predict"
     assert bundle.metadata["service"] == "predict"
-    assert bundle.metadata["model_version"] == "1.0.0"
+    assert bundle.metadata["model_version"] == PREDICT_MODEL_VERSION
 
     training_domain = bundle.metadata["training_domain"]
     assert set(training_domain) == {"Rainfall_mm", "Temperature_Celsius"}
@@ -75,6 +76,17 @@ def test_load_bundle_predict_reads_versioned_artifacts():
     assert training_domain["Temperature_Celsius"] == {"min": 15, "max": 40, "unit": "°C"}
 
     assert hasattr(bundle.pipeline, "predict")
+
+
+def test_load_bundle_records_the_size_of_the_loaded_joblib(tmp_path: Path):
+    """`artifact_size_bytes` est la taille du `.joblib` réellement lu, dans le dossier donné."""
+    for suffix in ("model.joblib", "model_metadata.json"):
+        shutil.copy(PATHS.root / "models" / f"predict_{suffix}", tmp_path / f"predict_{suffix}")
+
+    bundle = load_bundle("predict", tmp_path)
+
+    assert bundle.artifact_size_bytes == (tmp_path / "predict_model.joblib").stat().st_size > 0
+    assert Bundle(name="predict", pipeline=bundle.pipeline, metadata=bundle.metadata).artifact_size_bytes is None
 
 
 def test_load_bundle_missing_joblib(tmp_path: Path):

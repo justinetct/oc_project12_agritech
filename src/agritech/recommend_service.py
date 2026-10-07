@@ -1,6 +1,7 @@
 """Chemin d'inférence de `/recommend` : préparer une demande, prédire les 10 cultures et les classer.
 
-Ces fonctions sont celles que l'API utilisera. Elles ne dépendent d'aucun notebook, n'importent ni
+Ces fonctions servent aux notebooks 15 et 16 ; l'API passe par `agritech.serving`, qui construit les mêmes
+variables à partir du contexte pays. Elles ne dépendent d'aucun notebook, n'importent ni
 matplotlib ni MLflow, et n'utilisent jamais de mesure de l'année demandée : les conditions historiques
 viennent des années précédentes du pays, comme à l'entraînement (voir `recommend_features.py`).
 """
