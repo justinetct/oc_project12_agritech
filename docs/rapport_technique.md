@@ -472,7 +472,7 @@ jusque-là : le modèle était figé avant cette évaluation.
 
 | Jeu | RMSE (t/ha) | MAE (t/ha) | R² |
 |---|---:|---:|---:|
-| Validation temporelle 2008‑2012 | 1,4349 | 0,7114 | 0,9710 |
+| Validation temporelle 2008‑2012 | 1,4349 | 0,7114 | 0,971 |
 | **Test final 2013 (695 lignes)** | **1,6584** | **0,7615** | **0,9638** |
 
 - Validation et test donnent des scores proches : le test est un peu moins bon, dans la continuité de l'erreur de
@@ -518,7 +518,7 @@ suit l'activité de l'API. Le suivi des appels, la qualité du code et le déplo
 
 ### Architecture
 
-![Architecture de l'application : l'interface Streamlit et le dashboard Gradio appellent l'API FastAPI, qui charge les modèles Predict et Recommend ; chaque appel est archivé et tracé par la couche d'observabilité](assets/figures/17_architecture.svg)
+![Architecture de l'application : l'interface Streamlit et le dashboard Gradio appellent l'API FastAPI, qui charge les modèles Predict et Recommend ; les appels /predict et /recommend sont archivés et tracés par la couche d'observabilité](assets/figures/17_architecture.svg)
 
 - **L'API** est construite avec **FastAPI** ; **Pydantic** définit et valide les contrats d'entrée et de sortie. Les
   modèles sont chargés au démarrage, et la logique de prédiction reste séparée de la couche HTTP
@@ -527,7 +527,8 @@ suit l'activité de l'API. Le suivi des appels, la qualité du code et le déplo
   cultures et les valeurs par défaut viennent des endpoints `/context` ; l'interface envoie les valeurs saisies et
   affiche ce que l'API renvoie : rendement, classement et avertissements.
 - **Reproductibilité.** Les artefacts servis peuvent être reconstruits à partir des données préparées avec
-  `make rebuild-models` ; la commande et les contrôles associés sont documentés dans le README.
+  `make rebuild-models` ; la commande et les contrôles associés sont documentés dans le README. Les notebooks 11 et
+  15 écrivent leur modèle évalué au même endroit : le README indique comment restaurer ensuite les artefacts servis.
 
 ### API
 
@@ -553,7 +554,7 @@ Deux endpoints de monitoring, en lecture seule et protégés par token, complèt
 
 ### Parcours Recommend
 
-![Interface Streamlit Recommend : culture recommandée et classement des cultures](assets/screenshots/UI_recommend.png)
+![Interface Streamlit Recommend : culture recommandée et classement des cultures (France, conditions modifiées)](assets/screenshots/UI_recommend.png)
 
 - L'utilisateur **choisit son pays**.
 - Ses conditions historiques (température, pluie, pesticides) sont **proposées automatiquement** par
@@ -618,10 +619,10 @@ Couverture globale : **97 %** sur le périmètre mesuré. Les invariants des mod
 
 ### CI/CD : de Git à Render
 
-![Chaîne de déploiement : GitHub Actions valide chaque commit, puis Render redéploie la préproduction (staging) ou la production (main) ; chaque environnement a ses propres services, sa configuration et ses secrets](assets/figures/19_deploiement.svg)
+![Chaîne de déploiement : GitHub Actions valide chaque commit poussé sur staging ou main, puis Render redéploie la préproduction (staging) ou la production (main) ; chaque environnement a ses propres services, sa configuration et ses secrets](assets/figures/19_deploiement.svg)
 
-Chaque push ou pull request vers `staging` ou `main` lance quatre checks GitHub Actions en parallèle
-([historique des runs](https://github.com/justinetct/oc_project12_agritech/actions/workflows/ci.yml)) :
+Chaque push ou pull request vers `staging` ou `main`, ou un lancement manuel, déclenche quatre checks GitHub Actions
+en parallèle ([historique des runs](https://github.com/justinetct/oc_project12_agritech/actions/workflows/ci.yml)) :
 
 | Check | Ce qui est vérifié |
 |---|---|
@@ -648,7 +649,8 @@ Chaque push ou pull request vers `staging` ou `main` lance quatre checks GitHub 
 
 ![Dashboard Gradio de la production, vue 30 jours : historique de démonstration et appels réels](assets/figures/18_monitoring_gradio.png)
 
-- Gradio ne lit jamais la base : il passe par l'API.
+- Gradio ne lit jamais la base : il passe par l'API. Le dashboard déployé est public ; seuls les endpoints
+  `/monitoring/*` de l'API demandent un token.
 - Sur Render, la base SQLite est éphémère : l'API régénère un historique de démonstration de 90 jours quand elle est
   recréée. Les volumes affichés viennent surtout de cet historique et ne représentent pas un trafic réel.
 - SQLite suffit pour une seule instance de démonstration ; PostgreSQL serait utile avec plusieurs instances ou un
@@ -663,7 +665,7 @@ Chaque push ou pull request vers `staging` ou `main` lance quatre checks GitHub 
 | Terme | Définition |
 |---|---|
 | ACP | analyse en composantes principales : résume les variables en axes (F1, F2, …) de variance décroissante |
-| CI/CD | GitHub Actions teste chaque modification ; Render redéploie ensuite automatiquement quand tous les checks sont verts |
+| CI/CD | GitHub Actions teste chaque push ou pull request vers `staging` ou `main` ; Render redéploie ensuite automatiquement quand tous les checks sont verts |
 | Healthcheck | adresse qui indique qu'un service fonctionne (`/health` pour l'API) |
 | Importance par permutation | hausse de l'erreur quand une variable est mélangée |
 | MAE | erreur absolue moyenne, en t/ha |
@@ -872,11 +874,11 @@ jamais persisté en SQLite. Les 4xx ressortent en warning, les 5xx en error. La 
 SQLite passe par un `trace_id` commun. En préproduction et en production, le token Logfire est saisi
 dans Render et les traces sont séparées par environnement (`staging`, `prod`).
 
-![Capture Logfire de la timeline des appels API et du détail d'un POST /predict (environnement local)](assets/figures/16_observability_logfire.png)
+![Capture Logfire de la préproduction : appels POST /predict et POST /recommend, dont un 422 en orange, et détail d'un GET /health qui expose /predict 1.1.0 et /recommend 2.0.0](assets/figures/16_observability_logfire.png)
 
-_La timeline Logfire permet de distinguer immédiatement les appels réussis (200) des erreurs de
-validation (422). Le panneau de détail donne accès à la requête, à la réponse et au statut de
-l'appel._
+_La timeline Logfire distingue immédiatement les appels réussis (200) de l'erreur de validation (422).
+Le panneau de détail montre la réponse de `GET /health` : environnement et versions de l'API et des deux
+modèles servis._
 
 ### H. Docker
 
@@ -907,7 +909,7 @@ survit aux recréations du conteneur.
 
 Les cibles `make docker-*` transmettent `LOGFIRE_TOKEN` et `MONITORING_API_TOKEN` s'ils sont définis (shell ou
 `.env`). La CI et Render construisent les services à partir du même `Dockerfile` ([chapitre 6](#6-qualité-déploiement-et-monitoring)) ; sur Render, les
-variables sont fixées par les Blueprints et les secrets saisis dans Render.
+variables sont fixées par les Blueprints et les secrets générés ou saisis dans Render.
 
 ---
 

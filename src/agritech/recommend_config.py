@@ -61,8 +61,8 @@ RECOMMEND_VALIDATION_YEARS = [2008, 2009, 2010, 2011, 2012]
 
 # Modèles finalistes du notebook 14 : meilleure configuration de chaque famille sur la représentation `history`
 # (tuning approfondi exhaustif des grilles recentrées), et encodage retenu pour `crop`. Le notebook 15 les reconstruit
-# sans refaire de recherche, puis retient ExtraTrees réduit à 150 arbres : ce modèle final est défini dans le notebook
-# 15 et sauvegardé dans `models/recommend_model.joblib`, le seul que l'API utilisera.
+# sans refaire de recherche, puis retient ExtraTrees réduit à 150 arbres, évalué sur 2013 après un apprentissage sur
+# 1991-2012. Le modèle servi par l'API est ce même modèle réappris sur 1991-2013 (`RECOMMEND_FINAL_PARAMS`).
 RECOMMEND_FINALISTS = {
     "extra_trees": {
         "native_categorical": False,
@@ -93,8 +93,8 @@ RECOMMEND_FINAL_PARAMS = {
 }
 RECOMMEND_MODEL_VERSION = "2.0.0"
 
-# Évaluation finale sur 2013 (notebook 15), une seule fois, avant le réapprentissage sur 1991-2013 : la
-# mesure de généralisation du modèle servi.
+# Évaluation finale sur 2013 (notebook 15), une seule fois : la mesure de généralisation du modèle évalué,
+# appris sur 1991-2012. Le modèle servi, réappris ensuite sur 1991-2013, n'a pas de nouvelle évaluation.
 RECOMMEND_FINAL_TEST_METRICS = {
     "rmse": 1.6583653778656462,
     "mae": 0.7614744124700236,

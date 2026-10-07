@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 560" width="768" height="560" role="img" aria-label="Chaîne de déploiement : un push sur staging ou main déclenche GitHub Actions et ses quatre checks (Quality, API, Streamlit, Gradio) ; quand ils sont verts, Render redéploie l'environnement de la branche. La préproduction suit staging, la production suit main. Chaque environnement a sa propre API FastAPI, appelée par son interface Streamlit et son dashboard Gradio, ses modèles, sa base SQLite de monitoring, sa configuration et ses secrets. Les deux API envoient leurs traces à Logfire, séparées par environnement.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 560" width="768" height="560" role="img" aria-label="Chaîne de déploiement : un push sur staging ou main déclenche GitHub Actions et ses quatre checks (Quality, API, Streamlit, Gradio) ; quand tous les checks du commit sont verts, Render redéploie l'environnement de la branche. La préproduction suit staging, la production suit main. Chaque environnement a sa propre API FastAPI, appelée par son interface Streamlit et son dashboard Gradio, ses modèles, sa base SQLite de monitoring, sa configuration et ses secrets. Les deux API envoient leurs traces à Logfire, séparées par environnement.">
   <!-- Schéma écrit directement en SVG, même style que 06_pipelines.svg et 17_architecture.svg. -->
   <title>Chaîne de déploiement et environnements</title>
   <defs>
@@ -51,7 +51,7 @@
   <text class="chip" x="445" y="100" text-anchor="middle">Gradio</text>
 
   <line class="fl" x1="487" y1="76" x2="554" y2="76"/>
-  <text class="flux" x="520" y="66" text-anchor="middle">4 checks</text>
+  <text class="flux" x="520" y="66" text-anchor="middle">checks</text>
   <text class="flux" x="520" y="94" text-anchor="middle">verts</text>
 
   <rect x="556" y="24" width="192" height="104" rx="14" fill="#e8f2ea" stroke="#5aa47c" stroke-width="1.5"/>
