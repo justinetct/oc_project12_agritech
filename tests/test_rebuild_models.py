@@ -1,14 +1,17 @@
-"""Script de reconstruction des modèles (`scripts/rebuild_models.py`), sans les vrais entraînements.
+"""Scripts de reconstruction des modèles (`scripts/rebuild_models.py` et `scripts/prepare_data.py`), sans
+les vrais entraînements.
 
-Les vrais modèles ne sont pas reconstruits ici : il faudrait les datasets de `data/processed/`, non
-versionnés, et la reconstruction complète se lance à la main. Les tests utilisent de petits modèles
+Les vrais modèles ne sont pas reconstruits ici : il faudrait les données brutes de `data/`, non
+versionnées, et la reconstruction complète se lance à la main. Les tests utilisent de petits modèles
 entraînés sur des données synthétiques, et lisent les artefacts servis de `models/` pour vérifier que
-les valeurs figées du script leur correspondent.
+les valeurs figées du script leur correspondent. La préparation des données est testée sur de petits
+fichiers bruts écrits dans un dossier temporaire.
 """
 
 from __future__ import annotations
 
 import json
+import sys
 from datetime import date
 from pathlib import Path
 
@@ -41,7 +44,11 @@ from agritech.recommend_config import (
 from agritech.serialization import dump_without_tree_state_memo
 from agritech.serving import _REQUIRED_METADATA_KEYS, load_bundle, load_recommend_context
 from agritech.training_data import protocol_params, split
-from scripts import rebuild_models as rebuild
+
+# `rebuild_models.py` importe `prepare_data.py` comme un script voisin : `scripts/` doit être dans les chemins.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+import prepare_data as prepare  # noqa: E402
+from scripts import rebuild_models as rebuild  # noqa: E402
 
 FIVE_FILES = {
     "predict_model.joblib",
@@ -141,6 +148,104 @@ def _context_dataset() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+# --- Préparation des données (`prepare_data.py`) ---------------------------------------------------
+
+
+def _write_raw_sources(directory: Path, pesticides: str | None = None) -> Path:
+    """Les quatre fichiers annuels et un GeoJSON minimal, avec un cas pour chaque règle du nettoyage.
+
+    Restent : France 1990-1991 et `China, mainland` 1990. Disparaissent : 1989 (hors période), l'agrégat
+    `China`, Atlantis (sans code ISO3), le Kenya (sans température), le Chili (sans pesticides) et le
+    Monténégro (pluie erronée). Renvoie le chemin du GeoJSON.
+    """
+    (directory / "yield.csv").write_text(
+        "Area,Item,Year,Value\nFrance,Wheat,1989,10000\nFrance,Wheat,1990,70000\nFrance,Wheat,1991,72000\n"
+        'China,Wheat,1990,50000\n"China, mainland",Wheat,1990,52000\nAtlantis,Wheat,1990,1000\n'
+        "Kenya,Maize,1990,20000\nChile,Maize,1990,30000\nMontenegro,Maize,1990,40000\n"
+    )
+    # France 1990 : un doublon exact, puis une autre valeur
+    (directory / "temp.csv").write_text(
+        "year,country,avg_temp\n1990,France,11.0\n1990,France,11.0\n1990,France,12.0\n1991,France,12.5\n"
+        "1990,China,15.0\n1990,Chile,10.0\n1990,Montenegro,9.0\n"
+    )
+    # espace initiale dans l'en-tête et valeur `..`, comme dans le vrai fichier
+    (directory / "rainfall.csv").write_text(
+        " Area,Year,average_rain_fall_mm_per_year\nFrance,1990,800\nFrance,1991,..\nChina,1990,600\n"
+        "Kenya,1990,630\nChile,1990,700\nMontenegro,1990,241\n"
+    )
+    (directory / "pesticides.csv").write_text(
+        pesticides or "Area,Year,Value\nFrance,1990,100\nFrance,1991,110\nChina,1990,1000\nKenya,1990,50\n"
+                      "Montenegro,1990,5\n"
+    )
+    geojson = directory / "countries.geojson"
+    features = [{"type": "Feature", "properties": {"NAME": name, "ISO_A3": code}, "geometry": None}
+                for name, code in [("France", "FRA"), ("China", "CHN"), ("Kenya", "KEN"), ("Chile", "CHL"),
+                                   ("Montenegro", "MNE")]]
+    geojson.write_text(json.dumps({"type": "FeatureCollection", "features": features}))
+    return geojson
+
+
+def test_build_crop_yield_clean_applies_the_cleaning_rules(tmp_path: Path):
+    geojson = _write_raw_sources(tmp_path)
+
+    clean = prepare.build_crop_yield_clean(tmp_path, geojson)
+
+    expected = pd.DataFrame({
+        "iso3": ["FRA", "FRA", "CHN"],
+        "area": ["France", "France", "China, mainland"],
+        "year": [1990, 1991, 1990],
+        "crop": ["Wheat", "Wheat", "Wheat"],
+        "yield_t_ha": [7.0, 7.2, 5.2],
+        "avg_temp": [11.5, 12.5, 15.0],  # France 1990 : doublon retiré, moyenne de 11 et 12
+        "rain_mm": [800.0, 800.0, 600.0],  # France 1991 : `..` remplacé par la valeur du pays
+        "pesticides_t": [100.0, 110.0, 1000.0],
+    })
+    pd.testing.assert_frame_equal(clean, expected, check_exact=True)
+
+
+def test_build_crop_yield_clean_rejects_a_duplicated_key(tmp_path: Path):
+    geojson = _write_raw_sources(tmp_path, pesticides="Area,Year,Value\nFrance,1990,100\nFrance,1990,120\n")
+
+    with pytest.raises(ValueError, match="pesticides.csv"):
+        prepare.build_crop_yield_clean(tmp_path, geojson)
+
+
+def test_prepare_predict_dataset_sets_negative_yields_apart():
+    raw = _predict_dataset(4).assign(**{PREDICT_TARGET: [1.5, 0.0, -0.2, np.nan]})
+
+    training, negative = prepare.prepare_predict_dataset(raw)
+
+    assert sorted(prepare.PREDICT_COLUMNS) == sorted(PREDICT_FEATURES + [PREDICT_TARGET])
+    assert training.columns.tolist() == prepare.PREDICT_COLUMNS
+    assert training[PREDICT_TARGET].tolist() == [1.5, 0.0]  # rendement nul gardé, rendement manquant écarté
+    pd.testing.assert_frame_equal(negative, raw.iloc[[2]])  # toutes les colonnes d'origine
+
+
+def test_through_csv_reads_values_back_like_a_processed_file():
+    df = pd.DataFrame({"avg_temp": [18.240000000000002, 11.5]}, index=[7, 3])
+
+    result = prepare.through_csv(df)
+
+    assert result["avg_temp"].tolist() == [18.24, 11.5]  # valeur relue, comme par les notebooks
+    assert isinstance(result.index, pd.RangeIndex)
+
+
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        (lambda df: df.iloc[1:], "lignes"),
+        (lambda df: df.assign(y=[1.0, None]), "valeurs manquantes"),
+        (lambda df: df.assign(y=[1.0, -0.5]), "valeurs négatives"),
+    ],
+)
+def test_check_training_dataset_rejects_an_unexpected_dataset(change, message):
+    df = pd.DataFrame({"x": [1.0, 2.0], "y": [1.0, 0.0]})
+    rebuild.check_training_dataset("data.csv", df, 2, ["y", "x"], "y")  # colonnes dans un autre ordre : accepté
+
+    with pytest.raises(RuntimeError, match=message):
+        rebuild.check_training_dataset("data.csv", change(df), 2, ["x", "y"], "y")
+
+
 # --- Valeurs figées et artefacts servis ------------------------------------------------------------
 
 
@@ -233,11 +338,10 @@ def test_predict_metadata_keeps_the_metrics_with_the_evaluated_model():
 # --- Réapprentissage /predict ---------------------------------------------------------------------
 
 
-def test_build_predict_refits_the_evaluated_model_on_all_rows(monkeypatch):
+def test_build_predict_refits_the_evaluated_model_on_all_rows():
     df = _predict_dataset()
-    monkeypatch.setattr(rebuild, "load_dataset", lambda *args, **kwargs: df)
 
-    pipeline, metadata, sample = rebuild.build_predict()
+    pipeline, metadata, sample = rebuild.build_predict(df)
 
     features = PREDICT_SELECTED_FEATURES
     categorical, numeric = ["Fertilizer_Used", "Irrigation_Used"], ["Rainfall_mm", "Temperature_Celsius"]
@@ -380,9 +484,9 @@ def test_compare_context_with_served(served_dir: Path):
 def fake_rebuild(served_dir: Path, tmp_path: Path, monkeypatch, recommend_model) -> list[Path]:
     """`main` avec les petits modèles synthétiques à la place des vrais entraînements.
 
-    Les contrôles propres aux vrais modèles (effectifs, 115 pays, prédictions de référence) sont
-    neutralisés ; la comparaison avec `served_dir`, l'écriture et le format des fichiers restent réels.
-    Renvoie la liste des dossiers passés au rechargement final.
+    Les contrôles propres aux vraies données et aux vrais modèles (datasets préparés, effectifs, 115 pays,
+    prédictions de référence) sont neutralisés ; la comparaison avec `served_dir`, l'écriture et le format
+    des fichiers restent réels. Renvoie la liste des dossiers passés au rechargement final.
     """
     predict_pipeline = _predict_pipeline()
     recommend_pipeline, recommend_metadata, X_refit = recommend_model
@@ -390,13 +494,15 @@ def fake_rebuild(served_dir: Path, tmp_path: Path, monkeypatch, recommend_model)
 
     data_file = tmp_path / "data.csv"
     data_file.write_text("")
-    for name in ("PREDICT_DATASET", "RECOMMEND_DATASET", "GEOJSON_PAR_DEFAUT"):
-        monkeypatch.setattr(rebuild, name, data_file)
+    monkeypatch.setattr(rebuild, "RAW_FILES", [data_file])
+    monkeypatch.setattr(rebuild, "GEOJSON_PAR_DEFAUT", data_file)
 
+    monkeypatch.setattr(rebuild, "prepare_training_datasets", lambda: (pd.DataFrame(), pd.DataFrame()))
+    monkeypatch.setattr(rebuild, "check_training_dataset", lambda *args: None)
     monkeypatch.setattr(rebuild, "build_predict",
-                        lambda: (predict_pipeline, _predict_metadata(predict_pipeline), _predict_frame()))
+                        lambda df: (predict_pipeline, _predict_metadata(predict_pipeline), _predict_frame()))
     monkeypatch.setattr(rebuild, "build_recommend",
-                        lambda: (recommend_pipeline, recommend_metadata, context, X_refit))
+                        lambda df: (recommend_pipeline, recommend_metadata, context, X_refit))
     monkeypatch.setattr(rebuild, "check_predict", lambda pipeline, metadata: None)
     monkeypatch.setattr(rebuild, "check_recommend", lambda pipeline, metadata, context: None)
     reloaded: list[Path] = []
@@ -455,8 +561,10 @@ def test_main_stops_before_writing_when_served_model_diverges(fake_rebuild, serv
     assert fake_rebuild == []
 
 
-def test_main_without_data_returns_1_and_writes_nothing(fake_rebuild, monkeypatch, tmp_path: Path):
-    monkeypatch.setattr(rebuild, "RECOMMEND_DATASET", tmp_path / "absent.csv")
+@pytest.mark.parametrize("missing", ["RAW_FILES", "GEOJSON_PAR_DEFAUT"])
+def test_main_without_data_returns_1_and_writes_nothing(fake_rebuild, monkeypatch, tmp_path: Path, missing: str):
+    absent = tmp_path / "absent.csv"
+    monkeypatch.setattr(rebuild, missing, [absent] if missing == "RAW_FILES" else absent)
     output_dir = tmp_path / "rebuild"
 
     assert rebuild.main(["--output-dir", str(output_dir)]) == 1
