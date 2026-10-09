@@ -43,7 +43,7 @@ gradio:
 seed-monitoring:
 	poetry run python -m agritech.monitoring.seed_history $(ARGS)
 
-# Reconstruit les 5 artefacts servis de models/ à partir des datasets préparés (voir README).
+# Reconstruit les 5 artefacts servis de models/ à partir des données brutes, sans data/processed/ (voir scripts/README.md).
 rebuild-models:
 	poetry run python scripts/rebuild_models.py
 

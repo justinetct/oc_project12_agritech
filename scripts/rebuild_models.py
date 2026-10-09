@@ -1,4 +1,4 @@
-"""Reconstruit les modèles servis par l'API à partir des données préparées.
+"""Reconstruit les modèles servis par l'API à partir des données brutes.
 
     poetry run python scripts/rebuild_models.py                       # écrit dans models/
     poetry run python scripts/rebuild_models.py --output-dir /tmp/x   # reconstruction de contrôle
@@ -19,17 +19,20 @@ finale déjà faite (notebooks 11 et 15), recopiées telles quelles dans la part
 le modèle évalué ; la partie `refit` décrit l'apprentissage du modèle servi, qui n'est pas réévalué.
 `created_on` et `versions` décrivent la reconstruction elle-même.
 
-Il n'a pas besoin des fichiers de `models/` pour reconstruire. Contrôles, dans l'ordre :
+Il n'a besoin ni des fichiers de `models/` ni de ceux de `data/processed/`. Contrôles, dans l'ordre :
 
-1. contrôles des modèles reconstruits : effectifs, variables, modalités, paramètres, domaines, contexte ;
-2. si `models/` contient déjà les artefacts servis : prédictions identiques (à 1e-9 près), metadata
+1. préparation en mémoire des deux datasets d'entraînement par `prepare_data.py` (mêmes étapes que
+   les notebooks 04 et 06), puis mêmes contrôles qu'à leur lecture dans les notebooks : lignes,
+   colonnes, aucune valeur manquante, cible positive ou nulle ;
+2. contrôles des modèles reconstruits : effectifs, variables, modalités, paramètres, domaines, contexte ;
+3. si `models/` contient déjà les artefacts servis : prédictions identiques (à 1e-9 près), metadata
    identiques hors `created_on` et `versions`, contexte identique. Les `.joblib` ne sont pas comparés
    octet par octet : deux fichiers différents peuvent donner les mêmes prédictions ;
-3. écriture, seulement si les contrôles précédents passent ;
-4. rechargement par le code de serving de l'API, puis prédictions de référence.
+4. écriture, seulement si les contrôles précédents passent ;
+5. rechargement par le code de serving de l'API, puis prédictions de référence.
 
-Prérequis : les datasets de `data/processed/` (notebooks 04 à 06) et le GeoJSON de `data/geo/`, non
-versionnés (voir `data/README.md`).
+Prérequis : les données brutes de `data/` et le GeoJSON de `data/geo/`, non versionnés (voir
+`data/README.md`).
 """
 
 from __future__ import annotations
@@ -92,9 +95,13 @@ from agritech.serving import (
     public_training_domain_recommend,
     recommend,
 )
-from agritech.training_data import feature_types, load_dataset, protocol_params, split, temporal_split
+from agritech.training_data import feature_types, protocol_params, split, temporal_split
+from prepare_data import RAW_FILES, prepare_training_datasets  # script voisin, dans `scripts/`
 
 SERVED_DIR = PATHS.root / "models"
+
+# Les datasets sont préparés en mémoire par `prepare_data.py` : `PREDICT_DATASET` et `RECOMMEND_DATASET` ne
+# servent qu'à les nommer dans les metadata et le contexte, comme les fichiers de `data/processed/`.
 
 # Effectifs attendus : évaluation des notebooks 11 et 15, réapprentissages du serving (/predict ici, /recommend
 # dans le notebook 16).
@@ -153,19 +160,27 @@ def categorical_values(pipeline, categorical: list[str]) -> dict[str, list]:
     return {name: values.tolist() for name, values in zip(categorical, encoder.categories_)}
 
 
+def check_training_dataset(name: str, df: pd.DataFrame, rows: int, columns: list[str], target: str) -> None:
+    """Contrôles de `training_data.load_dataset` sur un dataset préparé en mémoire : lignes, colonnes (dans
+    n'importe quel ordre), aucune valeur manquante, aucune valeur négative de la cible."""
+    check(len(df) == rows, f"{name} : {len(df)} lignes au lieu de {rows}")
+    check(sorted(df.columns) == sorted(columns), f"{name} : colonnes inattendues")
+    check(not df.isna().any().any(), f"{name} : valeurs manquantes")
+    check(not (df[target] < 0).any(), f"{name} : valeurs négatives dans {target}")
+
+
 # --- /predict ---------------------------------------------------------------------------------------
 
 
-def build_predict() -> tuple:
+def build_predict(df: pd.DataFrame) -> tuple:
     """Modèle `/predict` : le modèle évalué par le notebook 11, réappris sur toutes les lignes.
 
-    Le découpage du notebook 11 n'apprend rien ici : il décrit l'évaluation dans les metadata et
-    fournit 1 000 lignes fixes du test (une toutes les 200), qui servent à comparer avec le modèle
-    servi. Le pipeline, avec les mêmes variables et les réglages par défaut, est appris sur les
-    `PREDICT_ROWS` lignes. Il n'est pas évalué : les métriques restent celles du modèle évalué.
+    `df` : le dataset d'entraînement préparé par `prepare_data.py`. Le découpage du notebook 11
+    n'apprend rien ici : il décrit l'évaluation dans les metadata et fournit 1 000 lignes fixes du test
+    (une toutes les 200), qui servent à comparer avec le modèle servi. Le pipeline, avec les mêmes
+    variables et les réglages par défaut, est appris sur les `PREDICT_ROWS` lignes. Il n'est pas
+    évalué : les métriques restent celles du modèle évalué.
     """
-    df = load_dataset(PREDICT_DATASET, PREDICT_ROWS, PREDICT_FEATURES + [PREDICT_TARGET],
-                      non_negative=[PREDICT_TARGET], verbose=False)
     X_train, X_test, _, _ = split(df, PREDICT_FEATURES, PREDICT_TARGET, PREDICT_TEST_SIZE, SEED, verbose=False)
     features = PREDICT_SELECTED_FEATURES
     categorical, numeric = feature_types(features, PREDICT_CATEGORICAL, PREDICT_NUMERIC)
@@ -239,16 +254,15 @@ def check_predict(pipeline, metadata: dict) -> None:
 # --- /recommend -------------------------------------------------------------------------------------
 
 
-def build_recommend() -> tuple:
+def build_recommend(df: pd.DataFrame) -> tuple:
     """Modèle `/recommend` : mêmes étapes que le notebook 16, réapprentissage sur 1991-2013.
 
-    Les conditions historiques et la géographie viennent des fonctions du package, comme à
-    l'entraînement des notebooks 13 à 16. Seules les lignes avec historique sont gardées, dans
-    l'ordre du notebook 16 : 1991-2012 puis 2013. Renvoie le pipeline, ses metadata, le contexte de
-    serving et les lignes d'apprentissage, qui servent à comparer avec le modèle servi.
+    `df` : le dataset d'entraînement préparé par `prepare_data.py`. Les conditions historiques et la
+    géographie viennent des fonctions du package, comme à l'entraînement des notebooks 13 à 16. Seules
+    les lignes avec historique sont gardées, dans l'ordre du notebook 16 : 1991-2012 puis 2013. Renvoie
+    le pipeline, ses metadata, le contexte de serving et les lignes d'apprentissage, qui servent à
+    comparer avec le modèle servi.
     """
-    df = load_dataset(RECOMMEND_DATASET, RECOMMEND_ROWS, RECOMMEND_COLUMNS,
-                      non_negative=[RECOMMEND_TARGET], verbose=False)
     df = add_historical_conditions(add_recommend_features(df, charger_coordonnees()))
 
     categorical, numeric = RECOMMEND_FINAL_CATEGORICAL, RECOMMEND_FINAL_NUMERIC
@@ -445,19 +459,28 @@ def main(argv: list[str] | None = None) -> int:
                         help="dossier des fichiers produits (défaut : models/)")
     output_dir = parser.parse_args(argv).output_dir.resolve()
 
-    missing = [path for path in (PREDICT_DATASET, RECOMMEND_DATASET, GEOJSON_PAR_DEFAUT) if not path.is_file()]
+    missing = [path for path in (*RAW_FILES, GEOJSON_PAR_DEFAUT) if not path.is_file()]
     if missing:
         names = ", ".join(str(shown_path(path)) for path in missing)
         print(f"Données absentes : {names}. Voir data/README.md.", file=sys.stderr)
         return 1
 
-    # 1. reconstruction et contrôles, tout en mémoire
-    predict_pipeline, predict_metadata, predict_sample = build_predict()
+    # 1. préparation des datasets d'entraînement en mémoire, à partir des données brutes
+    predict_data, recommend_data = prepare_training_datasets()
+    check_training_dataset(PREDICT_DATASET.name, predict_data, PREDICT_ROWS, PREDICT_FEATURES + [PREDICT_TARGET],
+                           PREDICT_TARGET)
+    check_training_dataset(RECOMMEND_DATASET.name, recommend_data, RECOMMEND_ROWS, RECOMMEND_COLUMNS,
+                           RECOMMEND_TARGET)
+    print(f"données    : {len(predict_data)} lignes /predict et {len(recommend_data)} lignes /recommend, "
+          "préparées en mémoire")
+
+    # 2. reconstruction et contrôles, tout en mémoire
+    predict_pipeline, predict_metadata, predict_sample = build_predict(predict_data)
     check_predict(predict_pipeline, predict_metadata)
-    recommend_pipeline, recommend_metadata, context, recommend_sample = build_recommend()
+    recommend_pipeline, recommend_metadata, context, recommend_sample = build_recommend(recommend_data)
     check_recommend(recommend_pipeline, recommend_metadata, context)
 
-    # 2. comparaison avec les artefacts servis, s'ils existent, avant toute écriture
+    # 3. comparaison avec les artefacts servis, s'ils existent, avant toute écriture
     compared = [
         compare_with_served("predict", predict_pipeline, predict_metadata, predict_sample),
         compare_with_served("recommend", recommend_pipeline, recommend_metadata, recommend_sample),
@@ -466,7 +489,7 @@ def main(argv: list[str] | None = None) -> int:
     if not all(compared):
         print("models/    : artefacts servis absents ou incomplets, comparaison partielle ou ignorée")
 
-    # 3. écriture
+    # 4. écriture
     output_dir.mkdir(parents=True, exist_ok=True)
     joblib.dump(predict_pipeline, output_dir / "predict_model.joblib")
     write_json(output_dir / "predict_model_metadata.json", predict_metadata)
@@ -474,7 +497,7 @@ def main(argv: list[str] | None = None) -> int:
     write_json(output_dir / "recommend_model_metadata.json", recommend_metadata)
     write_json(output_dir / "recommend_context.json", context)
 
-    # 4. rechargement par le code de serving
+    # 5. rechargement par le code de serving
     check_reloaded(output_dir)
     print(f"5 fichiers écrits dans {shown_path(output_dir)}")
     return 0

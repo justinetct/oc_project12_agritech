@@ -1,16 +1,14 @@
 # Projet 12 : Concevez un système de recommandations pour une agriculture optimisée par les données
 
-[![CI](https://github.com/justinetct/oc_project12_agritech/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/justinetct/oc_project12_agritech/actions/workflows/ci.yml) ![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white) ![Gradio](https://img.shields.io/badge/Gradio-FF7C00?logo=gradio&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Tests : 793](https://img.shields.io/badge/tests-793-2E7D32) ![Couverture : 97 %](https://img.shields.io/badge/coverage-97%25-2E7D32)
+[![CI](https://github.com/justinetct/oc_project12_agritech/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/justinetct/oc_project12_agritech/actions/workflows/ci.yml) ![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white) ![Gradio](https://img.shields.io/badge/Gradio-FF7C00?logo=gradio&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Tests : 801](https://img.shields.io/badge/tests-801-2E7D32) ![Couverture : 97 %](https://img.shields.io/badge/coverage-97%25-2E7D32)
 
-> Agritech Answers propose deux services d'aide à la décision agricole : estimer le rendement d'une parcelle
+Agritech Answers propose deux services d'aide à la décision agricole : estimer le rendement d'une parcelle
 (`/predict`) et classer les cultures d'un pays selon leur rendement estimé (`/recommend`). Les modèles sont
 servis par une API FastAPI. Une interface Streamlit permet d'utiliser les deux services, et un dashboard Gradio
 suit l'activité de l'API (volumes, erreurs, latences). L'application est déployée sur Render, en préproduction et
 en production.
 
 [![Voir le rapport technique](https://img.shields.io/badge/📄_Voir_le_rapport_technique-1F5D42?style=for-the-badge)](https://justinetct.github.io/oc_project12_agritech/rapport_technique.html)
-
-Source : [`docs/rapport_technique.md`](docs/rapport_technique.md)
 
 ## Applications en ligne
 
@@ -196,21 +194,9 @@ données générés ne sont pas versionnés et se reconstruisent avec les notebo
 make rebuild-models
 ```
 
-Cette commande reconstruit les 5 fichiers chargés par l'API, dans `models/` : `predict_model.joblib`,
-`predict_model_metadata.json`, `recommend_model.joblib`, `recommend_model_metadata.json` et
-`recommend_context.json`. Elle a besoin des datasets préparés de `data/processed/` (notebooks 04 à 06) et du
-GeoJSON de `data/geo/` (voir [`data/README.md`](data/README.md)).
-
-Elle reproduit les protocoles finaux, sans refaire la sélection de modèle, le tuning, la validation croisée ni le
-suivi MLflow : après leur évaluation, `/predict` est réentraîné sur les 999 769 lignes et `/recommend` sur
-1991-2013. Les métriques d'évaluation finale sont recopiées dans les métadonnées, pas recalculées. Avant
-d'écrire, le script compare le résultat aux fichiers déjà présents dans `models/` (prédictions sur 1 000 lignes du
-test `/predict` et sur les 15 636 lignes `/recommend`, métadonnées, contexte) et s'arrête s'ils diffèrent. Après
-l'écriture, il recharge les 5 fichiers avec le code de serving et vérifie des prédictions de référence et le
-classement de la France ; `poetry run python scripts/rebuild_models.py --output-dir /tmp/agritech-models`
-reconstruit ailleurs pour vérifier. Les notebooks 11 et 15 écrivent leur modèle évalué dans `models/` : après leur
-réexécution, `git restore models/` remet les artefacts servis ; sinon, supprimer les fichiers réécrits puis lancer
-`make rebuild-models`.
+Cette commande reconstruit dans `models/` les 5 fichiers chargés par l'API, à partir des seules données brutes et
+du GeoJSON de `data/geo/`, sans `data/processed/` (voir [`data/README.md`](data/README.md)). Fonctionnement,
+contrôles de reproductibilité et reconstruction de contrôle : [`scripts/README.md`](scripts/README.md).
 
 Le modèle `/recommend` est sérialisé par `dump_without_tree_state_memo` (`src/agritech/serialization.py`) : même
 fichier lzma, relu par `joblib.load`, avec un pic mémoire plus faible au chargement, pour tenir dans les 512 Mo de
@@ -287,7 +273,7 @@ make test-streamlit
 make test-gradio
 ```
 
-La suite complète compte **793 tests**. Couverture : **97 %** sur le périmètre mesuré : les modules servis
+La suite complète compte **801 tests**. Couverture : **97 %** sur le périmètre mesuré : les modules servis
 (`agritech.api`, `agritech.serving`, `agritech.monitoring`, `agritech.observability` et `agritech.ui`) et la
 sérialisation des modèles (`agritech.serialization`). Les points d'entrée `streamlit_app/` et `gradio_app/app.py` sont testés mais
 hors de ce calcul. Les modules d'entraînement, utilisés par les notebooks, en sont aussi exclus ; leurs invariants
@@ -336,8 +322,8 @@ Les deux environnements disposent de leur propre configuration et de leurs propr
 ├── gradio_app/app.py                # dashboard de monitoring (Gradio)
 ├── models/                          # modèles servis et leurs métadonnées
 ├── notebooks/                       # exploration, préparation et modélisation
-├── scripts/rebuild_models.py        # reconstruction des modèles servis
-├── src/agritech/                    # code partagé : préparation, modélisation, serving
+├── scripts/                         # préparation des données et reconstruction des modèles servis
+├── src/agritech/                    # code partagé : prétraitement, modélisation, serving
 │   ├── api/                         # FastAPI : routers, schémas, middleware
 │   ├── monitoring/                  # archivage SQLite, lectures du monitoring, rejeu, historique de démo
 │   ├── observability/               # configuration Logfire facultative
@@ -360,7 +346,8 @@ Les deux environnements disposent de leur propre configuration et de leurs propr
 ## Documentation
 
 - Rapport technique : [`docs/rapport_technique.md`](docs/rapport_technique.md), publié en HTML sur
-  [GitHub Pages](https://justinetct.github.io/oc_project12_agritech/rapport_technique.html).
+  [GitHub Pages](https://justinetct.github.io/oc_project12_agritech/rapport_technique.html). Version PDF :
+  [`docs/rapport_technique.pdf`](docs/rapport_technique.pdf).
 - Données : [`data/README.md`](data/README.md).
 - API : documentation Swagger sur `/docs`, en ligne (voir [Applications en ligne](#applications-en-ligne)) ou en
   local sur `http://127.0.0.1:8000/docs`.
