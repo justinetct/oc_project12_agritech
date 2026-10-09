@@ -121,7 +121,9 @@ n'est pas connue, et certaines valeurs ont été révisées depuis (Égypte : 51
 
 ## Datasets d'entraînement
 
-Produits par `notebooks/06_prepare_training_dataset.ipynb`, non versionnés.
+Produits par `notebooks/06_prepare_training_dataset.ipynb`, non versionnés. `make rebuild-models` n'en a pas
+besoin : il refait la même préparation en mémoire, à partir des données brutes (voir
+[`scripts/README.md`](../scripts/README.md)).
 
 | Fichier | Lignes | Colonnes |
 |---|---|---|

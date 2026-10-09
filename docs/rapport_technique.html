@@ -56,7 +56,7 @@
           <span>Streamlit</span>
           <span>scikit-learn</span>
           <span>Docker</span>
-          <span>793 tests</span>
+          <span>801 tests</span>
           <span>couverture 97 %</span>
         </div>
       </section>
@@ -1078,9 +1078,11 @@
       <li><strong>L'interface Streamlit ne contient aucune logique ML.</strong> Les bornes, les domaines d'apprentissage, les pays, les
         cultures et les valeurs par défaut viennent des endpoints <code>/context</code> ; l'interface envoie les valeurs saisies et
         affiche ce que l'API renvoie : rendement, classement et avertissements.</li>
-      <li><strong>Reproductibilité.</strong> Les artefacts servis peuvent être reconstruits à partir des données préparées avec
-        <code>make rebuild-models</code> ; la commande et les contrôles associés sont documentés dans le README. Les notebooks 11 et
-        15 écrivent leur modèle évalué au même endroit : le README indique comment restaurer ensuite les artefacts servis.</li>
+      <li><strong>Reproductibilité.</strong> Les artefacts servis peuvent être reconstruits à partir des données brutes avec
+        <code>make rebuild-models</code> ; la commande et les contrôles associés sont documentés dans
+        <a href="https://github.com/justinetct/oc_project12_agritech/blob/main/scripts/README.md"><code>scripts/README.md</code></a>. Les
+        notebooks 11 et 15 écrivent leur modèle évalué au même endroit : ce fichier indique comment restaurer ensuite les
+        artefacts servis.</li>
       </ul>
       <h3 id="api">API</h3>
       <figure><img width="1321" height="896" alt="Documentation Swagger de l'API en production : l'endpoint de santé, les quatre endpoints métier et les deux endpoints de monitoring, protégés par token" src="assets/screenshots/UI_API.png" /><figcaption>Documentation Swagger de l'API en production : l'endpoint de santé, les quatre endpoints métier et les deux endpoints de monitoring, protégés par token</figcaption></figure>
@@ -1187,11 +1189,11 @@
       </tr>
       <tr>
       <td>Reconstruction et sérialisation des modèles</td>
-      <td style="text-align: right;">26</td>
+      <td style="text-align: right;">34</td>
       </tr>
       <tr>
       <td><strong>Total</strong></td>
-      <td style="text-align: right;"><strong>793</strong></td>
+      <td style="text-align: right;"><strong>801</strong></td>
       </tr>
       </tbody>
       </table></div>

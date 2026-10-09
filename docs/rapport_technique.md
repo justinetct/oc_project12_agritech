@@ -1,6 +1,6 @@
 # Rapport — Agritech Answers
 
-![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Tests : 793](https://img.shields.io/badge/tests-793-2E7D32) ![Couverture : 97 %](https://img.shields.io/badge/coverage-97%25-2E7D32)
+![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Tests : 801](https://img.shields.io/badge/tests-801-2E7D32) ![Couverture : 97 %](https://img.shields.io/badge/coverage-97%25-2E7D32)
 
 *Système de prédiction de rendement et de recommandation de cultures.*
 
@@ -526,9 +526,11 @@ suit l'activité de l'API. Le suivi des appels, la qualité du code et le déplo
 - **L'interface Streamlit ne contient aucune logique ML.** Les bornes, les domaines d'apprentissage, les pays, les
   cultures et les valeurs par défaut viennent des endpoints `/context` ; l'interface envoie les valeurs saisies et
   affiche ce que l'API renvoie : rendement, classement et avertissements.
-- **Reproductibilité.** Les artefacts servis peuvent être reconstruits à partir des données préparées avec
-  `make rebuild-models` ; la commande et les contrôles associés sont documentés dans le README. Les notebooks 11 et
-  15 écrivent leur modèle évalué au même endroit : le README indique comment restaurer ensuite les artefacts servis.
+- **Reproductibilité.** Les artefacts servis peuvent être reconstruits à partir des données brutes avec
+  `make rebuild-models` ; la commande et les contrôles associés sont documentés dans
+  [`scripts/README.md`](https://github.com/justinetct/oc_project12_agritech/blob/main/scripts/README.md). Les
+  notebooks 11 et 15 écrivent leur modèle évalué au même endroit : ce fichier indique comment restaurer ensuite les
+  artefacts servis.
 
 ### API
 
@@ -604,8 +606,8 @@ demande :
 | API, modèles, monitoring et observabilité | 438 |
 | Protocole d'entraînement (historique, découpage temporel) | 13 |
 | Architecture Docker | 22 |
-| Reconstruction et sérialisation des modèles | 26 |
-| **Total** | **793** |
+| Reconstruction et sérialisation des modèles | 34 |
+| **Total** | **801** |
 
 Couverture globale : **97 %** sur le périmètre mesuré. Les invariants des modules d'entraînement
 (historique sans fuite temporelle, découpage temporel) sont testés à part. Lint : Ruff (`make lint`).
